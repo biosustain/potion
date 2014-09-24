@@ -17,3 +17,4 @@ class ClientTestCase(TestCase):
 
         book_1 = client.Book.read(1)
         self.assertEqual('/book/1/is-new', book_1.is_new.uri)
+
