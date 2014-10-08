@@ -1,61 +1,81 @@
-from flask.ext.potion.schema import HasSchema
+import re
+from flask import url_for
+from flask.ext.potion.schema import Schema
+from flask.ext.potion.util import route_from
 
 
-class KeyResolver(HasSchema):
+class Resolver(object):
     pass
 
-    def schema(self):
+    def schema(self, resource):
         raise NotImplementedError()
 
 
-class KeyFormatter(HasSchema):
-    pass
-
-
-class GetOrCreateResolver(KeyResolver):
-    """
-    One of:
-        ``$upsert``, ``$getOrCreate``
-
-    ::
-
-        {
-            "$upsert": true,
-            # .. properties ..
+class RefResolver(Resolver):
+    def schema(self, resource):
+        resource_url = url_for(resource.endpoint)
+        return {
+            "type": "object",
+            "properties": {
+                "$ref": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^{}".format(re.escape(resource_url))
+                }
+            },
+            "required": ["$ref"]
         }
 
-    """
+    def format(self, resource, item):
+        return {"$ref": resource.get_item_url(item)}
 
-    def __init__(self, *using_properties, first_if_multiple=True):
-        pass
-
-
-class RefObjectResolver(KeyResolver):
-    """
-
-    JSON-Reference
-
-    http://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03
-
-    Although this Internet-Draft seems to have expired, the idea works pretty well standardized or not.
-    It is similar to the EJSON reference model.
-    ::
-
-        {"$ref": "/resource/1" }
-
-    """
-    pass
+    def resolve(self, resource, value):
+        endpoint, args = route_from(value["$ref"])
+        # XXX verify endpoint is correct (it should be)
+        assert resource.endpoint == endpoint
+        return resource.get_item_from_id(args['id'])
 
 
-class PropertyResolver(KeyResolver):
+class PropertyResolver(Resolver):
     def __init__(self, property):
-        pass
+        self.property = property
+
+    def schema(self, resource):
+        return resource.schema[self.property].response_schema
+
+    def format(self, resource, item):
+        return resource.schema[self.property].output(self.property, item)
+
+    def resolve(self, resource, value):
+        raise NotImplementedError()
 
 
-class PropertiesResolver(KeyResolver):
+class PropertiesResolver(Resolver):
     def __init__(self, *properties):
-        pass
+        self.properties = properties
 
-class IdentifierResolver(KeyResolver):
+    def schema(self, resource):
+        return {
+            "type": "array",
+            "items": [resource.schema[p].response_schema for p in self.properties]
+        }
+
+    def format(self, resource, item):
+        return [resource.schema[p].output(p, item) for p in self.properties]
+
+    def resolve(self, resource, value):
+        raise NotImplementedError()
+
+
+class IDResolver(Resolver):
     def __init__(self):
-        pass
+        raise NotImplementedError()
+
+    def schema(self, resource):
+        return resource.meta.id_field.response_schema
+
+    def format(self, resource, item):
+        return resource.meta.id_field.output(resource.meta.id_attribute, item)
+
+    def resolve(self, resource, value):
+        return resource.get_item_from_id(value)
