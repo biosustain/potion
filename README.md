@@ -1,6 +1,10 @@
-
-
 # Potion
+
+## Inspiration & Alternatives
+
+Potion used to be based on Flask-RESTful. It no longer shares any code with Flask-RESTful, but there are some residual
+similarities, particularly when it comes to fields. Python-Eve and Flask-Classy are the other two major inspirations.
+Eve is a good alternative for those seeking to work with MongoDB, which is not yet supported in Potion.
 
 ## Planned Features
 
