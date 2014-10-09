@@ -104,3 +104,28 @@ class RelationshipRoute(ItemSetRoute):
         self.backref = backref
         self.io = io
 
+
+class MethodDecoratorMixin(object):
+
+    def GET(self):
+        pass
+
+    def POST(self):
+        pass
+
+    def PATCH(self):
+        pass
+
+    def DELETE(self):
+        pass
+
+
+class Index(MethodDecoratorMixin):
+
+    def __init__(self):
+        pass
+
+
+index = Index
+
+route = Route

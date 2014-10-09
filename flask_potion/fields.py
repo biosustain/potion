@@ -1,7 +1,7 @@
 import re
 from flask import url_for, current_app
 from werkzeug.utils import cached_property
-from flask.ext.potion.reference import resolvers
+from flask.ext.potion.reference import resolvers, ResourceReference
 from flask.ext.potion.schema import Schema
 
 
@@ -95,6 +95,19 @@ class Raw(Schema):
 
         return self.format(value)
 
+def _field_from_object(parent, cls_or_instance):
+    if isinstance(cls_or_instance, type):
+        container = cls_or_instance()
+    else:
+        container = cls_or_instance
+
+    if not isinstance(container, Schema):
+        raise RuntimeError('{} expected Raw or Schema, but got {}'.format(parent, container.__class__.__name__))
+    if not isinstance(container, Raw):
+        container = Raw(container)
+
+    return container
+
 
 class Array(Raw):
     """
@@ -103,25 +116,13 @@ class Array(Raw):
     :param Raw cls_or_instance: field class or instance
     """
     def __init__(self, cls_or_instance, min_items=None, max_items=None, **kwargs):
-        if isinstance(cls_or_instance, type):
-            container = cls_or_instance()
-        else:
-            container = cls_or_instance
-
-        if not isinstance(container, Schema):
-            raise RuntimeError('{} expects Raw or Schema, got {}'.format(self, container.__class__.__name__))
-        if not isinstance(container, Raw):
-            container = Raw(container)
-
-        self.container = container
+        self.container = container = _field_from_object(self, cls_or_instance)
 
         schema_properties = [('type', 'array')]
         schema_properties += [(k, v) for k, v in [('minItems', min_items), ('maxItems', max_items)] if v is not None]
+        schema = lambda s: dict([('items', s)] + schema_properties)
 
-        super(Array, self).__init__(lambda: (
-            dict([('items', container.response)] + schema_properties),
-            dict([('items', container.request)] + schema_properties)
-        ), **kwargs)
+        super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)), **kwargs)
 
     def format(self, value):
         return [self.container.format(v) for v in value]
@@ -130,10 +131,71 @@ class Array(Raw):
         return [self.container.convert(v) for v in value]
 
 
-# class Object(Raw):
-#
-#     def __init__(self, properties=None, pattern_properties=None, additional_properties=None, nullable=False):
-#         pass
+class KeyValue(Raw):
+    """
+    A field for an object containing properties of a single type specified by a schema or field.
+
+    :param Raw cls_or_instance: field class or instance
+    :param str pattern: an optional regular expression that all property keys must match
+    """
+    def __init__(self, cls_or_instance, pattern=None, **kwargs):
+        self.container = container = _field_from_object(self, cls_or_instance)
+
+        if pattern:
+            schema = lambda s: {
+                "type": "object",
+                "additionalProperties": False,
+                "patternProperties": {
+                    pattern: s
+                }
+            }
+        else:
+            schema = lambda s: {
+                "type": "object",
+                "additionalProperties": s
+            }
+
+        super(KeyValue, self).__init__(lambda: (schema(container.response), schema(container.request)), **kwargs)
+
+    def format(self, value):
+        return {k: self.container.format(v) for k, v in value.items()}
+
+    def convert(self, value):
+        return {k: self.container.convert(v) for k, v in value.items()}
+
+
+class AttributeMapped(KeyValue):
+    """
+    Maps property keys from a JSON object to a list of items using `mapping_attribute`. The mapping attribute is the
+    name of the attribute where the value of the property key is set on the property values.
+
+    .. seealso::
+
+        :class:`InlineModel` field is typically used with this field in a common SQLAlchemy pattern.
+
+    :param Raw cls_or_instance: field class or instance
+    :param str pattern: an optional regular expression that all property keys must match
+    :param str mapping_attribute: mapping attribute
+    """
+    def __init__(self, *args, mapping_attribute=None, **kwargs):
+        self.mapping_attribute = mapping_attribute
+        super().__init__(*args, **kwargs)
+
+    def _set_mapping_attribute(self, obj, value):
+        setattr(obj, self.mapping_attribute, value)
+        return obj
+
+    def format(self, value):
+        return {getattr(v, self.mapping_attribute): self.container.format(v) for v in value}
+
+    def convert(self, value):
+        return [self._set_mapping_attribute(self.container.convert(v), k) for k, v in value.items()]
+
+
+class Object(Raw):
+
+    def __init__(self, properties=None, pattern_properties=None, additional_properties=None, nullable=False):
+        raise NotImplementedError()
 
 
 class String(Raw):
@@ -214,33 +276,8 @@ class Number(Raw):
 
 
 class ToOne(Raw):
-    """
-
-    Different schemas for read & write:
-
-    {
-        "type": "object",
-        "properties": {
-            "$ref": {
-                "type": "string",
-                "format": "uri",
-                "pattern": "^{}".format(re.escape(resource_url))
-            }
-        },
-        "required": ["$ref"]
-    }
-
-    {
-        "type": ["null", "object"],
-        "anyOf": {
-            "$ref": "{}/schema#definitions/_resolvers".format(resource_url)
-        }
-    }
-
-
-    """
     def __init__(self, resource, formatter=resolvers.RefResolver(), **kwargs):
-        self.resource = resource
+        self._resource = ResourceReference(resource)
         self.formatter = formatter
         self.binding = None
 
@@ -265,9 +302,58 @@ class ToOne(Raw):
 
         super(ToOne, self).__init__(schema, **kwargs)
 
+    @cached_property
+    def resource(self):
+        return self._resource.resolve(self.binding)  # FIXME XXX could just have this in Potion instance
+
+    def format(self, item):
+        raise NotImplementedError() # TODO
+
+
+    def convert(self, value):
+        pass
+
+
+class ToMany(Array):
+    def __init__(self, resource, **kwargs):
+        super(ToMany, self).__init__(ToOne(resource, nullable=False), **kwargs)
 
 
 class Inline(Raw):
 
     def __init__(self, resource, **kwargs):
-        self.resource = resource
+        self._resource = resource
+        self.binding = None
+
+        def schema():
+            resource_url = url_for(self.resource.endpoint)
+            return { "$ref": "{}/schema".format(resource_url) }
+
+        super(Inline, self).__init__(schema, **kwargs)
+
+    @cached_property
+    def resource(self):
+        return self._resource.resolve(self.binding)  # FIXME XXX could just have this in Potion instance
+
+    def format(self, item):
+        return self.resource.schema.format(item)
+
+    def convert(self, item):
+        # TODO create actual model instance here?
+        return self.resource.schema.convert(item)
+
+
+# class InlineModel(fields.Nested):
+#
+#     def __init__(self, fields, model, **kwargs):
+#         super().__init__(fields, **kwargs)
+#         self.model = model
+#
+#     def convert(self, obj):
+#         obj = EmbeddedJob.complete(super().convert(obj))
+#         if obj is not None:
+#             obj = self.model(**obj)
+#         return obj
+#
+#     def format(self, obj):
+#         return marshal(obj, self.fields)

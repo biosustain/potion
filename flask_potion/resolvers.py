@@ -1,17 +1,24 @@
 import re
 from flask import url_for
+from werkzeug.utils import cached_property
 from flask.ext.potion.schema import Schema
 from flask.ext.potion.util import route_from
-
+import six
 
 class Resolver(object):
-    pass
+
+    def reference_type(self, resource):
+        type_ = self.schema(resource)['type']
+        if isinstance(type_, six.text_types):
+            return type_
+        return type_[0]
 
     def schema(self, resource):
         raise NotImplementedError()
 
 
 class RefResolver(Resolver):
+
     def schema(self, resource):
         resource_url = url_for(resource.endpoint)
         return {
@@ -23,7 +30,8 @@ class RefResolver(Resolver):
                     "pattern": "^{}".format(re.escape(resource_url))
                 }
             },
-            "required": ["$ref"]
+            "required": ["$ref"],
+            "additionalProperties": False
         }
 
     def format(self, resource, item):
@@ -37,6 +45,7 @@ class RefResolver(Resolver):
 
 
 class PropertyResolver(Resolver):
+
     def __init__(self, property):
         self.property = property
 
@@ -57,7 +66,8 @@ class PropertiesResolver(Resolver):
     def schema(self, resource):
         return {
             "type": "array",
-            "items": [resource.schema[p].response_schema for p in self.properties]
+            "items": [resource.schema[p].response_schema for p in self.properties],
+            "additionalItems": False
         }
 
     def format(self, resource, item):
@@ -68,9 +78,6 @@ class PropertiesResolver(Resolver):
 
 
 class IDResolver(Resolver):
-    def __init__(self):
-        raise NotImplementedError()
-
     def schema(self, resource):
         return resource.meta.id_field.response_schema
 

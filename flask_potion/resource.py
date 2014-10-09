@@ -1,9 +1,13 @@
-from collections import namedtuple
-from flask import url_for
+from collections import namedtuple, OrderedDict
+import json
+
+from flask import url_for, request
 from flask.views import MethodViewType
+import itertools
+
 from flask.ext.potion import fields
+from flask.ext.potion.routes import route
 from flask.ext.potion.schema import Schema
-import resolvers
 
 
 class Link(namedtuple('Link', ('uri', 'rel'))):
@@ -12,6 +16,8 @@ class Link(namedtuple('Link', ('uri', 'rel'))):
 class Set(Schema):
     """
     This is what implements all of the pagination, filter, and sorting logic.
+
+    Works like a field, but reads 'where' and 'sort' query string parameters as well as link headers.
     """
 
     def __init__(self, type, default_sort=None):
@@ -58,9 +64,11 @@ def read(resource, attribute="self", *args, **kwargs):
     pass
 
 
+
 class Resource(object):
     items = Set('resource-type')
     meta = None
+    routes = None
     schema = None
 
     @classmethod
@@ -76,51 +84,99 @@ class Resource(object):
     def get_item_from_id(cls, id):
         pass
 
-    @route.get(rel="self")
-    def read(self, id_) -> fields.Inline('resource-type'):
-        pass
+    @classmethod
+    def get_items_query(cls):
 
-    @route.GET(rel="instances")
+    @route.GET('/', rel="instances")
     def instances(self) -> Set('resource-type'):
+        where = None
+        sort = None
+
+        try:
+            if "where" in request.args:
+                where = json.loads(request.args["where"])
+        except:
+            abort(400, message='Bad filter: Must be valid JSON object')
+            # FIXME XXX proper aborts & error messages
+
+        self.items.get(self.get_items_query(),
+                       where=resource.)
+
+    @instances.POST(rel="create")
+    def create(self, item_or_items) -> fields.Inline('self'):
+        pass # TODO handle integrity errors
+
+    create.schema = fields.Inline('self') # TODO
+    create.response_schema = fields.Inline('self')
+
+    @route.GET(lambda r: '/<{}:{}>'.format(r.meta.id_attribute, r.meta.id_converter), rel="self")
+    def read(self, id) -> fields.Inline('self'):
         pass
 
-    @route.POST(rel="create")
-    def create(self, item_or_items) -> fields.Inline('resource-type'):
-        pass
-
-    create.schema = None # TODO
-
-    @item_route.PATCH(rel="update")
-    def update(self, item, **kwargs) -> fields.Inline('resource-type'):
+    @read.PATCH(rel="update")
+    def update(self, item, **kwargs) -> fields.Inline('self'):
         pass
 
     update.schema = None # TODO
 
-    @item_route.DELETE(rel="destroy")
+    @update.DELETE(rel="destroy")
     def destroy(self, item):
         pass
 
-    @route.GET(rel="describedBy")
+    @route.GET('/schema', rel="describedBy")
     def schema(self): # No "targetSchema" because that would be way too meta.
+        defn = OrderedDict()
+
+        # copy title, description from Resource.meta
+        for property in ('title', 'description'):
+            value = getattr(self.meta, property)
+            if value:
+                defn[property] = value
+
+        links = itertools.chain(*[route.get_links(self) for name, route in sorted(self.routes.items())])
+
+        defn['type'] = 'object'
+        defn.update(self.schema.response_schema)
+        defn['links'] = list(links)
+
+        # TODO enforce Content-Type: application/schema+json (overwritten by Flask-RESTful)
+        return defn
+
+    class Schema:
         pass
 
     class Meta:
+        title = None
+        description = None
         id_attribute = 'id'
         id_converter = 'int'
-        id_field = fields.Integer()  # Must inherit from Integer or String
+        id_field = fields.PositiveInteger()  # Must inherit from Integer or String
         include_fields = None
         exclude_fields = None
         allowed_filters = "*"
         permissions = {
-            "read": "anyone",
-            "create": "nobody",
+            "read": "anyone",  # anybody, yes
+            "create": "nobody",  # noone, no
             "update": "create",
             "delete": "update"
         }
         postgres_text_search_fields = ()
-        postgres_full_text_index = ()  # $fulltext
+        postgres_full_text_index = None  # $fulltext
         read_only_fields = ()
         write_only_fields = ()
         natural_keys = ()
         cache = False
 
+
+class StrainResource(Resource):
+
+    class Meta:
+        natural_keys = (
+
+        )
+        natural_keys_by_type = {
+            'int': [resolvers.IDResolver()],
+            'string': [],
+            'object': [],
+            'array': []
+        }
