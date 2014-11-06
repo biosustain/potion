@@ -7,7 +7,7 @@ import six
 
 class Resolver(object):
 
-    def reference_type(self, resource):
+    def matcher_type(self, resource):
         type_ = self.schema(resource)['type']
         if isinstance(type_, six.text_types):
             return type_

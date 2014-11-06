@@ -25,3 +25,24 @@ def route_from(url, method=None):
     if parsed_url.netloc is not "" and parsed_url.netloc != url_adapter.server_name:
         raise NotFound()
     return url_adapter.match(parsed_url.path, method)
+
+
+# FIXME this code is from Flask-RESTful. Need to add license
+def unpack(value):
+    """Return a three tuple of data, code, and headers"""
+    if not isinstance(value, tuple):
+        return value, 200, {}
+
+    try:
+        data, code, headers = value
+        return data, code, headers
+    except ValueError:
+        pass
+
+    try:
+        data, code = value
+        return data, code, {}
+    except ValueError:
+        pass
+
+    return value, 200, {}

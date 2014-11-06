@@ -206,14 +206,78 @@ class String(Raw):
     :param list enum: list of strings with enumeration
     """
 
-    def __init__(self, min_length=None, max_length=None, pattern=None, enum=None, **kwargs):
+    def __init__(self, min_length=None, max_length=None, pattern=None, enum=None, format=None, **kwargs):
         schema = {"type": "string"}
 
-        for v, k in ((min_length, 'minLength'), (max_length, 'maxLength'), (pattern, 'pattern'), (enum, 'enum')):
+        for v, k in ((min_length, 'minLength'),
+                     (max_length, 'maxLength'),
+                     (pattern, 'pattern'),
+                     (enum, 'enum'),
+                     (format, 'format')):
             if v is not None:
                 schema[k] = v
 
         super(String, self).__init__(schema, **kwargs)
+
+
+
+
+#
+# Default:
+# {"$date": <iso date>}
+#
+# Accepts also: string dates
+#
+#
+#
+
+class Date(Raw):
+    # """
+    # Only accept ISO8601-formatted date strings.
+    # """
+    #
+    # def __init__(self, **kwargs):
+    #     # TODO is a 'format' required for "date"
+    #     super(Date, self).__init__({"type": "string", "format": "date"}, **kwargs)
+    #
+    # @skip_none
+    # def format(self, value):
+    #     return value.strftime('%Y-%m-%d')
+    #
+    # @skip_none
+    # def convert(self, value):
+    #     return aniso8601.parse_date(value)
+    pass
+
+
+class DateTime(Raw):
+    # """
+    # Only accept ISO8601-formatted date-time strings.
+    # """
+    #
+    # def __init__(self, **kwargs):
+    #     super(DateTime, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
+    #
+    # @skip_none
+    # def format(self, value):
+    #     return value.isoformat()
+    #
+    # @skip_none
+    # def convert(self, value):
+    #     # FIXME enforce UTC
+    #     return aniso8601.parse_datetime(value)
+    pass
+
+
+class Uri(String):
+    def __init__(self, **kwargs):
+        super(Uri, self).__init__(format="uri", **kwargs)
+
+
+class Email(String):
+    def __init__(self, **kwargs):
+        super(Email, self).__init__(format="email", **kwargs)
+
 
 
 class Boolean(Raw):

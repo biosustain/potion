@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from werkzeug.utils import cached_property
 from flask.ext.potion.errors import ValidationError
+from .util import unpack
 
 
 class Schema(object):
@@ -23,13 +24,29 @@ class Schema(object):
             return schema[1]
         return schema
 
+    def format(self, data):
+        return data
 
-class FieldSet(object):
+    def convert(self, data):
+        pass # TODO validate
+
+    def parse_request(self, request):
+        data = request.json
+
+        return self.convert(data)
+
+    def format_response(self, response):
+        data, code, headers = unpack(response)
+        # TODO omit formatting on certain codes.
+        return self.format(data), code, headers
+
+
+class FieldSet(Schema):
 
     def __init__(self, fields, required_fields=None, read_only_fields=None):
         self.fields = fields
-        self.required = required_fields
-        self.read_only_override = read_only_fields
+        self.required = required_fields or ()
+        self.read_only_override = read_only_fields or ()
 
     def schema(self):
         response_schema = {
@@ -98,3 +115,19 @@ class FieldSet(object):
                 raise ValidationError('unknown-properties', unknown_fields)
 
         return converted
+
+    def parse_request(self, request):
+        data = request.json
+
+        if not data and request.method in ('GET', 'HEAD'):
+            data = {}
+
+            for name, field in self.fields.items():
+                # FIXME type conversion!
+                data[name] = request.args.get(name, type=field.python_type)
+
+        if not self.fields:
+            return {}
+
+        return self.convert(data)
+

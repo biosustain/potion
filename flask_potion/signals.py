@@ -1,21 +1,23 @@
+from blinker import Namespace
 
+_potion = Namespace()
 
-before_create = None
+before_create = _potion.signal('before-create')
 
-after_create = None
+after_create = _potion.signal('after-create')
 
-before_update = None
+before_update = _potion.signal('before-update')
 
-after_update = None
+after_update = _potion.signal('after-update')
 
-before_delete = None
+before_delete = _potion.signal('before-delete')
 
-after_delete = None
+after_delete = _potion.signal('after-delete')
 
-before_add_to_relationship = None
+before_add_to_relationship = _potion.signal('before-add-to-relationship')
 
-after_add_to_relationship = None
+after_add_to_relationship = _potion.signal('after-add-to-relationship')
 
-before_remove_from_relationship = None
+before_remove_from_relationship = _potion.signal('before-remove-from-relationship')
 
-after_remove_from_relationship = None
+after_remove_from_relationship = _potion.signal('after-remove-from-relationship')

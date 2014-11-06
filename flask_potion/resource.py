@@ -1,13 +1,20 @@
 from collections import namedtuple, OrderedDict
 import json
+import datetime
 
 from flask import url_for, request
 from flask.views import MethodViewType
 import itertools
+import six
 
-from flask.ext.potion import fields
-from flask.ext.potion.routes import route
-from flask.ext.potion.schema import Schema
+from . import fields
+from sqlalchemy.dialects import postgres
+from sqlalchemy.orm import class_mapper
+import sqlalchemy.types as sa_types
+from .manager import Manager
+from .routes import route, Route, MultiRoute
+from .schema import Schema, FieldSet
+from collections import defaultdict
 
 
 class Link(namedtuple('Link', ('uri', 'rel'))):
@@ -20,10 +27,22 @@ class Set(Schema):
     Works like a field, but reads 'where' and 'sort' query string parameters as well as link headers.
     """
 
-    def __init__(self, type, default_sort=None):
+    def __init__(self, resource, default_sort=None):
         pass
 
     def get(self, items, where=None, sort=None, page=None, per_page=None):
+        """
+
+        :param items: SQLAlchemy Query object
+        :param where:
+        :param sort:
+        :param page:
+        :param per_page:
+        :return:
+        """
+        #
+        # TODO make work with non
+        #
 
         items = self._filter_where(items, where)
         items = self._sort_by(items, sort)
@@ -43,37 +62,143 @@ class Set(Schema):
         raise NotImplementedError()
 
 
-
-class ResourceMeta(MethodViewType):
+class PotionMeta(type):
     def __new__(mcs, name, bases, members):
-        class_ = super(ResourceMeta, mcs).__new__(mcs, name, bases, members)
+        class_ = super(PotionMeta, mcs).__new__(mcs, name, bases, members)
+        class_.routes = routes = dict(getattr(class_, 'routes', {}))
 
-        if hasattr(class_, '_meta'):
-            meta = {}
-            schema = {}
-            routes = {}
+        for name, m in members.items():
+            if isinstance(m, (Route, MultiRoute)):
+                m.binding = class_
 
-            try:
-                meta = dict(getattr(class_, 'Meta').__dict__)
-            except AttributeError:
-                pass
+                if m.attribute is None:
+                    m.attribute = name
+
+                routes[m.attribute] = m
+
+        return class_
 
 
-
-def read(resource, attribute="self", *args, **kwargs):
+class PotionResource(six.with_metaclass(PotionMeta, object)):
     pass
 
 
+class ResourceMeta(PotionMeta):
 
-class Resource(object):
-    items = Set('resource-type')
+    @staticmethod
+    def _get_field_from_python_type(python_type):
+        try:
+            return {
+                str: fields.String,
+                six.text_type: fields.String,
+                int: fields.Integer,
+                float: fields.Number,
+                bool: fields.Boolean,
+                list: fields.Array,
+                dict: fields.KeyValue,
+                datetime.date: fields.Date,
+                datetime.datetime: fields.DateTime
+            }[python_type]
+        except KeyError:
+            raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
+
+    def __new__(mcs, name, bases, members):
+        class_ = super(ResourceMeta, mcs).__new__(mcs, name, bases, members)
+        class_.meta = meta = dict(getattr(class_, 'meta', {}))
+        class_.routes = routes = dict(getattr(class_, 'routes', {}))
+
+        if 'Schema' in members:
+            schema = dict(members['Schema'].__dict__)
+        else:
+            schema = {}
+
+        if 'Meta' in members:
+            changes = members['Meta'].__dict__
+            meta.update(changes)
+
+            # (pre-)populate schema with fields from model:
+            if 'model' in changes:
+                model = changes['model']
+                mapper = class_mapper(model)
+
+                id_field = meta.get('id_field', mapper.primary_key[0].name)
+                id_column = getattr(model, id_field)
+
+                # resource name: use model table's name if not set explicitly
+                if 'name' not in meta:
+                    meta['name'] = model.__tablename__.lower()
+
+                include_fields = meta.get('include_fields', None)
+                exclude_fields = meta.get('exclude_fields', None)
+                explicit_fields = {f.attribute or k for k, f in schema.items()}
+
+                for name, column in six.iteritems(dict(mapper.columns)):
+                    if (include_fields and name in include_fields) or \
+                            (exclude_fields and name not in exclude_fields) or \
+                            not (include_fields or exclude_fields):
+
+                        if column.primary_key or column.foreign_keys:
+                            continue
+
+                        if name in explicit_fields:
+                            continue
+
+                        args = ()
+                        kwargs = {}
+
+                        if isinstance(column.type, postgres.ARRAY):
+                            field_class = fields.Array
+                            args = (fields.String,)
+                        elif isinstance(column.type, sa_types.String) and column.type.length:
+                            field_class = fields.String
+                            kwargs = {'max_length': column.type.length}
+                        elif isinstance(column.type, postgres.HSTORE):
+                            field_class = fields.KeyValue
+                            args = (fields.String,)
+                        elif hasattr(postgres, 'JSON') and isinstance(column.type, postgres.JSON):
+                            field_class = fields.Raw
+                            kwargs = {"schema": {}}
+                        else:
+                            field_class = mcs._get_field_from_python_type(column.type.python_type)
+
+                        kwargs['nullable'] = column.nullable
+
+                        if column.default is not None and column.default.is_scalar:
+                            kwargs['default'] = column.default.arg
+                        #
+                        # if not (column.nullable or column.default):
+                        #     meta["required_fields"].append(name)
+                        schema[name] = field_class(*args, attribute=name, **kwargs)
+
+
+            # TODO pre-populate Schema from `model` if present in 'meta'
+
+        # create fieldset schema
+        # add id_field from meta to fieldset schema
+
+        if schema:
+            class_.schema = FieldSet({k: f for k, f in schema.items() if not k.startswith('__')},
+                                     required_fields=meta.get('required_fields', None),
+                                     read_only_fields=meta.get('read_only_fields', None))
+
+        # NKs: group by type -- e.g. string, integer, object, array -- while keeping order intact:
+        if hasattr(meta, 'natural_keys'):
+            meta['natural_keys_by_type'] = natural_keys_by_type = defaultdict(list)
+            for nk in meta['natural_keys']:
+                natural_keys_by_type[nk.matcher_type(class_)].append(nk)
+
+        return class_
+
+
+class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
+    items = Manager(None, None)
     meta = None
     routes = None
     schema = None
 
     @classmethod
     def get_item_id(cls, item):
-        pass
+        return getattr(item, cls.meta['id_attribute'])
 
     @classmethod
     def get_item_url(cls, item):
@@ -86,9 +211,10 @@ class Resource(object):
 
     @classmethod
     def get_items_query(cls):
+        pass
 
     @route.GET('/', rel="instances")
-    def instances(self) -> Set('resource-type'):
+    def instances(self):
         where = None
         sort = None
 
@@ -99,28 +225,34 @@ class Resource(object):
             abort(400, message='Bad filter: Must be valid JSON object')
             # FIXME XXX proper aborts & error messages
 
-        self.items.get(self.get_items_query(),
-                       where=resource.)
+        self.items.get(self.items.index().all())
+
+    instances.schema = Set('self') # TODO NOTE Set('self') for filter, etc. schema
+    instances.response_schema = Set('self')
 
     @instances.POST(rel="create")
-    def create(self, item_or_items) -> fields.Inline('self'):
+    def create(self, item_or_items) -> fields.Inline('self'):  # XXX need some way for field bindings to be dynamic/work dynamically.
         pass # TODO handle integrity errors
 
-    create.schema = fields.Inline('self') # TODO
+    create.schema = None # TODO resource.schema.request_schema
     create.response_schema = fields.Inline('self')
 
-    @route.GET(lambda r: '/<{}:{}>'.format(r.meta.id_attribute, r.meta.id_converter), rel="self")
-    def read(self, id) -> fields.Inline('self'):
+    @route.GET(lambda r: '/<id:{}>'.format(r.meta.id_converter), rel="self")
+    def read(self, id):
         pass
+
+    read.schema = None
+    read.response_schema = fields.Inline('self')
 
     @read.PATCH(rel="update")
-    def update(self, item, **kwargs) -> fields.Inline('self'):
+    def update(self, id, object_):
         pass
 
-    update.schema = None # TODO
+    update.schema = None # TODO resource.schema.request_schema
+    update.response_schema = fields.Inline('self')
 
     @update.DELETE(rel="destroy")
-    def destroy(self, item):
+    def destroy(self, id):
         pass
 
     @route.GET('/schema', rel="describedBy")
@@ -168,15 +300,15 @@ class Resource(object):
         cache = False
 
 
-class StrainResource(Resource):
-
-    class Meta:
-        natural_keys = (
-
-        )
-        natural_keys_by_type = {
-            'int': [resolvers.IDResolver()],
-            'string': [],
-            'object': [],
-            'array': []
-        }
+# class StrainResource(Resource):
+#
+#     class Meta:
+#         natural_keys = (
+#
+#         )
+#         natural_keys_by_type = {
+#             'int': [resolvers.IDResolver()],
+#             'string': [],
+#             'object': [],
+#             'array': []
+#         }
