@@ -6,12 +6,12 @@ from . import resolvers
 from .reference import ResourceReference
 from .schema import Schema
 
+# FIXME this code is similar to Flask-RESTful code. Need to add license
 def _get_value_for_key(key, obj, default):
-    # FIXME from RESTful; note in license
-    if isinstance(obj, collections.Iterable):
+    if hasattr(obj, '__getitem__'):
         try:
             return obj[key]
-        except (IndexError, TypeError, KeyError):
+        except (IndexError, KeyError):
             pass
     return getattr(obj, key, default)
 
@@ -100,9 +100,10 @@ class Raw(Schema):
 
     def output(self, key, obj):
         key = key if self.attribute is None else self.attribute
-        value = _get_value_for_key(key, obj, self.default)
-        return self.format(value)
+        return self.format(_get_value_for_key(key, obj, self.default))
 
+
+# FIXME this code is similar to Flask-RESTful code. Need to add license
 def _field_from_object(parent, cls_or_instance):
     if isinstance(cls_or_instance, type):
         container = cls_or_instance()

@@ -39,12 +39,12 @@ class FieldsTestCase(TestCase):
                                     ]
                                 }, nullable=True)
         self.assertEqual({
-                                    "oneOf": [
-                                        {"type": "string", "minLength": 5},
-                                        {"type": "string", "maxLength": 3},
-                                        {"type": "null"}
-                                    ]
-                                }, foo_one_of.response)
+                             "oneOf": [
+                                 {"type": "string", "minLength": 5},
+                                 {"type": "string", "maxLength": 3},
+                                 {"type": "null"}
+                             ]
+                         }, foo_one_of.response)
 
         foo_any_of = fields.Raw(
             {
@@ -88,6 +88,9 @@ class FieldsTestCase(TestCase):
         self.assertEqual(12, fields.Raw({"type": "number"}).convert(12))
 
     def test_raw_output(self):
-        self.assertEqual(12, fields.Raw({"type": "number"}).output("age", {"age": 12}))
-        self.assertEqual(12.5, fields.Raw({"type": "number"}, attribute="yearsBornAgo").output("age", {"yearsBornAgo": 12.5}))
+        foo = fields.Raw({"type": "number"})
+        self.assertEqual(12, foo.output("age", {"age": 12}))
+
+        foo_attribute = fields.Raw({"type": "number"}, attribute="yearsBornAgo")
+        self.assertEqual(12.5, foo_attribute.output("age", {"yearsBornAgo": 12.5}))
 
