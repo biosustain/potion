@@ -104,6 +104,24 @@ class PotionView(Schema):
             self.response_schema.format_response(response)
 
 
+class DeferredSchema(object):
+    def __init__(self, class_, *args, **kwargs):
+        self.schema_class = class_
+        self.schema_args = args
+        self.schema_kwargs = kwargs
+
+    def __call__(self, resource):
+        schema = self.schema_class(*self.schema_args, **self.schema_kwargs)
+        schema.binding = resource
+        return schema
+
+    @classmethod
+    def schema_for(cls, schema, resource):
+        if isinstance(schema, cls):
+            return schema(resource)
+        return schema
+
+
 class Route(object):
     def __init__(self, view_func,
                  rule=None,
@@ -160,9 +178,6 @@ def route(rule=None, method='GET', **view_kwargs):
         return wraps(fn)(Route(fn, rule, method, **view_kwargs))
 
     return wrapper
-
-
-
 
 
 class MultiRoute(Route):
