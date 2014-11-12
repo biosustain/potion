@@ -1,4 +1,5 @@
 from unittest import TestCase
+from werkzeug.exceptions import BadRequest
 from flask.ext.potion import fields
 
 
@@ -63,7 +64,7 @@ class FieldsTestCase(TestCase):
             }, foo_any_of.response)
 
         foo_ref = fields.Raw({"$ref": "#/some/other/schema"}, nullable=True)
-        self.assertEqual({'anyOf': [{'$ref': '#/some/other/schema'}, {'type': 'null'}]}, foo_ref.response)
+        self.assertEqual({"anyOf": [{"$ref": "#/some/other/schema"}, {"type": "null"}]}, foo_ref.response)
 
     def test_raw_default(self):
         foo = fields.Raw({"type": "string"}, default="Foo")
@@ -93,4 +94,84 @@ class FieldsTestCase(TestCase):
 
         foo_attribute = fields.Raw({"type": "number"}, attribute="yearsBornAgo")
         self.assertEqual(12.5, foo_attribute.output("age", {"yearsBornAgo": 12.5}))
+
+    def test_number_convert(self):
+        with self.assertRaises(BadRequest):
+            fields.Number().convert("nope")
+
+        with self.assertRaises(BadRequest):
+            fields.Number(nullable=False).convert(None)
+
+        with self.assertRaises(BadRequest):
+            fields.Number(minimum=3).convert(2)
+
+        with self.assertRaises(BadRequest):
+            fields.Number(minimum=3, exclusive_minimum=True).convert(3)
+
+        with self.assertRaises(BadRequest):
+            fields.Number(maximum=3, exclusive_maximum=True).convert(3)
+
+        self.assertEqual(3, fields.Number(maximum=3).convert(3))
+        self.assertEqual(3, fields.Number(minimum=3).convert(3))
+        self.assertEqual(None, fields.Number(nullable=True).convert(None))
+        self.assertEqual(1.23, fields.Number().convert(1.23))
+
+    def test_string_schema(self):
+        self.assertEqual({
+                             "type": "string",
+                             "minLength": 2,
+                             "maxLength": 3,
+                             "pattern": "[A-Z][0-9]{1,2}",
+                         }, fields.String(min_length=2, max_length=3, pattern="[A-Z][0-9]{1,2}").response)
+
+    def test_string_convert(self):
+        with self.assertRaises(ValueError):
+            fields.String(min_length=8).convert("123456")
+
+        with self.assertRaises(ValueError):
+            fields.String(max_length=10).convert("abcdefghijklmnopqrstuvwxyz")
+
+        with self.assertRaises(ValueError):
+            fields.String(pattern="^[fF]oo$").convert("Boo")
+
+        self.assertEqual("foo", fields.String(pattern="^[fF]oo$").convert("foo"))
+        self.assertEqual("123456", fields.String().convert("123456"))
+        self.assertEqual(None, fields.String(nullable=True).convert(None))
+
+    def test_kv_convert(self):
+        kv = fields.KeyValue(fields.Integer, nullable=False)
+
+        self.assertEqual({"x": 123}, kv.convert({"x": 123}))
+
+        self.assertEqual({
+                             "type": "object",
+                             "additionalProperties": {
+                                 "type": "integer"
+                             }
+                         }, kv.schema)
+
+        with self.assertRaises(ValueError):
+            kv.convert({"y": "string"})
+
+        with self.assertRaises(ValueError):
+            kv.convert(None)
+
+    def test_kv_convert_pattern(self):
+        kv = fields.KeyValue(fields.Integer, key_pattern="[A-Z][0-9]+")
+
+        self.assertEqual({"A3": 1, "B12": 2}, kv.convert({"A3": 1, "B12": 2}))
+
+        self.assertEqual({
+                             "type": "object",
+                             "additionalProperties": False,
+                             "patternProperties": {
+                                 "[A-Z][0-9]+": {"type": "integer"}
+                             }
+                         }, kv.schema)
+
+        with self.assertRaises(ValueError):
+            kv.convert({"A2": "string"})
+
+        with self.assertRaises(ValueError):
+            kv.convert({"Wrong": 1})
 
