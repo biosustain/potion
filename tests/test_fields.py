@@ -82,11 +82,12 @@ class FieldsTestCase(TestCase):
         self.assertEqual("r", foo.io)
 
     def test_raw_format(self):
-        pass
+        self.assertEqual(12, fields.Raw({"type": "number"}).format(12))
 
     def test_raw_convert(self):
-        pass
+        self.assertEqual(12, fields.Raw({"type": "number"}).convert(12))
 
     def test_raw_output(self):
-        pass
+        self.assertEqual(12, fields.Raw({"type": "number"}).output("age", {"age": 12}))
+        self.assertEqual(12.5, fields.Raw({"type": "number"}, attribute="yearsBornAgo").output("age", {"yearsBornAgo": 12.5}))
 

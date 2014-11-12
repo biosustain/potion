@@ -1,9 +1,19 @@
 import re
+import collections
 from flask import url_for, current_app
 from werkzeug.utils import cached_property
 from . import resolvers
 from .reference import ResourceReference
 from .schema import Schema
+
+def _get_value_for_key(key, obj, default):
+    # FIXME from RESTful; note in license
+    if isinstance(obj, collections.Iterable):
+        try:
+            return obj[key]
+        except (IndexError, TypeError, KeyError):
+            pass
+    return getattr(obj, key, default)
 
 
 class Raw(Schema):
@@ -89,11 +99,8 @@ class Raw(Schema):
         return value
 
     def output(self, key, obj):
-        value = getattr(key if self.attribute is None else self.attribute, obj)
-
-        if value is None:
-            return self.default
-
+        key = key if self.attribute is None else self.attribute
+        value = _get_value_for_key(key, obj, self.default)
         return self.format(value)
 
 def _field_from_object(parent, cls_or_instance):
