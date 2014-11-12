@@ -9,9 +9,17 @@ class InlineNotFoundError(NotFound):
 
 class ValidationError(BadRequest):
 
-    def __init__(self, kind, property, schema_trace=None):
+    def __init__(self, ve):
         BadRequest.__init__(self)
-
+        self.ve = ve
+    # raise PotionValidationError(
+    #     schema=ve.schema,
+    #     validator=ve.validator,
+    #     validator_value=ve.validator_value,
+    #     instance=ve.instance,
+    #     path='#/' + '/'.join(map(six.text_type, ve.absolute_path))
+    # ) # expected <validator>: <validator_value> at <path>; instance: <instance>
+    #
 
 class DuplicateKey(Conflict):
     def __init__(self, **kwargs):

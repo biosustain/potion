@@ -1,12 +1,13 @@
 from collections import OrderedDict
+import six
 from werkzeug.utils import cached_property
-from flask.ext.potion.errors import ValidationError
+from jsonschema import Draft4Validator, ValidationError, FormatChecker
 from .util import unpack
+from .exceptions import ValidationError as PotionValidationError
 
 
 class Schema(object):
 
-    @property
     def schema(self):
         raise NotImplementedError()
 
@@ -24,14 +25,27 @@ class Schema(object):
             return schema[1]
         return schema
 
-    def format(self, data):
-        return data
+    @cached_property
+    def _request_validator(self):
+        Draft4Validator.check_schema(self.request)
+        return Draft4Validator(self.request, format_checker=FormatChecker())
 
-    def convert(self, data):
-        pass # TODO validate
+    def format(self, value):
+        return value
+
+    def convert(self, value, validate=True):
+        try:
+            if validate:
+                self._request_validator.validate(value)
+        except ValidationError as ve:
+            raise PotionValidationError(ve)
+        return value
 
     def parse_request(self, request):
         data = request.json
+
+        if not data and request.method in ('GET', 'HEAD'):
+            data = dict(request.args)
 
         return self.convert(data)
 
@@ -72,12 +86,14 @@ class FieldSet(Schema):
 
     def format(self, item):
         return OrderedDict((
-            (key, field.output(key, item)),
+            (key, field.output(key, item))
             for key, field in self.fields.items()
         ))
 
     def convert(self, object_, pre_resolved_properties=None, patch=False, strict=False):
         converted = dict(pre_resolved_properties) if pre_resolved_properties else {}
+
+        # FIXME validate entire schema at the beginning for proper error messages.
 
         for key, field in self.fields.items():
             if 'w' not in field.io or key in self.read_only_override:
