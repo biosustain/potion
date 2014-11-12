@@ -12,8 +12,9 @@ from sqlalchemy.dialects import postgres
 from sqlalchemy.orm import class_mapper
 import sqlalchemy.types as sa_types
 from .manager import Manager
-from .routes import route, Route, MultiRoute
+from .routes import route, Route, MethodRoute, DeferredSchema
 from .schema import Schema, FieldSet
+from .filter import Filter, Sort
 from collections import defaultdict
 
 
@@ -68,7 +69,7 @@ class PotionMeta(type):
         class_.routes = routes = dict(getattr(class_, 'routes', {}))
 
         for name, m in members.items():
-            if isinstance(m, (Route, MultiRoute)):
+            if isinstance(m, (Route, MethodRoute)):
                 m.binding = class_
 
                 if m.attribute is None:
@@ -214,7 +215,7 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
         pass
 
     @route.GET('/', rel="instances")
-    def instances(self):
+    def instances(self, where, sort):
         where = None
         sort = None
 
@@ -227,29 +228,32 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
 
         self.items.get(self.items.index().all())
 
-    instances.schema = Set('self') # TODO NOTE Set('self') for filter, etc. schema
-    instances.response_schema = Set('self')
+    instances.schema = DeferredSchema(FieldSet, {
+        'where': DeferredSchema(Filter, 'self'),
+        'sort':  DeferredSchema(Sort, 'self'),
+    })# TODO NOTE Set('self') for filter, etc. schema
+    instances.response_schema = DeferredSchema(Set, 'self')
 
     @instances.POST(rel="create")
-    def create(self, item_or_items) -> fields.Inline('self'):  # XXX need some way for field bindings to be dynamic/work dynamically.
+    def create(self, item_or_items):  # XXX need some way for field bindings to be dynamic/work dynamically.
         pass # TODO handle integrity errors
 
-    create.schema = None # TODO resource.schema.request_schema
-    create.response_schema = fields.Inline('self')
+    create.schema = DeferredSchema(fields.Inline, 'self')
+    create.response_schema = DeferredSchema(fields.Inline, 'self')
 
     @route.GET(lambda r: '/<id:{}>'.format(r.meta.id_converter), rel="self")
     def read(self, id):
         pass
 
     read.schema = None
-    read.response_schema = fields.Inline('self')
+    read.response_schema = DeferredSchema(fields.Inline, 'self')
 
     @read.PATCH(rel="update")
     def update(self, id, object_):
         pass
 
-    update.schema = None # TODO resource.schema.request_schema
-    update.response_schema = fields.Inline('self')
+    update.schema = DeferredSchema(fields.Inline, 'self')
+    update.response_schema = DeferredSchema(fields.Inline, 'self')
 
     @update.DELETE(rel="destroy")
     def destroy(self, id):
