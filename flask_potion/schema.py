@@ -1,12 +1,11 @@
 from collections import OrderedDict
 from werkzeug.utils import cached_property
-from flask.ext.potion.errors import ValidationError
+from flask.ext.potion.exceptions import ValidationError
 from .util import unpack
 
 
 class Schema(object):
 
-    @property
     def schema(self):
         raise NotImplementedError()
 
@@ -72,7 +71,7 @@ class FieldSet(Schema):
 
     def format(self, item):
         return OrderedDict((
-            (key, field.output(key, item)),
+            (key, field.output(key, item))
             for key, field in self.fields.items()
         ))
 

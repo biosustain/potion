@@ -2,7 +2,6 @@ from importlib import import_module
 import inspect
 import six
 from flask import current_app
-from flask.ext.potion.resource import Resource
 
 
 class ResourceReference(object):
@@ -22,6 +21,7 @@ class ResourceReference(object):
         if name == 'self':
             return binding
 
+        from .resource import Resource
         if inspect.isclass(name) and issubclass(name, Resource):
             return name
 

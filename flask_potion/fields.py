@@ -1,13 +1,14 @@
 import re
 from flask import url_for, current_app
 from werkzeug.utils import cached_property
-from flask.ext.potion.reference import resolvers, ResourceReference
-from flask.ext.potion.schema import Schema
+from . import resolvers
+from .reference import ResourceReference
+from .schema import Schema
 
 
 class Raw(Schema):
     """
-    :param io: one of "r", "w" and "rw"
+    :param io: one of "r", "w" or "rw" (default); used to control presence in fieldsets/parent schemas
     :param schema: JSON-schema for field, or :class:`callable` resolving to a JSON-schema when called
     :param default: optional default value, must be JSON-convertible
     :param attribute: key on parent object, optional.
@@ -23,13 +24,14 @@ class Raw(Schema):
         self.nullable = nullable
         self.title = title
         self.description = description
+        self.io = io
 
     def _finalize_schema(self, schema):
         """
         :return: new schema updated for field `nullable`, `title`, `description` and `default` attributes.
         """
         schema = dict(schema)
-        if 'null' in schema.get('type'):
+        if 'null' in schema.get('type', []):
             self.nullable = True
         elif self.nullable:
             if "anyOf" in schema:
@@ -57,7 +59,6 @@ class Raw(Schema):
                 schema[attr] = value
         return schema
 
-    @cached_property
     def schema(self):
         """
         JSON schema representation
@@ -73,7 +74,7 @@ class Raw(Schema):
         else:
             return self._finalize_schema(schema)
 
-        return (self._finalize_schema(s) for s in (read_schema, write_schema))
+        return (self._finalize_schema(read_schema), self._finalize_schema(write_schema))
 
     def format(self, value):
         """
