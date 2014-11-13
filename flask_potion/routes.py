@@ -56,6 +56,7 @@ should do a HTTP redirect to:
 """
 from functools import wraps
 import re
+from types import MethodType
 from flask import request
 from .schema import Schema, FieldSet
 
@@ -68,40 +69,30 @@ def attribute_to_route_uri(s):
     return s.replace('_', '-')
 
 
-class PotionView(Schema):
+class LinkView(object):
 
-    def __init__(self, view_func, request_schema=None, response_schema=None):
+    def __init__(self,
+                 view_func,
+                 rel=None,
+                 route=None,
+                 method=None,
+                 schema=None,
+                 response_schema=None,
+                 format_response=True):
+        self.rel = rel
+        self.route = route
+        self.method = method
         self.view_func = view_func
-        self.request_schema = request_schema
-        self.response_schema = response_schema
+        self.format_response = format_response
 
-    @property
-    def schema(self):
-        raise NotImplementedError()
+        annotations = getattr(view_func, '__annotations__', None)
 
-    def dispatch_request(self, instance, *args, **kwargs):
-        """
-
-        If :attr:`schema` is a :class:`FieldSet`, the parsed arguments are spread over the view function `kwargs`. If
-        it is any other type of schema, the function is called with a single argument containing the entire object.
-
-        :param instance:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        # TODO move most of this into Route()
-        if isinstance(self.request_schema, FieldSet):
-            kwargs.update(self.request_schema.parse_request(request))
-
-        response = self.view_func(instance, *args, **kwargs)
-
-        # TODO add 'described_by' header.
-
-        if self.response_schema is None:
-            return response
+        if isinstance(annotations, dict):
+            self.request_schema = FieldSet({name: field for name, field in annotations.items() if name != 'return'})
+            self.response_schema = annotations.get('return', response_schema)
         else:
-            self.response_schema.format_response(response)
+            self.request_schema = schema
+            self.response_schema = response_schema
 
 
 class DeferredSchema(object):
@@ -123,54 +114,195 @@ class DeferredSchema(object):
 
 
 class Route(object):
-    def __init__(self, view_func,
+    def __init__(self,
+                 view_func,
+                 method='GET',
                  rule=None,
                  rel=None,
-                 binding=None,
                  attribute=None,
                  schema=None,
                  response_schema=None,
-                 **view_kwargs):
-        self.binding = binding
-        self.attribute = attribute
-        self.relationship = rel
+                 format_response=True,
+                 view_decorator=None):
         self.rule = rule
+        self.attribute = attribute
+        self.format_response = format_response
+        self.view_decorator = view_decorator
 
-        annotations = getattr(view_func, '__annotations__', None)
+        self.link = LinkView(view_func,
+                             rel=rel,
+                             route=self,
+                             schema=schema,
+                             method=method,
+                             response_schema=response_schema,
+                             format_response=format_response)
 
-        if isinstance(annotations, dict):
-            self.request_schema = FieldSet({name: field for name, field in annotations.items() if name != 'return'})
-            self.response_schema = annotations.get('return', response_schema)
-        else:
-            self.request_schema = schema
-            self.response_schema = response_schema
+    def __getattr__(self, name):
+        return getattr(self.link, name)
 
-        self._view_func = view_func
+    def __get__(self, obj):
+        if obj is None:
+            return self
+        return lambda *args, **kwargs: self.link.view_func.__call__(obj, *args, **kwargs)
 
-    # @classmethod
-    # def GET(cls, *args, **kwargs):
-    #     return MultiRouteRoute(*args, initial_method='GET', **kwargs)
+    def links(self):
+        yield self.link
 
-    def view_factory(self, name, binding):
+    def methods(self):
+        yield self.link.method
+
+    def rule_factory(self, resource):
+        rule = self.rule
+
+        if rule is None:
+            rule = '/{}'.format(self.attribute)
+        elif callable(rule):
+            rule = rule(resource)
+
+        return ''.join((self.resource.meta.name, rule))
+
+    def view_factory(self, name, resource):
+        request_schema = self.link.request_schema # TODO resolve deferred schema
+        response_schema = self.link.response_schema # TODO resolve deferred schema
+        view_func = self.link.view_func
+
         def view(*args, **kwargs):
-            instance = binding()
+            instance = resource()
 
-            if isinstance(self.request_schema, FieldSet):
-                kwargs.update(self.request_schema.parse_request(request))
-            elif isinstance(self.request_schema, Schema):
-                args += [self.request_schema.parse_request(request)]
+            if isinstance(request_schema, FieldSet):
+                kwargs.update(request_schema.parse_request(request))
+            elif isinstance(request_schema, Schema):
+                args += [request_schema.parse_request(request)]
 
-            response = self._view_func(instance, *args, **kwargs)
+            response = view_func(instance, *args, **kwargs)
 
             # TODO add 'described_by' header if response schema is a ToOne/ToMany/Set field.
 
-            if self.response_schema is None:
+            if response_schema is None or not self.format_response:
                 return response
             else:
-                self.response_schema.format_response(response)
+                response_schema.format_response(response)
 
         return view
 
+    # TODO auto-generate these from all available methods
+    @classmethod
+    def GET(cls, rule, **kwargs):
+        def wrapper(func):
+            return wraps(func)(MethodRoute(func, rule=rule, method='GET', **kwargs))
+        return wrapper
+
+    @classmethod
+    def POST(cls, rule, **kwargs):
+        def wrapper(func):
+            return wraps(func)(MethodRoute(func, rule=rule, method='POST', **kwargs))
+        return wrapper
+
+    @classmethod
+    def PATCH(cls, rule, **kwargs):
+        def wrapper(func):
+            return wraps(func)(MethodRoute(func, rule=rule, method='PATCH', **kwargs))
+        return wrapper
+
+    @classmethod
+    def PUT(cls, rule, **kwargs):
+        def wrapper(func):
+            return wraps(func)(MethodRoute(func, rule=rule, method='PUT', **kwargs))
+        return wrapper
+
+    @classmethod
+    def DELETE(cls, rule, **kwargs):
+        def wrapper(func):
+            return wraps(func)(MethodRoute(func, rule=rule, method='DELETE', **kwargs))
+        return wrapper
+
+
+class MethodRoute(Route):
+
+    def __init__(self, view_func, rule=None, rel=None, method='GET', attribute=None):
+        super().__init__(view_func, rule=rule, rel=rel, method=method, attribute=attribute)
+        self.method_views = {method: self.link}
+
+        for method in ('GET', 'POST', 'PATCH', 'PUT'):
+            decorator = lambda **kwargs: \
+                lambda func: wraps(func)(self._set_method_view_func(method, func, **kwargs))
+            #decorator = MethodType(decorator, self, self.__class__)
+
+            setattr(self, method, decorator) #MethodType(decorator, self, self.__class__))
+
+    def links(self):
+        return self.method_views.values()
+
+    def methods(self):
+        return self.method_views.keys()
+
+    def _set_method_view_func(self, method, view_func, rel=None, schema=None, response_schema=None):
+        self.link = link = LinkView(view_func,
+                                    rel=rel,
+                                    route=self,
+                                    method=method,
+                                    schema=schema,
+                                    response_schema=response_schema)
+        self.method_views = {method: link}
+        return self
+
+    # TODO auto-generate these
+    def GET(self, **kwargs):
+        def wrapper(func):
+            return wraps(func)(self._set_method_view_func('GET', func, **kwargs))
+        return wrapper
+
+    def PUT(self, **kwargs):
+        def wrapper(func):
+            return wraps(func)(self._set_method_view_func('PUT', func, **kwargs))
+        return wrapper
+
+    def POST(self, **kwargs):
+        def wrapper(func):
+            return wraps(func)(self._set_method_view_func('POST', func, **kwargs))
+        return wrapper
+
+    def DELETE(self, **kwargs):
+        def wrapper(func):
+            return wraps(func)(self._set_method_view_func('DELETE', func, **kwargs))
+        return wrapper
+
+    def PATCH(self, **kwargs):
+        def wrapper(func):
+            return wraps(func)(self._set_method_view_func('PATCH', func, **kwargs))
+        return wrapper
+
+    # TODO
+    # def view_factory(self, name, binding):
+    #     def view(*args, **kwargs):
+    #         view = self._view_methods[request.method.upper()]
+    #         resource_instance = binding()
+    #         return view.dispatch_request(resource_instance, *args, **kwargs)
+    #     return view
+    #
+    # def view_factory(self, name, resource):
+    #     request_schema = self.link.request_schema # TODO resolve deferred schema
+    #     response_schema = self.link.response_schema # TODO resolve deferred schema
+    #     view_func = self.link.view_func
+    #
+    #     def view(*args, **kwargs):
+    #         instance = resource()
+    #
+    #         if isinstance(request_schema, FieldSet):
+    #             kwargs.update(request_schema.parse_request(request))
+    #         elif isinstance(request_schema, Schema):
+    #             args += [request_schema.parse_request(request)]
+    #
+    #         response = view_func(instance, *args, **kwargs)
+    #
+    #         # TODO add 'described_by' header if response schema is a ToOne/ToMany/Set field.
+    #
+    #         if response_schema is None:
+    #             return response
+    #         else:
+    #             response_schema.format_response(response)
+    #
+    #     return view
 
 
 def route(rule=None, method='GET', **view_kwargs):
@@ -178,68 +310,6 @@ def route(rule=None, method='GET', **view_kwargs):
         return wraps(fn)(Route(fn, rule, method, **view_kwargs))
 
     return wrapper
-
-
-class MultiRoute(Route):
-    def __init__(self,
-                 method_func,
-                 initial_method='GET',
-                 route=None,
-                 attribute=None,
-                 binding=None,
-                 view_class=SchemaView,
-                 view_methods=None,
-                 **view_kwargs):
-
-        super(MultiRoute, self).__init__(binding, attribute)
-        self.route = route
-
-        self._view_class = view_class
-        self._view_methods = view_methods = view_methods.copy() if view_methods else {}
-        self._current_view = view = view_class(method_func, **view_kwargs)
-        view_methods[initial_method] = view
-
-    def __getattr__(self, name):
-        return getattr(self._current_view, name)
-
-    def __get__(self, obj, *args, **kwargs):
-        if obj is None:
-            return self
-        return lambda *args, **kwargs: self._current_view._fn.__call__(obj, *args, **kwargs)
-
-    def _add_method(self, method, fn, rel=None):
-        return type(self)(method_func=fn,
-                          method=method,
-                          attribute=self.attribute,
-                          route=self.route,
-                          view_class=self._view_class,
-                          view_methods=self._view_methods)
-
-    def GET(self, fn, **kwargs):
-        return self._add_method('GET', fn, **kwargs)
-
-    def PUT(self, fn, **kwargs):
-        return self._add_method('PUT', fn, **kwargs)
-
-    def POST(self, fn, **kwargs):
-        return self._add_method('POST', fn, **kwargs)
-
-    def PATCH(self, fn, **kwargs):
-        return self._add_method('PATCH', fn, **kwargs)
-
-    def DELETE(self, fn, **kwargs):
-        return self._add_method('DELETE', fn, **kwargs)
-
-    # @property
-    # def methods(self):
-    #     return list(self._view_methods.keys())
-
-    def view_factory(self, name, binding):
-        def view(*args, **kwargs):
-            view = self._view_methods[request.method.upper()]
-            resource_instance = binding()
-            return view.dispatch_request(resource_instance, *args, **kwargs)
-        return view
 
 
 class ItemRoute(Route):
@@ -266,6 +336,10 @@ class ItemMapAttributeRoute(ItemRoute):
     DELETE /item/:id/scores/:key/
     """
     pass
+
+    # @Route.GET(lambda r: '/<id:{}>/attribute/<key>'.format(r.meta.id_converter))
+    # def attribute(self, item, key):
+    #     pass
 
 
 class ItemSetRoute(ItemRoute):

@@ -18,9 +18,6 @@ from .filter import Filter, Sort
 from collections import defaultdict
 
 
-class Link(namedtuple('Link', ('uri', 'rel'))):
-    pass
-
 class Set(Schema):
     """
     This is what implements all of the pagination, filter, and sorting logic.
@@ -66,7 +63,13 @@ class Set(Schema):
 class PotionMeta(type):
     def __new__(mcs, name, bases, members):
         class_ = super(PotionMeta, mcs).__new__(mcs, name, bases, members)
-        class_.routes = routes = dict(getattr(class_, 'routes', {}))
+        class_.routes = routes = dict(getattr(class_, 'routes') or {})
+        class_.meta = meta = dict(getattr(class_, 'meta', {}) or {})
+
+        if 'Meta' in members:
+            changes = members['Meta'].__dict__
+            meta.update(changes)
+        #    meta['name'] = meta.get('name', class_.__name__).lower()
 
         for name, m in members.items():
             if isinstance(m, (Route, MethodRoute)):
@@ -81,7 +84,37 @@ class PotionMeta(type):
 
 
 class PotionResource(six.with_metaclass(PotionMeta, object)):
-    pass
+    meta = None
+    routes = None
+    schema = None
+
+    @Route.GET('/schema', rel="describedBy")
+    def schema_route(self): # No "targetSchema" because that would be way too meta.
+        schema = OrderedDict()
+
+        # copy title, description from Resource.meta
+        for property in ('title', 'description'):
+            value = getattr(self.meta, property)
+            if value:
+                schema[property] = value
+
+        links = itertools.chain(*[route.get_links(self) for name, route in sorted(self.routes.items())])
+
+        schema['type'] = 'object'
+        if self.schema:
+            schema.update(self.schema.response_schema)
+        schema['links'] = list(links)
+
+        # TODO enforce Content-Type: application/schema+json (overwritten by Flask-RESTful)
+        return schema
+
+    class Schema:
+        pass
+
+    class Meta:
+        name = None
+        title = None
+        description = None
 
 
 class ResourceMeta(PotionMeta):
@@ -192,7 +225,7 @@ class ResourceMeta(PotionMeta):
 
 
 class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
-    items = Manager(None, None)
+#    items = Manager(None, None)
     meta = None
     routes = None
     schema = None
@@ -259,31 +292,10 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
     def destroy(self, id):
         pass
 
-    @route.GET('/schema', rel="describedBy")
-    def schema(self): # No "targetSchema" because that would be way too meta.
-        defn = OrderedDict()
-
-        # copy title, description from Resource.meta
-        for property in ('title', 'description'):
-            value = getattr(self.meta, property)
-            if value:
-                defn[property] = value
-
-        links = itertools.chain(*[route.get_links(self) for name, route in sorted(self.routes.items())])
-
-        defn['type'] = 'object'
-        defn.update(self.schema.response_schema)
-        defn['links'] = list(links)
-
-        # TODO enforce Content-Type: application/schema+json (overwritten by Flask-RESTful)
-        return defn
-
     class Schema:
         pass
 
     class Meta:
-        title = None
-        description = None
         id_attribute = 'id'
         id_converter = 'int'
         id_field = fields.PositiveInteger()  # Must inherit from Integer or String
