@@ -23,6 +23,13 @@ class RouteTestCase(BaseTestCase):
 
 
 class ResourceTestCase(BaseTestCase):
-    def test_route(self):
-        pass
+    def test_potion_resource(self):
+
+        class FooResource(PotionResource):
+            pass
+
+
+        self.assertEqual([], FooResource.routes)
+        self.assertEqual([], FooResource.schema)
+        self.assertEqual([], FooResource.meta)
 

@@ -303,7 +303,8 @@ class MethodRoute(Route):
     #             response_schema.format_response(response)
     #
     #     return view
-
+    def __repr__(self):
+        return '{}("{}")'.format(self.__class__.__name__, self.rule)
 
 def route(rule=None, method='GET', **view_kwargs):
     def wrapper(fn):

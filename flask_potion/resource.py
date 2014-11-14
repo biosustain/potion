@@ -88,7 +88,7 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
     routes = None
     schema = None
 
-    @Route.GET('/schema', rel="describedBy")
+    @Route.GET('/schema', rel="describedBy", attribute="schema")
     def schema_route(self): # No "targetSchema" because that would be way too meta.
         schema = OrderedDict()
 
@@ -105,8 +105,7 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
             schema.update(self.schema.response_schema)
         schema['links'] = list(links)
 
-        # TODO enforce Content-Type: application/schema+json (overwritten by Flask-RESTful)
-        return schema
+        return schema, 200, {'Content-Type': 'application/schema+json'}
 
     class Schema:
         pass
