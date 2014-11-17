@@ -11,6 +11,7 @@ from . import fields
 from sqlalchemy.dialects import postgres
 from sqlalchemy.orm import class_mapper
 import sqlalchemy.types as sa_types
+from flask.ext.potion.util import AttributeDict
 from .manager import Manager
 from .routes import route, Route, MethodRoute, DeferredSchema
 from .schema import Schema, FieldSet
@@ -64,12 +65,16 @@ class PotionMeta(type):
     def __new__(mcs, name, bases, members):
         class_ = super(PotionMeta, mcs).__new__(mcs, name, bases, members)
         class_.routes = routes = dict(getattr(class_, 'routes') or {})
-        class_.meta = meta = dict(getattr(class_, 'meta', {}) or {})
+        class_.meta = meta = AttributeDict(getattr(class_, 'meta', {}) or {})
 
         if 'Meta' in members:
             changes = members['Meta'].__dict__
-            meta.update(changes)
-        #    meta['name'] = meta.get('name', class_.__name__).lower()
+            for k, v in changes.items():
+                if not k.startswith('__'):
+                    meta[k] = v
+
+            if not changes.get('name'):
+                meta['name'] = class_.__name__.lower()
 
         for name, m in members.items():
             if isinstance(m, (Route, MethodRoute)):
@@ -90,7 +95,9 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
 
     @Route.GET('/schema', rel="describedBy", attribute="schema")
     def schema_route(self): # No "targetSchema" because that would be way too meta.
-        schema = OrderedDict()
+        schema = OrderedDict([
+            ("$schema", "http://json-schema.org/draft-04/hyper-schema#")
+        ])
 
         # copy title, description from Resource.meta
         for property in ('title', 'description'):
@@ -98,12 +105,12 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
             if value:
                 schema[property] = value
 
-        links = itertools.chain(*[route.get_links(self) for name, route in sorted(self.routes.items())])
+        links = itertools.chain(*(route.links() for name, route in sorted(self.routes.items())))
 
-        schema['type'] = 'object'
         if self.schema:
+            schema['type'] = "object"
             schema.update(self.schema.response_schema)
-        schema['links'] = list(links)
+        schema['links'] = [link.schema_factory(self) for link in links]
 
         return schema, 200, {'Content-Type': 'application/schema+json'}
 

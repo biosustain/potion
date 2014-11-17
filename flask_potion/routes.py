@@ -54,6 +54,7 @@ should do a HTTP redirect to:
 
 
 """
+from collections import OrderedDict
 from functools import wraps
 import re
 from types import MethodType
@@ -67,6 +68,23 @@ def url_rule_to_uri_pattern(rule):
 
 def attribute_to_route_uri(s):
     return s.replace('_', '-')
+
+class DeferredSchema(object):
+    def __init__(self, class_, *args, **kwargs):
+        self.schema_class = class_
+        self.schema_args = args
+        self.schema_kwargs = kwargs
+
+    def __call__(self, resource):
+        schema = self.schema_class(*self.schema_args, **self.schema_kwargs)
+        schema.binding = resource
+        return schema
+
+    @classmethod
+    def resolve(cls, schema, resource):
+        if isinstance(schema, cls):
+            return schema(resource)
+        return schema
 
 
 class LinkView(object):
@@ -94,22 +112,19 @@ class LinkView(object):
             self.request_schema = schema
             self.response_schema = response_schema
 
+    def schema_factory(self, resource):
+        request_schema = DeferredSchema.resolve(self.request_schema, resource)
+        response_schema = DeferredSchema.resolve(self.response_schema, resource)
+        schema = OrderedDict([
+            ("rel", self.rel or "{}_{}".format(self.method, self.route.attribute)),
+            ("href", self.route.rule),
+            ("method", self.method)
+        ])
 
-class DeferredSchema(object):
-    def __init__(self, class_, *args, **kwargs):
-        self.schema_class = class_
-        self.schema_args = args
-        self.schema_kwargs = kwargs
-
-    def __call__(self, resource):
-        schema = self.schema_class(*self.schema_args, **self.schema_kwargs)
-        schema.binding = resource
-        return schema
-
-    @classmethod
-    def schema_for(cls, schema, resource):
-        if isinstance(schema, cls):
-            return schema(resource)
+        if request_schema:
+            schema["schema"] = request_schema.request
+        if response_schema:
+            schema["targetSchema"] = response_schema.response
         return schema
 
 
@@ -140,7 +155,7 @@ class Route(object):
     def __getattr__(self, name):
         return getattr(self.link, name)
 
-    def __get__(self, obj):
+    def __get__(self, obj, owner):
         if obj is None:
             return self
         return lambda *args, **kwargs: self.link.view_func.__call__(obj, *args, **kwargs)
@@ -162,8 +177,8 @@ class Route(object):
         return ''.join((self.resource.meta.name, rule))
 
     def view_factory(self, name, resource):
-        request_schema = self.link.request_schema # TODO resolve deferred schema
-        response_schema = self.link.response_schema # TODO resolve deferred schema
+        request_schema = DeferredSchema.resolve(self.link.request_schema, resource)
+        response_schema = DeferredSchema.resolve(self.link.response_schema, resource)
         view_func = self.link.view_func
 
         def view(*args, **kwargs):

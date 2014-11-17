@@ -19,6 +19,10 @@ class ApiClient(FlaskClient):
 
 
 class BaseTestCase(TestCase):
+
+    def assertJSONEqual(self, first, second, msg=None):
+        self.assertEqual(json.loads(json.dumps(first)), json.loads(json.dumps(second)), msg)
+
     def setUp(self):
         app = Flask(__name__)
         app.secret_key = '00112233445566778899AABBCCDDEEFF'
