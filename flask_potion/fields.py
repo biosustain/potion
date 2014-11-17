@@ -202,10 +202,68 @@ class AttributeMapped(KeyValue):
 
 
 class Object(Raw):
+    """
+    A versatile field for an object, containing either properties all of a single type, properties matching a pattern,
+    or named properties matching some fields.
 
-    def __init__(self, properties=None, pattern_properties=None, additional_properties=None, nullable=False):
+    :param properties: field class, instance, or dictionary of {property: field} pairs
+    :param str pattern: an optional regular expression that all property keys must match
+    :param dict pattern_properties: dictionary of {property: field} pairs
+    :param dict additional_properties: field class or instance
+    """
+
+    def __init__(self, properties=None, pattern=None, pattern_properties=None, additional_properties=None, **kwargs):
+        self.properties = None
+        self.pattern_properties = None
+        self.additional_properties = None
+
+        if isinstance(properties, dict):
+            self.properties = properties
+        elif isinstance(properties, (type, Raw)):
+            field = _field_from_object(self, properties)
+            if pattern:
+                self.pattern_properties = {pattern: field}
+            else:
+                self.additional_properties = field
+
+        def schema():
+            request = {"type": "object"}
+            response = {"type": "object"}
+
+            for schema, attr in ((request, "request"), (response, "response")):
+                if self.properties:
+                    schema["properties"] = {key: getattr(field, attr) for key, field in self.properties.items()}
+                if self.pattern_properties:
+                    schema["patternProperties"] = {pattern: getattr(field, attr)
+                                                     for pattern, field in self.pattern_properties.items()}
+                if self.additional_properties:
+                    schema["additionalProperties"] = getattr(self.additional_properties, attr)
+                else:
+                    schema["additionalProperties"] = False
+
+            return response, request
+
+        if self.pattern_properties and (len(self.pattern_properties) > 1 or self.additional_properties):
+            raise NotImplementedError("Only one pattern property, which CANNOT BE combined with additionalProperties,"
+                                      " is currently supported.")
+
+        super(Object, self).__init__(schema, **kwargs)
+
+    def format(self, value):
+        raise NotImplementedError()
+        # TODO support g
+        if self.properties:
+            return {key: field.format(_get_value_for_key(key, value, field.default)) for key, field in self.properties.items()}
+
+        if self.additional_properties or self.pattern_properties:
+            pass
+        else:
+            return {k: self.container.format(v) for k, v in value.items()}
+
+    def convert(self, value):
         raise NotImplementedError()
 
+        return {k: self.container.convert(v) for k, v in value.items()}
 
 class String(Raw):
     """
@@ -395,18 +453,24 @@ class ToMany(Array):
 class Inline(Raw):
 
     def __init__(self, resource, **kwargs):
-        self._resource = resource
+        self.reference = ResourceReference(resource)
         self.binding = None
 
         def schema():
-            resource_url = url_for(self.resource.endpoint)
-            return { "$ref": "{}/schema".format(resource_url) }
+            if self.binding == self.resource:
+                return { "$ref": "#" }
+
+            # resource_url = url_for(self.resource.endpoint)
+            # return { "$ref": "{}/schema".format(resource_url) }
+            # FIXME complete with API prefix
+
+            return { "$ref": self.resource.routes["schema"].rule_factory(self.resource) }
 
         super(Inline, self).__init__(schema, **kwargs)
 
     @cached_property
     def resource(self):
-        return self._resource.resolve(self.binding)  # FIXME XXX could just have this in Potion instance
+        return self.reference.resolve(self.binding)
 
     def format(self, item):
         return self.resource.schema.format(item)

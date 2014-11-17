@@ -105,19 +105,29 @@ class LinkView(object):
 
         annotations = getattr(view_func, '__annotations__', None)
 
-        if isinstance(annotations, dict):
+        if isinstance(annotations, dict) and len(annotations):
             self.request_schema = FieldSet({name: field for name, field in annotations.items() if name != 'return'})
             self.response_schema = annotations.get('return', response_schema)
         else:
             self.request_schema = schema
             self.response_schema = response_schema
 
+    @property
+    def relation(self):
+        if self.rel:
+            return self.rel
+        elif len(self.route.methods()) == 1:
+            return self.route.attribute
+        else:
+            return "{}_{}".format(self.method, self.route.attribute)
+
     def schema_factory(self, resource):
         request_schema = DeferredSchema.resolve(self.request_schema, resource)
         response_schema = DeferredSchema.resolve(self.response_schema, resource)
+
         schema = OrderedDict([
-            ("rel", self.rel or "{}_{}".format(self.method, self.route.attribute)),
-            ("href", self.route.rule),
+            ("rel", self.relation),
+            ("href", url_rule_to_uri_pattern(self.route.rule_factory(resource, relative=True))),
             ("method", self.method)
         ])
 
@@ -155,6 +165,22 @@ class Route(object):
     def __getattr__(self, name):
         return getattr(self.link, name)
 
+    @property
+    def request_schema(self):
+        return self.link.request_schema
+
+    @request_schema.setter
+    def request_schema(self, schema):
+        self.link.request_schema = schema
+
+    @property
+    def response_schema(self):
+        return self.link.response_schema
+
+    @response_schema.setter
+    def response_schema(self, schema):
+        self.link.response_schema = schema
+
     def __get__(self, obj, owner):
         if obj is None:
             return self
@@ -166,7 +192,7 @@ class Route(object):
     def methods(self):
         yield self.link.method
 
-    def rule_factory(self, resource):
+    def rule_factory(self, resource, relative=False):
         rule = self.rule
 
         if rule is None:
@@ -174,7 +200,9 @@ class Route(object):
         elif callable(rule):
             rule = rule(resource)
 
-        return ''.join((self.resource.meta.name, rule))
+        if relative:
+            return rule[1:]
+        return ''.join(('/', resource.meta.name, rule))
 
     def view_factory(self, name, resource):
         request_schema = DeferredSchema.resolve(self.link.request_schema, resource)
@@ -202,31 +230,31 @@ class Route(object):
 
     # TODO auto-generate these from all available methods
     @classmethod
-    def GET(cls, rule, **kwargs):
+    def GET(cls, rule=None, **kwargs):
         def wrapper(func):
             return wraps(func)(MethodRoute(func, rule=rule, method='GET', **kwargs))
         return wrapper
 
     @classmethod
-    def POST(cls, rule, **kwargs):
+    def POST(cls, rule=None, **kwargs):
         def wrapper(func):
             return wraps(func)(MethodRoute(func, rule=rule, method='POST', **kwargs))
         return wrapper
 
     @classmethod
-    def PATCH(cls, rule, **kwargs):
+    def PATCH(cls, rule=None, **kwargs):
         def wrapper(func):
             return wraps(func)(MethodRoute(func, rule=rule, method='PATCH', **kwargs))
         return wrapper
 
     @classmethod
-    def PUT(cls, rule, **kwargs):
+    def PUT(cls, rule=None, **kwargs):
         def wrapper(func):
             return wraps(func)(MethodRoute(func, rule=rule, method='PUT', **kwargs))
         return wrapper
 
     @classmethod
-    def DELETE(cls, rule, **kwargs):
+    def DELETE(cls, rule=None, **kwargs):
         def wrapper(func):
             return wraps(func)(MethodRoute(func, rule=rule, method='DELETE', **kwargs))
         return wrapper
@@ -238,12 +266,12 @@ class MethodRoute(Route):
         super().__init__(view_func, rule=rule, rel=rel, method=method, attribute=attribute)
         self.method_views = {method: self.link}
 
-        for method in ('GET', 'POST', 'PATCH', 'PUT'):
-            decorator = lambda **kwargs: \
-                lambda func: wraps(func)(self._set_method_view_func(method, func, **kwargs))
-            #decorator = MethodType(decorator, self, self.__class__)
-
-            setattr(self, method, decorator) #MethodType(decorator, self, self.__class__))
+        # for method in ('GET', 'POST', 'PATCH', 'PUT'):
+        #     decorator = lambda **kwargs: \
+        #         lambda func: wraps(func)(self._set_method_view_func(method, func, **kwargs))
+        #     #decorator = MethodType(decorator, self, self.__class__)
+        #
+        #     setattr(self, method, decorator) #MethodType(decorator, self, self.__class__))
 
     def links(self):
         return self.method_views.values()
@@ -252,13 +280,15 @@ class MethodRoute(Route):
         return self.method_views.keys()
 
     def _set_method_view_func(self, method, view_func, rel=None, schema=None, response_schema=None):
-        self.link = link = LinkView(view_func,
-                                    rel=rel,
-                                    route=self,
-                                    method=method,
-                                    schema=schema,
-                                    response_schema=response_schema)
-        self.method_views = {method: link}
+        link = LinkView(view_func,
+                        rel=rel,
+                        route=self,
+                        method=method,
+                        schema=schema,
+                        response_schema=response_schema)
+
+        self.link = link
+        self.method_views[method] = link
         return self
 
     # TODO auto-generate these
@@ -384,29 +414,5 @@ class RelationshipRoute(ItemSetRoute):
         self.resource = resource
         self.backref = backref
         self.io = io
-
-
-class MethodDecoratorMixin(object):
-
-    def GET(self):
-        pass
-
-    def POST(self):
-        pass
-
-    def PATCH(self):
-        pass
-
-    def DELETE(self):
-        pass
-
-
-class Index(MethodDecoratorMixin):
-
-    def __init__(self):
-        pass
-
-
-index = Index
 
 route = Route

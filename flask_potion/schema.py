@@ -66,7 +66,7 @@ class FieldSet(Schema):
         response_schema = {
             "type": "object",
             "properties": OrderedDict((
-                (key, field.response_schema) for key, field in self.fields.items() if 'r' in field.io
+                (key, field.response) for key, field in self.fields.items() if 'r' in field.io
             ))
         }
 
@@ -74,7 +74,7 @@ class FieldSet(Schema):
             "type": "object",
             "additionalProperties": False,
             "properties": OrderedDict((
-                (key, field.request_schema) for key, field in self.fields.items()
+                (key, field.request) for key, field in self.fields.items()
                 if 'w' in field.io and key not in self.read_only_override
             ))
         }

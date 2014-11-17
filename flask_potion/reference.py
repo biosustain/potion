@@ -40,4 +40,4 @@ class ResourceReference(object):
         raise RuntimeError('Resource named "{}" is not registered with Potion'.format(name))
 
     def __repr__(self):
-        return "<ResourceReference '{}'>".format(self.resolve().resource_name)
+        return "<ResourceReference '{}'>".format(self.resolve().meta.name)

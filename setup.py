@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='potion',
     version='0.0.0',
-    packages=['tests', 'potion', 'flask_potion'],
+    packages=['flask_potion'],
     url='',
     license='MIT',
     author='Lars Schöning',

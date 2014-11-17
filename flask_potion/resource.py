@@ -1,6 +1,7 @@
 from collections import namedtuple, OrderedDict
 import json
 import datetime
+from operator import attrgetter
 
 from flask import url_for, request
 from flask.views import MethodViewType
@@ -73,8 +74,22 @@ class PotionMeta(type):
                 if not k.startswith('__'):
                     meta[k] = v
 
-            if not changes.get('name'):
+            if 'name' not in changes:
                 meta['name'] = class_.__name__.lower()
+
+            # NKs: group by type -- e.g. string, integer, object, array -- while keeping order intact:
+            if 'natural_keys' in meta:
+                meta['natural_keys_by_type'] = natural_keys_by_type = defaultdict(list)
+                for nk in meta['natural_keys']:
+                    natural_keys_by_type[nk.matcher_type(class_)].append(nk)
+
+        if 'Schema' in members:
+            schema = dict(members['Schema'].__dict__)
+
+            # TODO support FieldSet with definitions
+            class_.schema = FieldSet({k: f for k, f in schema.items() if not k.startswith('__')},
+                                     required_fields=meta.get('required_fields', None),
+                                     read_only_fields=meta.get('read_only_fields', None))
 
         for name, m in members.items():
             if isinstance(m, (Route, MethodRoute)):
@@ -96,7 +111,7 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
     @Route.GET('/schema', rel="describedBy", attribute="schema")
     def schema_route(self): # No "targetSchema" because that would be way too meta.
         schema = OrderedDict([
-            ("$schema", "http://json-schema.org/draft-04/hyper-schema#")
+            ("$schema", "http://json-schema.org/draft-04/hyper-schema#"),
         ])
 
         # copy title, description from Resource.meta
@@ -109,13 +124,12 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
 
         if self.schema:
             schema['type'] = "object"
-            schema.update(self.schema.response_schema)
-        schema['links'] = [link.schema_factory(self) for link in links]
+            schema.update(self.schema.response)
+
+        # TODO more intuitive sorting [self, instances,.. GET_bar, POST_bar, GET_foo, POST_foo, ..describedBy]
+        schema['links'] = [link.schema_factory(self) for link in sorted(links, key=attrgetter('relation'))]
 
         return schema, 200, {'Content-Type': 'application/schema+json'}
-
-    class Schema:
-        pass
 
     class Meta:
         name = None
@@ -221,11 +235,6 @@ class ResourceMeta(PotionMeta):
                                      required_fields=meta.get('required_fields', None),
                                      read_only_fields=meta.get('read_only_fields', None))
 
-        # NKs: group by type -- e.g. string, integer, object, array -- while keeping order intact:
-        if hasattr(meta, 'natural_keys'):
-            meta['natural_keys_by_type'] = natural_keys_by_type = defaultdict(list)
-            for nk in meta['natural_keys']:
-                natural_keys_by_type[nk.matcher_type(class_)].append(nk)
 
         return class_
 
@@ -280,7 +289,7 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
     create.schema = DeferredSchema(fields.Inline, 'self')
     create.response_schema = DeferredSchema(fields.Inline, 'self')
 
-    @route.GET(lambda r: '/<id:{}>'.format(r.meta.id_converter), rel="self")
+    @Route.GET(lambda r: '/<{}:id>'.format(r.meta.id_converter), rel="self")
     def read(self, id):
         pass
 
