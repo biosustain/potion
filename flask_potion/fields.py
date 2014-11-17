@@ -1,5 +1,8 @@
+from datetime import datetime
+import time
 import re
 import collections
+import aniso8601
 from flask import url_for, current_app
 from werkzeug.utils import cached_property
 from . import resolvers
@@ -61,7 +64,8 @@ class Raw(Schema):
                     if len(schema) == 1 and '$ref' in schema:
                         schema = {'anyOf': [schema, {'type': 'null'}]}
                     else:
-                        current_app.logger.warn('{} is nullable but "null" type cannot be added to schema.'.format(self))
+                        current_app.logger.warn(
+                            '{} is nullable but "null" type cannot be added to schema.'.format(self))
 
         for attr in ('default', 'title', 'description'):
             value = getattr(self, attr)
@@ -118,12 +122,38 @@ def _field_from_object(parent, cls_or_instance):
     return container
 
 
+class Custom(Raw):
+    """
+    Arbitrary schema field type with optional formatter/converter transformers.
+
+    :param dict schema: JSON-schema
+    :param callable converter: convert function
+    :param callable formatter: format function
+    """
+
+    def __init__(self, schema, converter=None, formatter=None, **kwargs):
+        super(Custom, self).__init__(schema, **kwargs)
+        self.converter = converter
+        self.formatter = formatter
+
+    def format(self, value):
+        if self.formatter is None:
+            return value
+        return self.formatter(value)
+
+    def convert(self, value):
+        if self.converter is None:
+            return value
+        return self.converter(value)
+
+
 class Array(Raw):
     """
     A field for an array of a given field type.
 
     :param Raw cls_or_instance: field class or instance
     """
+
     def __init__(self, cls_or_instance, min_items=None, max_items=None, **kwargs):
         self.container = container = _field_from_object(self, cls_or_instance)
 
@@ -147,6 +177,7 @@ class KeyValue(Raw):
     :param Raw cls_or_instance: field class or instance
     :param str pattern: an optional regular expression that all property keys must match
     """
+
     def __init__(self, cls_or_instance, pattern=None, **kwargs):
         self.container = container = _field_from_object(self, cls_or_instance)
 
@@ -186,6 +217,7 @@ class AttributeMapped(KeyValue):
     :param str pattern: an optional regular expression that all property keys must match
     :param str mapping_attribute: mapping attribute
     """
+
     def __init__(self, *args, mapping_attribute=None, **kwargs):
         self.mapping_attribute = mapping_attribute
         super().__init__(*args, **kwargs)
@@ -235,7 +267,7 @@ class Object(Raw):
                     schema["properties"] = {key: getattr(field, attr) for key, field in self.properties.items()}
                 if self.pattern_properties:
                     schema["patternProperties"] = {pattern: getattr(field, attr)
-                                                     for pattern, field in self.pattern_properties.items()}
+                                                   for pattern, field in self.pattern_properties.items()}
                 if self.additional_properties:
                     schema["additionalProperties"] = getattr(self.additional_properties, attr)
                 else:
@@ -253,7 +285,8 @@ class Object(Raw):
         raise NotImplementedError()
         # TODO support g
         if self.properties:
-            return {key: field.format(_get_value_for_key(key, value, field.default)) for key, field in self.properties.items()}
+            return {key: field.format(_get_value_for_key(key, value, field.default)) for key, field in
+                    self.properties.items()}
 
         if self.additional_properties or self.pattern_properties:
             pass
@@ -264,6 +297,7 @@ class Object(Raw):
         raise NotImplementedError()
 
         return {k: self.container.convert(v) for k, v in value.items()}
+
 
 class String(Raw):
     """
@@ -287,53 +321,62 @@ class String(Raw):
         super(String, self).__init__(schema, **kwargs)
 
 
-
-
-#
-# Default:
-# {"$date": <iso date>}
-#
-# Accepts also: string dates
-#
-#
-#
-
 class Date(Raw):
-    # """
-    # Only accept ISO8601-formatted date strings.
-    # """
-    #
-    # def __init__(self, **kwargs):
-    #     # TODO is a 'format' required for "date"
-    #     super(Date, self).__init__({"type": "string", "format": "date"}, **kwargs)
-    #
-    # @skip_none
-    # def format(self, value):
-    #     return value.strftime('%Y-%m-%d')
-    #
-    # @skip_none
-    # def convert(self, value):
-    #     return aniso8601.parse_date(value)
-    pass
+    """
+    A field for EJSON-style date-times in the format ``{"$date": MILLISECONDS_SINCE_EPOCH}``
+    """
+
+    def __init__(self, **kwargs):
+        # TODO is a 'format' required for "date"
+        super(Date, self).__init__({
+                                       "type": "object",
+                                       "properties": {
+                                           "$date": {
+                                               "type": "integer"
+                                           }
+                                       },
+                                       "additionalProperties": False
+                                   }, **kwargs)
+
+    def format(self, value):
+        return int(time.mktime(value.timetuple()) * 1000)
+
+    def convert(self, value):
+        return datetime.fromtimestamp(value / 1000)
+
+
+#
+
+class DateString(Raw):
+    """
+    Only accept ISO8601-formatted date strings.
+    """
+
+    def __init__(self, **kwargs):
+        # TODO is a 'format' required for "date"
+        super(DateString, self).__init__({"type": "string", "format": "date"}, **kwargs)
+
+    def format(self, value):
+        return value.strftime('%Y-%m-%d')
+
+    def convert(self, value):
+        return aniso8601.parse_date(value)
 
 
 class DateTime(Raw):
-    # """
-    # Only accept ISO8601-formatted date-time strings.
-    # """
-    #
-    # def __init__(self, **kwargs):
-    #     super(DateTime, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
-    #
-    # @skip_none
-    # def format(self, value):
-    #     return value.isoformat()
-    #
-    # @skip_none
-    # def convert(self, value):
-    #     # FIXME enforce UTC
-    #     return aniso8601.parse_datetime(value)
-    pass
+    """
+    Only accept ISO8601-formatted date-time strings.
+    """
+
+    def __init__(self, **kwargs):
+        super(DateTime, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
+
+    def format(self, value):
+        return value.isoformat()
+
+    def convert(self, value):
+        # FIXME enforce UTC
+        return aniso8601.parse_datetime(value)
 
 
 class Uri(String):
@@ -344,7 +387,6 @@ class Uri(String):
 class Email(String):
     def __init__(self, **kwargs):
         super(Email, self).__init__(format="email", **kwargs)
-
 
 
 class Boolean(Raw):
@@ -414,7 +456,7 @@ class ToOne(Raw):
 
         def schema():
             resource_url = url_for(self.resource.endpoint)
-            resource_reference = { "$ref": "{}/schema".format(resource_url) }
+            resource_reference = {"$ref": "{}/schema".format(resource_url)}
             response_schema = {
                 "oneOf": [
                     formatter.schema(resource),
@@ -438,7 +480,7 @@ class ToOne(Raw):
         return self._resource.resolve(self.binding)  # FIXME XXX could just have this in Potion instance
 
     def format(self, item):
-        raise NotImplementedError() # TODO
+        raise NotImplementedError()  # TODO
 
 
     def convert(self, value):
@@ -451,20 +493,19 @@ class ToMany(Array):
 
 
 class Inline(Raw):
-
     def __init__(self, resource, **kwargs):
         self.reference = ResourceReference(resource)
         self.binding = None
 
         def schema():
             if self.binding == self.resource:
-                return { "$ref": "#" }
+                return {"$ref": "#"}
 
             # resource_url = url_for(self.resource.endpoint)
             # return { "$ref": "{}/schema".format(resource_url) }
             # FIXME complete with API prefix
 
-            return { "$ref": self.resource.routes["schema"].rule_factory(self.resource) }
+            return {"$ref": self.resource.routes["schema"].rule_factory(self.resource)}
 
         super(Inline, self).__init__(schema, **kwargs)
 
@@ -480,17 +521,17 @@ class Inline(Raw):
         return self.resource.schema.convert(item)
 
 
-# class InlineModel(fields.Nested):
-#
-#     def __init__(self, fields, model, **kwargs):
-#         super().__init__(fields, **kwargs)
-#         self.model = model
-#
-#     def convert(self, obj):
-#         obj = EmbeddedJob.complete(super().convert(obj))
-#         if obj is not None:
-#             obj = self.model(**obj)
-#         return obj
-#
-#     def format(self, obj):
-#         return marshal(obj, self.fields)
+        # class InlineModel(fields.Nested):
+        #
+        # def __init__(self, fields, model, **kwargs):
+        #         super().__init__(fields, **kwargs)
+        #         self.model = model
+        #
+        #     def convert(self, obj):
+        #         obj = EmbeddedJob.complete(super().convert(obj))
+        #         if obj is not None:
+        #             obj = self.model(**obj)
+        #         return obj
+        #
+        #     def format(self, obj):
+        #         return marshal(obj, self.fields)
