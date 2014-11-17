@@ -363,13 +363,13 @@ class DateString(Raw):
         return aniso8601.parse_date(value)
 
 
-class DateTime(Raw):
+class DateTimeString(Raw):
     """
     Only accept ISO8601-formatted date-time strings.
     """
 
     def __init__(self, **kwargs):
-        super(DateTime, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
+        super(DateTimeString, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
 
     def format(self, value):
         return value.isoformat()
