@@ -1,7 +1,7 @@
 from unittest import TestCase
-from flask.ext.potion import Potion, fields
-from flask.ext.potion.resource import Set
-from flask.ext.potion.routes import ItemAttributeRoute
+from flask_potion import Potion, fields
+from flask_potion.resource import Instances
+from flask_potion.routes import ItemAttributeRoute
 from potion.client import Resource
 
 
@@ -77,7 +77,7 @@ class RelationshipTestCase(TestCase):
         potion = Potion()
 
         class ProjectResource(potion.Resource):
-            tasks = Set('tasks')
+            tasks = Instances('tasks')
 
             # class Meta:
             #     model = Project

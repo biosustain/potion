@@ -26,17 +26,18 @@ class Schema(object):
         return schema
 
     @cached_property
-    def _request_validator(self):
+    def _validator(self):
+        print(self.request)
         Draft4Validator.check_schema(self.request)
         return Draft4Validator(self.request, format_checker=FormatChecker())
 
     def format(self, value):
         return value
 
-    def convert(self, value, validate=True):
+    def convert(self, value):
         try:
-            if validate:
-                self._request_validator.validate(value)
+            print(value)
+            self._validator.validate(value)
         except ValidationError as ve:
             raise PotionValidationError(ve)
         return value
@@ -57,26 +58,22 @@ class Schema(object):
 
 class FieldSet(Schema):
 
-    def __init__(self, fields, required_fields=None, read_only_fields=None):
+    def __init__(self, fields, required_fields=None):
         self.fields = fields
         self.required = required_fields or ()
-        self.read_only_override = read_only_fields or ()
 
     def schema(self):
         response_schema = {
             "type": "object",
             "properties": OrderedDict((
-                (key, field.response) for key, field in self.fields.items() if 'r' in field.io
-            ))
+                (key, field.response) for key, field in self.fields.items() if 'r' in field.io))
         }
 
         request_schema = {
             "type": "object",
             "additionalProperties": False,
             "properties": OrderedDict((
-                (key, field.request) for key, field in self.fields.items()
-                if 'w' in field.io and key not in self.read_only_override
-            ))
+                (key, field.request) for key, field in self.fields.items() if 'w' in field.io))
         }
 
         if self.required:
@@ -90,13 +87,17 @@ class FieldSet(Schema):
             for key, field in self.fields.items()
         ))
 
-    def convert(self, object_, pre_resolved_properties=None, patch=False, strict=False):
+    def convert(self, obj, pre_resolved_properties=None, patch=False, strict=False):
         converted = dict(pre_resolved_properties) if pre_resolved_properties else {}
+        # TODO move converted properties into object_
+        print(obj)
+        obj = super(FieldSet, self).convert(obj)
+        print(obj,'converted')
 
-        # FIXME validate entire schema at the beginning for proper error messages.
+        # FIXME consider validating entire schema at the beginning for proper error messages.
 
         for key, field in self.fields.items():
-            if 'w' not in field.io or key in self.read_only_override:
+            if 'w' not in field.io:
                 continue
 
             # ignore fields that have been pre-resolved
@@ -105,11 +106,13 @@ class FieldSet(Schema):
 
             value = None
 
+            print('>',value, key, field)
             try:
-                value = object_[key]
-                field.validate(value)
-            except ValueError as e:
-                raise ValidationError('invalid-property', property=key, schema_trace=e.args[0])
+                value = obj[key]
+                value = field.convert(value, validate=False)
+                print('>>')
+            # except ValueError as ve:
+            #     raise PotionValidationError(ve, key)
             except KeyError:
                 if patch:
                     continue
@@ -120,16 +123,16 @@ class FieldSet(Schema):
                     value = None
                 elif key not in self.required and not strict:
                     value = None
-                else:
-                    raise ValidationError('missing-property', property=key)
+                # else:
+                #     raise ValidationError('missing-property', property=key)
 
-            converted[field.attribute or key] = field.convert(value)
-
-        if strict:
-            unknown_fields = set(object_.keys()) - set(self.fields.keys())
-            if unknown_fields:
-                raise ValidationError('unknown-properties', unknown_fields)
-
+            converted[field.attribute or key] = value
+        #
+        # if strict:
+        #     unknown_fields = set(object_.keys()) - set(self.fields.keys())
+        #     if unknown_fields:
+        #         raise ValidationError('unknown-properties', unknown_fields)
+        print(converted, 'OUT')
         return converted
 
     def parse_request(self, request):
@@ -138,9 +141,9 @@ class FieldSet(Schema):
         if not data and request.method in ('GET', 'HEAD'):
             data = {}
 
-            for name, field in self.fields.items():
-                # FIXME type conversion!
-                data[name] = request.args.get(name, type=field.python_type)
+            # for name, field in self.fields.items():
+            #     # FIXME type conversion!
+            #     data[name] = request.args.get(name, type=field.python_type)
 
         if not self.fields:
             return {}

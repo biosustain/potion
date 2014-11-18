@@ -1,6 +1,6 @@
 from unittest import TestCase
 from werkzeug.exceptions import BadRequest
-from flask.ext.potion import fields
+from flask_potion import fields
 
 
 class FieldsTestCase(TestCase):

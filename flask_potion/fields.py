@@ -4,10 +4,12 @@ import re
 import collections
 import aniso8601
 from flask import url_for, current_app
+from jsonschema import ValidationError
 from werkzeug.utils import cached_property
 from . import resolvers
 from .reference import ResourceReference
 from .schema import Schema
+from .exceptions import ValidationError as PotionValidationError
 
 # FIXME this code is similar to Flask-RESTful code. Need to add license
 def _get_value_for_key(key, obj, default):
@@ -39,35 +41,38 @@ class Raw(Schema):
         self.description = description
         self.io = io
 
-    def _finalize_schema(self, schema):
+    def _finalize_schema(self, schema, io):
         """
         :return: new schema updated for field `nullable`, `title`, `description` and `default` attributes.
         """
         schema = dict(schema)
-        if 'null' in schema.get('type', []):
+        
+        if self.io == "r" and "r" in io:
+            schema["readOnly"] = True
+
+        if "null" in schema.get("type", []):
             self.nullable = True
         elif self.nullable:
             if "anyOf" in schema:
-                if not any('null' in choice.get('type', []) for choice in schema['anyOf']):
-                    schema['anyOf'].append({'type': 'null'})
+                if not any("null" in choice.get("type", []) for choice in schema["anyOf"]):
+                    schema["anyOf"].append({"type": "null"})
             elif "oneOf" in schema:
-                if not any('null' in choice.get('type', []) for choice in schema['oneOf']):
-                    schema['oneOf'].append({'type': 'null'})
+                if not any("null" in choice.get("type", []) for choice in schema["oneOf"]):
+                    schema["oneOf"].append({"type": "null"})
             else:
                 try:
-                    type_ = schema['type']
+                    type_ = schema["type"]
                     if isinstance(type_, (str, dict)):
-                        schema['type'] = [type_, 'null']
+                        schema["type"] = [type_, "null"]
                     else:
-                        schema['type'].append('null')
+                        schema["type"].append("null")
                 except KeyError:
-                    if len(schema) == 1 and '$ref' in schema:
-                        schema = {'anyOf': [schema, {'type': 'null'}]}
+                    if len(schema) == 1 and "$ref" in schema:
+                        schema = {"anyOf": [schema, {"type": "null"}]}
                     else:
-                        current_app.logger.warn(
-                            '{} is nullable but "null" type cannot be added to schema.'.format(self))
+                        current_app.logger.warn('{} is nullable but "null" type cannot be added'.format(self))
 
-        for attr in ('default', 'title', 'description'):
+        for attr in ("default", "title", "description"):
             value = getattr(self, attr)
             if value is not None:
                 schema[attr] = value
@@ -86,9 +91,9 @@ class Raw(Schema):
         elif isinstance(schema, tuple):
             read_schema, write_schema = schema
         else:
-            return self._finalize_schema(schema)
+            return self._finalize_schema(schema, "rw")
 
-        return (self._finalize_schema(read_schema), self._finalize_schema(write_schema))
+        return self._finalize_schema(read_schema, "r"), self._finalize_schema(write_schema, "w")
 
     def format(self, value):
         """
@@ -96,10 +101,18 @@ class Raw(Schema):
         """
         return value
 
-    def convert(self, value):
+    def convert(self, value, validate=True):
         """
         Convert a JSON value representation to a Python object. Noop by default.
         """
+        if validate:
+            value = super(Raw, self).convert(value)
+
+        if value is not None:
+            return self.converter(value)
+        return value
+
+    def converter(self, value):
         return value
 
     def output(self, key, obj):
@@ -133,18 +146,18 @@ class Custom(Raw):
 
     def __init__(self, schema, converter=None, formatter=None, **kwargs):
         super(Custom, self).__init__(schema, **kwargs)
-        self.converter = converter
-        self.formatter = formatter
+        self._converter = converter
+        self._formatter = formatter
 
     def format(self, value):
-        if self.formatter is None:
+        if self._formatter is None:
             return value
-        return self.formatter(value)
+        return self._formatter(value)
 
-    def convert(self, value):
-        if self.converter is None:
+    def converter(self, value):
+        if self._converter is None:
             return value
-        return self.converter(value)
+        return self._converter(value)
 
 
 class Array(Raw):
@@ -166,7 +179,7 @@ class Array(Raw):
     def format(self, value):
         return [self.container.format(v) for v in value]
 
-    def convert(self, value):
+    def converter(self, value):
         return [self.container.convert(v) for v in value]
 
 
@@ -200,7 +213,7 @@ class KeyValue(Raw):
     def format(self, value):
         return {k: self.container.format(v) for k, v in value.items()}
 
-    def convert(self, value):
+    def converter(self, value):
         return {k: self.container.convert(v) for k, v in value.items()}
 
 
@@ -229,7 +242,7 @@ class AttributeMapped(KeyValue):
     def format(self, value):
         return {getattr(v, self.mapping_attribute): self.container.format(v) for v in value}
 
-    def convert(self, value):
+    def converter(self, value):
         return [self._set_mapping_attribute(self.container.convert(v), k) for k, v in value.items()]
 
 
@@ -293,7 +306,7 @@ class Object(Raw):
         else:
             return {k: self.container.format(v) for k, v in value.items()}
 
-    def convert(self, value):
+    def converter(self, value):
         raise NotImplementedError()
 
         return {k: self.container.convert(v) for k, v in value.items()}
@@ -341,7 +354,7 @@ class Date(Raw):
     def format(self, value):
         return int(time.mktime(value.timetuple()) * 1000)
 
-    def convert(self, value):
+    def converter(self, value):
         return datetime.fromtimestamp(value / 1000)
 
 
@@ -359,7 +372,7 @@ class DateString(Raw):
     def format(self, value):
         return value.strftime('%Y-%m-%d')
 
-    def convert(self, value):
+    def converter(self, value):
         return aniso8601.parse_date(value)
 
 
@@ -374,7 +387,7 @@ class DateTimeString(Raw):
     def format(self, value):
         return value.isoformat()
 
-    def convert(self, value):
+    def converter(self, value):
         # FIXME enforce UTC
         return aniso8601.parse_datetime(value)
 
@@ -398,7 +411,7 @@ class Boolean(Raw):
 
 
 class Integer(Raw):
-    def __init__(self, minimum=None, maximum=None, default=0, **kwargs):
+    def __init__(self, minimum=None, maximum=None, default=None, **kwargs):
         schema = {"type": "integer"}
 
         if minimum is not None:
@@ -414,11 +427,11 @@ class Integer(Raw):
 
 class PositiveInteger(Integer):
     """
-    A :class:`Integer` field that only accepts integers >=0.
+    A :class:`Integer` field that only accepts integers >=1.
     """
 
     def __init__(self, maximum=None, **kwargs):
-        super(PositiveInteger, self).__init__(minimum=0, maximum=maximum, **kwargs)
+        super(PositiveInteger, self).__init__(minimum=1, maximum=maximum, **kwargs)
 
 
 class Number(Raw):
@@ -483,7 +496,7 @@ class ToOne(Raw):
         raise NotImplementedError()  # TODO
 
 
-    def convert(self, value):
+    def converter(self, value):
         pass
 
 

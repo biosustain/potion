@@ -1,7 +1,7 @@
 from werkzeug.exceptions import Conflict, BadRequest, NotFound
 
 
-class InlineNotFoundError(NotFound):
+class ItemNotFound(NotFound):
 
     def __init__(self, resource, natural_key=None, id=None):
         NotFound.__init__()
@@ -9,7 +9,7 @@ class InlineNotFoundError(NotFound):
 
 class ValidationError(BadRequest):
 
-    def __init__(self, ve):
+    def __init__(self, ve, path=None):
         BadRequest.__init__(self)
         self.ve = ve
     # raise PotionValidationError(
@@ -26,3 +26,6 @@ class DuplicateKey(Conflict):
         Conflict.__init__(self)
         self.data = kwargs
 
+
+class PageNotFound(NotFound):
+    pass

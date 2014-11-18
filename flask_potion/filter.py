@@ -74,6 +74,9 @@ IMPLICIT_COMPARATOR = '$eq'
 
 ALL = '*'
 
+Expression = namedtuple('Expression', ['name', 'comparator', 'value'])
+
+
 class Filter(Schema):
     def __init__(self, fieldset, allowed_filters=None):
         self.filters = {}

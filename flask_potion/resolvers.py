@@ -1,15 +1,16 @@
 import re
 from flask import url_for
 from werkzeug.utils import cached_property
-from flask.ext.potion.schema import Schema
-from flask.ext.potion.util import route_from
+from .exceptions import ItemNotFound
+from .schema import Schema
+from .util import route_from
 import six
 
 class Resolver(object):
 
     def matcher_type(self, resource):
         type_ = self.schema(resource)['type']
-        if isinstance(type_, six.text_types):
+        if isinstance(type_, six.text_type):
             return type_
         return type_[0]
 
@@ -40,8 +41,8 @@ class RefResolver(Resolver):
     def resolve(self, resource, value):
         endpoint, args = route_from(value["$ref"])
         # XXX verify endpoint is correct (it should be)
-        assert resource.endpoint == endpoint
-        return resource.get_item_from_id(args['id'])
+        # assert resource.endpoint == endpoint
+        return resource.manager.read(args['id'])
 
 
 class PropertyResolver(Resolver):
@@ -56,7 +57,11 @@ class PropertyResolver(Resolver):
         return resource.schema[self.property].output(self.property, item)
 
     def resolve(self, resource, value):
-        raise NotImplementedError()
+        instances = resource.manager.instances(where={self.property: value})
+        try:
+            return instances[0]
+        except IndexError:
+            raise ItemNotFound(resource, natural_key=value)
 
 
 class PropertiesResolver(Resolver):
@@ -74,7 +79,11 @@ class PropertiesResolver(Resolver):
         return [resource.schema[p].output(p, item) for p in self.properties]
 
     def resolve(self, resource, value):
-        raise NotImplementedError()
+        instances = resource.manager.instances(where={property: value[i] for i, property in enumerate(self.properties)})
+        try:
+            return instances[0]
+        except IndexError:
+            raise ItemNotFound(resource, natural_key=value)
 
 
 class IDResolver(Resolver):
@@ -85,4 +94,4 @@ class IDResolver(Resolver):
         return resource.meta.id_field.output(resource.meta.id_attribute, item)
 
     def resolve(self, resource, value):
-        return resource.get_item_from_id(value)
+        return resource.manager.read(value)

@@ -12,15 +12,15 @@ from . import fields
 from sqlalchemy.dialects import postgres
 from sqlalchemy.orm import class_mapper
 import sqlalchemy.types as sa_types
-from flask.ext.potion.util import AttributeDict
-from .manager import Manager
+from .util import AttributeDict
+from .manager import SQLAlchemyManager
 from .routes import route, Route, MethodRoute, DeferredSchema
 from .schema import Schema, FieldSet
 from .filter import Filter, Sort
 from collections import defaultdict
 
 
-class Set(Schema):
+class Instances(Schema):
     """
     This is what implements all of the pagination, filter, and sorting logic.
 
@@ -61,6 +61,9 @@ class Set(Schema):
     def delete(self, item, child):
         raise NotImplementedError()
 
+    def schema(self):
+        return {"TODO": True}
+
 
 class PotionMeta(type):
     def __new__(mcs, name, bases, members):
@@ -87,9 +90,16 @@ class PotionMeta(type):
             schema = dict(members['Schema'].__dict__)
 
             # TODO support FieldSet with definitions
-            class_.schema = FieldSet({k: f for k, f in schema.items() if not k.startswith('__')},
-                                     required_fields=meta.get('required_fields', None),
-                                     read_only_fields=meta.get('read_only_fields', None))
+            class_.schema = fs = FieldSet({k: f for k, f in schema.items() if not k.startswith('__')},
+                                          required_fields=meta.get('required_fields', None))
+
+            for name in meta.get('read_only_fields', ()):
+                if name in fs.fields:
+                    fs.fields[name].io = "r"
+
+            for name in meta.get('write_only_fields', ()):
+                if name in fs.fields:
+                    fs.fields[name].io = "w"
 
         for name, m in members.items():
             if isinstance(m, (Route, MethodRoute)):
@@ -109,7 +119,7 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
     schema = None
 
     @Route.GET('/schema', rel="describedBy", attribute="schema")
-    def schema_route(self): # No "targetSchema" because that would be way too meta.
+    def described_by(self): # No "targetSchema" because that would be way too meta.
         schema = OrderedDict([
             ("$schema", "http://json-schema.org/draft-04/hyper-schema#"),
         ])
@@ -135,6 +145,10 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
         name = None
         title = None
         description = None
+        required_fields = None
+        read_only_fields = ()
+        write_only_fields = ()
+        natural_keys = ()
 
 
 class ResourceMeta(PotionMeta):
@@ -150,29 +164,30 @@ class ResourceMeta(PotionMeta):
                 bool: fields.Boolean,
                 list: fields.Array,
                 dict: fields.KeyValue,
-                datetime.date: fields.Date,
-                datetime.datetime: fields.DateTime
+                datetime.date: fields.DateString,
+                datetime.datetime: fields.DateTimeString
             }[python_type]
         except KeyError:
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
 
     def __new__(mcs, name, bases, members):
         class_ = super(ResourceMeta, mcs).__new__(mcs, name, bases, members)
-        class_.meta = meta = dict(getattr(class_, 'meta', {}))
-        class_.routes = routes = dict(getattr(class_, 'routes', {}))
-
-        if 'Schema' in members:
-            schema = dict(members['Schema'].__dict__)
-        else:
-            schema = {}
 
         if 'Meta' in members:
+            meta = class_.meta
             changes = members['Meta'].__dict__
-            meta.update(changes)
 
+            if 'model' in meta:
+                class_.manager = meta.manager(class_, meta.model)
+
+                fs = class_.schema
+                fs.fields[meta.id_attribute] = meta.id_field_class(io="r", attribute=meta.id_attribute)
+
+
+            # TODO move this into manager maybe?
             # (pre-)populate schema with fields from model:
-            if 'model' in changes:
-                model = changes['model']
+            if 'model' in changes and False:
+                model = meta.model
                 mapper = class_mapper(model)
 
                 id_field = meta.get('id_field', mapper.primary_key[0].name)
@@ -182,9 +197,12 @@ class ResourceMeta(PotionMeta):
                 if 'name' not in meta:
                     meta['name'] = model.__tablename__.lower()
 
+                fs = class_.schema
                 include_fields = meta.get('include_fields', None)
                 exclude_fields = meta.get('exclude_fields', None)
-                explicit_fields = {f.attribute or k for k, f in schema.items()}
+                read_only_fields = meta.get('read_only_fields', ())
+                write_only_fields = meta.get('write_only_fields', ())
+                pre_declared_fields = {f.attribute or k for k, f in fs.schema.items()}
 
                 for name, column in six.iteritems(dict(mapper.columns)):
                     if (include_fields and name in include_fields) or \
@@ -194,7 +212,7 @@ class ResourceMeta(PotionMeta):
                         if column.primary_key or column.foreign_keys:
                             continue
 
-                        if name in explicit_fields:
+                        if name in pre_declared_fields:
                             continue
 
                         args = ()
@@ -219,93 +237,87 @@ class ResourceMeta(PotionMeta):
 
                         if column.default is not None and column.default.is_scalar:
                             kwargs['default'] = column.default.arg
+
+                        io = "rw"
+                        if name in read_only_fields:
+                            io = "r"
+                        elif name in write_only_fields:
+                            io = "w"
+
                         #
                         # if not (column.nullable or column.default):
                         #     meta["required_fields"].append(name)
-                        schema[name] = field_class(*args, attribute=name, **kwargs)
+
+                        fs.fields["name"] = field_class(*args, io=io, attribute=name, **kwargs)
 
 
             # TODO pre-populate Schema from `model` if present in 'meta'
 
-        # create fieldset schema
-        # add id_field from meta to fieldset schema
-
-        if schema:
-            class_.schema = FieldSet({k: f for k, f in schema.items() if not k.startswith('__')},
-                                     required_fields=meta.get('required_fields', None),
-                                     read_only_fields=meta.get('read_only_fields', None))
+        # TODO add id_field from meta to fieldset schema
 
 
         return class_
 
 
 class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
-#    items = Manager(None, None)
-    meta = None
-    routes = None
-    schema = None
+    manager = None
 
-    @classmethod
-    def get_item_id(cls, item):
-        return getattr(item, cls.meta['id_attribute'])
+    @Route.GET('', rel="instances")
+    def instances(self, where, sort, page=None, per_page=None):
+        print("INSTANCES", where, sort, page, per_page)
+        # where = None
+        # sort = None
+        #
+        # try:
+        #     if "where" in request.args:
+        #         where = json.loads(request.args["where"])
+        # except:
+        #     abort(400, message='Bad filter: Must be valid JSON object')
+        #     # FIXME XXX proper aborts & error messages
 
-    @classmethod
-    def get_item_url(cls, item):
-        return url_for(cls.read.endpoint, id=cls.get_item_id(item.id))
+        return self.manager.instances()
 
-    # XXX move somewhere better if possible
-    @classmethod
-    def get_item_from_id(cls, id):
-        pass
-
-    @classmethod
-    def get_items_query(cls):
-        pass
-
-    @route.GET('/', rel="instances")
-    def instances(self, where, sort):
-        where = None
-        sort = None
-
-        try:
-            if "where" in request.args:
-                where = json.loads(request.args["where"])
-        except:
-            abort(400, message='Bad filter: Must be valid JSON object')
-            # FIXME XXX proper aborts & error messages
-
-        self.items.get(self.items.index().all())
-
-    instances.schema = DeferredSchema(FieldSet, {
-        'where': DeferredSchema(Filter, 'self'),
-        'sort':  DeferredSchema(Sort, 'self'),
-    })# TODO NOTE Set('self') for filter, etc. schema
-    instances.response_schema = DeferredSchema(Set, 'self')
+    # TODO custom schema (Instances/Instances) that contains the necessary schema.
+    instances.request_schema = DeferredSchema(FieldSet, {
+        # 'where': DeferredSchema(Filter, 'self'),
+        # 'sort':  DeferredSchema(Sort, 'self'),
+        "where": fields.String(),
+        "sort": fields.String(),
+        "page": fields.Integer(),
+        "per_page": fields.Integer(),
+    })# TODO NOTE Instances('self') for filter, etc. schema
+    instances.response_schema = DeferredSchema(Instances, 'self')
 
     @instances.POST(rel="create")
-    def create(self, item_or_items):  # XXX need some way for field bindings to be dynamic/work dynamically.
-        pass # TODO handle integrity errors
+    def create(self, properties):  # XXX need some way for field bindings to be dynamic/work dynamically.
+        print('X',self.manager, properties)
+        item = self.manager.create(properties)
+        print('CREATED',item)
+        return item
 
-    create.schema = DeferredSchema(fields.Inline, 'self')
+    create.request_schema = DeferredSchema(fields.Inline, 'self')
     create.response_schema = DeferredSchema(fields.Inline, 'self')
 
     @Route.GET(lambda r: '/<{}:id>'.format(r.meta.id_converter), rel="self")
     def read(self, id):
-        pass
+        return self.manager.read(id)
 
-    read.schema = None
+    read.request_schema = None
     read.response_schema = DeferredSchema(fields.Inline, 'self')
 
     @read.PATCH(rel="update")
-    def update(self, id, object_):
-        pass
+    def update(self, properties, id):
+        item = self.manager.read(id)
+        updated_item = self.manager.update(item, properties)
+        return updated_item
 
-    update.schema = DeferredSchema(fields.Inline, 'self')
+    update.request_schema = DeferredSchema(fields.Inline, 'self')
     update.response_schema = DeferredSchema(fields.Inline, 'self')
 
     @update.DELETE(rel="destroy")
     def destroy(self, id):
-        pass
+        self.manager.delete(id)
+        return None, 204
 
     class Schema:
         pass
@@ -313,7 +325,8 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
     class Meta:
         id_attribute = 'id'
         id_converter = 'int'
-        id_field = fields.PositiveInteger()  # Must inherit from Integer or String
+        id_field_class = fields.PositiveInteger  # Must inherit from Integer or String
+        manager = SQLAlchemyManager
         include_fields = None
         exclude_fields = None
         allowed_filters = "*"
@@ -325,9 +338,6 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
         }
         postgres_text_search_fields = ()
         postgres_full_text_index = None  # $fulltext
-        read_only_fields = ()
-        write_only_fields = ()
-        natural_keys = ()
         cache = False
 
 

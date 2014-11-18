@@ -211,6 +211,8 @@ class Route(object):
 
         def view(*args, **kwargs):
             instance = resource()
+            print(request_schema)
+            print(args, kwargs)
 
             if isinstance(request_schema, FieldSet):
                 kwargs.update(request_schema.parse_request(request))
@@ -219,7 +221,7 @@ class Route(object):
 
             response = view_func(instance, *args, **kwargs)
 
-            # TODO add 'described_by' header if response schema is a ToOne/ToMany/Set field.
+            # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.
 
             if response_schema is None or not self.format_response:
                 return response
@@ -317,6 +319,40 @@ class MethodRoute(Route):
             return wraps(func)(self._set_method_view_func('PATCH', func, **kwargs))
         return wrapper
 
+    def view_factory(self, name, resource):
+        methods = {}
+
+        for name, link in self.method_views.items():
+            methods[name] = DeferredSchema.resolve(link.response_schema, resource),\
+                            DeferredSchema.resolve(link.request_schema, resource),\
+                            link.view_func
+
+        def view(*args, **kwargs):
+            meth = methods.get(request.method)
+            if meth is None and request.method == 'HEAD':
+                meth = methods['GET']
+
+            response_schema, request_schema, view_func = meth
+            instance = resource()
+            print(request_schema, response_schema, methods, request.method)
+
+            if isinstance(request_schema, FieldSet):
+                kwargs.update(request_schema.parse_request(request))
+            elif isinstance(request_schema, Schema):
+                args += (request_schema.parse_request(request),)
+
+            print(args, kwargs)
+            response = view_func(instance, *args, **kwargs)
+
+            # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.
+
+            if response_schema is None or not self.format_response:
+                return response
+            else:
+                return response_schema.format_response(response)
+
+        return view
+
     # TODO
     # def view_factory(self, name, binding):
     #     def view(*args, **kwargs):
@@ -340,7 +376,7 @@ class MethodRoute(Route):
     #
     #         response = view_func(instance, *args, **kwargs)
     #
-    #         # TODO add 'described_by' header if response schema is a ToOne/ToMany/Set field.
+    #         # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.
     #
     #         if response_schema is None:
     #             return response
@@ -388,31 +424,14 @@ class ItemMapAttributeRoute(ItemRoute):
     #     pass
 
 
-class ItemSetRoute(ItemRoute):
-
-    def __init__(self, target_resource=None, **kwargs):
-        pass
-
-    def get(self):
-        raise NotImplementedError()
-
-    def put(self, item, child):
-        raise NotImplementedError()
-
-    def delete(self, item, child):
-        raise NotImplementedError()
-
-
-class RelationshipRoute(ItemSetRoute):
+class RelationRoute(ItemRoute):
     """
 
     A relationship route returns `{"$ref"}` objects for purposes of cache-ability, a core principle of REST.
     """
 
     def __init__(self, resource, backref=None, io="rw", attribute=None, **kwargs):
-        super(RelationshipRoute, self).__init__(kwargs.pop('binding', None), attribute)
+        super(RelationRoute, self).__init__(kwargs.pop('binding', None), attribute)
         self.resource = resource
         self.backref = backref
         self.io = io
-
-route = Route

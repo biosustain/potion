@@ -1,8 +1,8 @@
 import json
-from flask.ext.potion import fields
-from flask.ext.potion.resource import PotionResource
-from flask.ext.potion.routes import Route, MethodRoute, DeferredSchema
-from flask.ext.potion.schema import FieldSet, Schema
+from flask_potion import fields
+from flask_potion.resource import PotionResource
+from flask_potion.routes import Route, MethodRoute, DeferredSchema
+from flask_potion.schema import FieldSet, Schema
 from tests import BaseTestCase
 
 
@@ -35,7 +35,7 @@ class ResourceTestCase(BaseTestCase):
         self.assertEqual('fooresource', FooResource.meta.name)
         self.assertEqual(None, FooResource.meta.description)
 
-        data, code, headers = FooResource().schema_route()
+        data, code, headers = FooResource().described_by()
         self.assertEqual({'Content-Type': 'application/schema+json'}, headers)
         self.assertEqual(200, code)
         self.assertJSONEqual({
@@ -61,7 +61,7 @@ class ResourceTestCase(BaseTestCase):
             class Meta:
                 name = 'foo'
 
-        data, code, headers = FooResource().schema_route()
+        data, code, headers = FooResource().described_by()
         self.assertJSONEqual({
                                  "$schema": "http://json-schema.org/draft-04/hyper-schema#",
                                  "links": [
@@ -95,7 +95,7 @@ class ResourceTestCase(BaseTestCase):
 
         self.assertEqual('/foo/<int:id>', FooResource.read.rule_factory(FooResource))
 
-        data, code, headers = FooResource().schema_route()
+        data, code, headers = FooResource().described_by()
         self.assertJSONEqual({
                                  "$schema": "http://json-schema.org/draft-04/hyper-schema#",
                                  "links": [
@@ -139,7 +139,7 @@ class ResourceTestCase(BaseTestCase):
             class Meta:
                 name = 'foo'
 
-        data, code, headers = FooResource().schema_route()
+        data, code, headers = FooResource().described_by()
         self.assertJSONEqual({
                                  "$schema": "http://json-schema.org/draft-04/hyper-schema#",
                                  "links": [
@@ -201,7 +201,7 @@ class ResourceTestCase(BaseTestCase):
             class Meta:
                 name = 'user'
 
-        data, code, headers = UserResource().schema_route()
+        data, code, headers = UserResource().described_by()
         self.assertEqual({
                              "$schema": "http://json-schema.org/draft-04/hyper-schema#",
                              "type": "object",

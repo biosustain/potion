@@ -1,6 +1,6 @@
-from unittest import TestCase
 from flask import json, Flask
 from flask.testing import FlaskClient
+from flask_testing import TestCase
 
 
 class ApiClient(FlaskClient):
@@ -23,10 +23,10 @@ class BaseTestCase(TestCase):
     def assertJSONEqual(self, first, second, msg=None):
         self.assertEqual(json.loads(json.dumps(first)), json.loads(json.dumps(second)), msg)
 
-    def setUp(self):
+    def create_app(self):
         app = Flask(__name__)
         app.secret_key = '00112233445566778899AABBCCDDEEFF'
         app.test_client_class = ApiClient
-        app.config['TESTING'] = True
-        self.app = app
+        app.debug = True
+        return app
 

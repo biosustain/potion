@@ -1,6 +1,6 @@
 from unittest import TestCase
-from flask.ext.potion.exceptions import ValidationError
-from flask.ext.potion.schema import Schema
+from flask_potion.exceptions import ValidationError
+from flask_potion.schema import Schema
 
 
 class SchemaTestCase(TestCase):

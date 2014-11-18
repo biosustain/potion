@@ -1,8 +1,7 @@
 from collections import OrderedDict
 import operator
-from flask import current_app, make_response
+from flask import current_app, make_response, json
 from six import wraps
-from sqlalchemy.dialects.postgresql import json
 from werkzeug.wrappers import BaseResponse
 from .util import unpack
 
@@ -10,7 +9,7 @@ from .util import unpack
 class Api(object):
     def __init__(self, app=None, decorators=None, prefix=None, default_per_page=20, max_per_page=100):
         self.app = None
-        self.prefix = prefix
+        self.prefix = prefix or ''
         self.decorators = decorators or []
         self.max_per_page = max_per_page
         self.default_per_page = default_per_page
@@ -21,15 +20,18 @@ class Api(object):
         self.views = []
 
         if app is not None:
-            self.app = app
             self.init_app(app)
 
     def init_app(self, app):
-        self.app._complete_view('/schema',
-                                view_func=self._schema_view,
-                                endpoint='schema',
-                                methods=['GET'])
-        # TODO add URL rule for base schema.
+        self.app = app
+        self._complete_view('/schema',
+                            view_func=self.output(self._schema_view),
+                            endpoint='schema',
+                            methods=['GET'])
+
+        for rule, view, endpoint, methods in self.views:
+            self._complete_view(rule, view_func=view, endpoint=endpoint, methods=methods)
+
 
     def output(self, view):
         # FIXME from Flask-RESTful
@@ -45,7 +47,7 @@ class Api(object):
                 return resp
 
             data, code, headers = unpack(resp)
-
+            print(data, code, headers)
             # TODO since these settings are the same every time, move them outside the function
             settings = {}
             if current_app.debug:
@@ -77,8 +79,9 @@ class Api(object):
 
         # TODO add title, description
 
-        for name, resource in sorted(self.resources, key=operator.itemgetter(0)):
-            properties[name] = {"$ref": self._complete_rule('/{}'.format(name))}
+        for name, resource in sorted(self.resources.items(), key=operator.itemgetter(0)):
+            resource_schema_rule = resource.routes['schema'].rule_factory(resource)
+            properties[name] = {"$ref": self._complete_rule('{}#'.format(resource_schema_rule))}
 
         return schema, 200, {'Content-Type': 'application/schema+json'}
 
@@ -100,7 +103,7 @@ class Api(object):
         if resource in self.resources.values():
             return
 
-        for route in resource.routes:
+        for route in resource.routes.values():
             self.add_route(route, resource)
 
         self.resources[resource.meta.name] = resource
