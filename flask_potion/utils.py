@@ -52,3 +52,12 @@ def unpack(value):
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
+
+
+def get_value(key, obj, default):
+    if hasattr(obj, '__getitem__'):
+        try:
+            return obj[key]
+        except (IndexError, KeyError):
+            pass
+    return getattr(obj, key, default)

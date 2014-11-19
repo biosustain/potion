@@ -1,68 +1,20 @@
-from collections import namedtuple, OrderedDict
-import json
+from collections import OrderedDict
 import datetime
 from operator import attrgetter
-
-from flask import url_for, request
-from flask.views import MethodViewType
 import itertools
-import six
+from collections import defaultdict
 
-from . import fields
+import six
 from sqlalchemy.dialects import postgres
 from sqlalchemy.orm import class_mapper
 import sqlalchemy.types as sa_types
-from .util import AttributeDict
+
+from . import fields
+from flask.ext.potion.filter import Instances
+from .utils import AttributeDict
 from .manager import SQLAlchemyManager
-from .routes import route, Route, MethodRoute, DeferredSchema
-from .schema import Schema, FieldSet
-from .filter import Filter, Sort
-from collections import defaultdict
-
-
-class Instances(Schema):
-    """
-    This is what implements all of the pagination, filter, and sorting logic.
-
-    Works like a field, but reads 'where' and 'sort' query string parameters as well as link headers.
-    """
-
-    def __init__(self, resource, default_sort=None):
-        pass
-
-    def get(self, items, where=None, sort=None, page=None, per_page=None):
-        """
-
-        :param items: SQLAlchemy Query object
-        :param where:
-        :param sort:
-        :param page:
-        :param per_page:
-        :return:
-        """
-        #
-        # TODO make work with non
-        #
-
-        items = self._filter_where(items, where)
-        items = self._sort_by(items, sort)
-        items = self._paginate(items, page, per_page)
-
-
-        return items, 200, {
-            "Link": ','.join(str(link) for link in (
-                Link(self.resource.schema.uri, rel="describedBy"),
-            ))
-        }
-
-    def put(self, item, child):
-        raise NotImplementedError()
-
-    def delete(self, item, child):
-        raise NotImplementedError()
-
-    def schema(self):
-        return {"TODO": True}
+from .routes import Route, MethodRoute, DeferredSchema
+from .schema import FieldSet
 
 
 class PotionMeta(type):
@@ -278,14 +230,7 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
         return self.manager.instances()
 
     # TODO custom schema (Instances/Instances) that contains the necessary schema.
-    instances.request_schema = DeferredSchema(FieldSet, {
-        # 'where': DeferredSchema(Filter, 'self'),
-        # 'sort':  DeferredSchema(Sort, 'self'),
-        "where": fields.String(),
-        "sort": fields.String(),
-        "page": fields.Integer(),
-        "per_page": fields.Integer(),
-    })# TODO NOTE Instances('self') for filter, etc. schema
+    instances.request_schema = DeferredSchema(Instances, 'self') # TODO NOTE Instances('self') for filter, etc. schema
     instances.response_schema = DeferredSchema(Instances, 'self')
 
     @instances.POST(rel="create")

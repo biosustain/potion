@@ -3,7 +3,7 @@ from flask import url_for
 from werkzeug.utils import cached_property
 from .exceptions import ItemNotFound
 from .schema import Schema
-from .util import route_from
+from .utils import route_from
 import six
 
 class Resolver(object):

@@ -1,60 +1,53 @@
 from collections import namedtuple
-from sqlalchemy import func
 from . import fields
+from .manager import DESCENDING_ORDER, ASCENDING_ORDER
+from .reference import ResourceBound
+from .utils import get_value
 from .schema import Schema
 
-Comparator = namedtuple('Comparator', ['name', 'expression', 'schema', 'supported_types'])
+
+Comparator = namedtuple('Comparator', ['name', 'schema', 'supported_types'])
 
 DEFAULT_COMPARATORS = (
     Comparator('$eq',
-                lambda column, value: column == value,
-                lambda field: field.schema,
+                lambda field: field.response,
                 (fields.Boolean, fields.String, fields.Integer, fields.Number)),
     Comparator('$ne',
-                lambda column, value: column != value,
-                lambda field: field.schema,
+                lambda field: field.response,
                 (fields.Boolean, fields.String, fields.Integer, fields.Number)),
     Comparator('$in',
-               lambda column, value: column.in_(value) if len(value) else False,
                lambda field: {
                    "type": "array",
                    # "minItems": 1, # NOTE: Permitting 0 items for now.
                    "uniqueItems": True,
-                   "items": field.schema  # NOTE: None is valid.
+                   "items": field.response  # NOTE: None is valid.
                },
                (fields.String, fields.Integer, fields.Number)),
     Comparator('$lt',
-               lambda column, value: column < value,
                lambda field: {"type": "number"},
                (fields.Integer, fields.Number)),
     Comparator('$gt',
-               lambda column, value: column > value,
                lambda field: {"type": "number"},
                (fields.Integer, fields.Number)),
     Comparator('$lte',
-               lambda column, value: column <= value,
                lambda field: {"type": "number"},
                (fields.Integer, fields.Number)),
     Comparator('$gte',
-               lambda column, value: column >= value,
                lambda field: {"type": "number"},
                (fields.Integer, fields.Number)),
     Comparator('$text',
-               lambda column, value: column.op('@@')(func.plainto_tsquery(value)),
                lambda field: {
                    "type": "string",
                    "minLength": 1
                },
                (fields.String,)),
     Comparator('$startswith',  # TODO case insensitive
-               lambda column, value: column.startswith(value.replace('%', '\\%')),
                lambda field: {
                    "type": "string",
                    "minLength": 1
                },
                (fields.String,)),
     Comparator('$endswith',  # TODO case insensitive
-               lambda column, value: column.endswith(value.replace('%', '\\%')),
                lambda field: {
                    "type": "string",
                    "minLength": 1
@@ -70,147 +63,136 @@ COMPARATORS_BY_TYPE = {
     for t in (fields.Boolean, fields.String, fields.Integer, fields.Number)
 }
 
-IMPLICIT_COMPARATOR = '$eq'
+EQUALITY_COMPARATOR = '$eq'
 
 ALL = '*'
 
-Expression = namedtuple('Expression', ['name', 'comparator', 'value'])
+class Condition(object):
+    def __init__(self, attribute, comparator, value):
+        self.attribute = attribute
+        self.comparator = comparator
+        self.value = value
+
+    def __call__(self, item):
+        return self.comparator(self.value, get_value(self.attribute, item, None))
 
 
-class Filter(Schema):
-    def __init__(self, fieldset, allowed_filters=None):
+class Instances(Schema, ResourceBound):
+    """
+    This is what implements all of the pagination, filter, and sorting logic.
+
+    Works like a field, but reads 'where' and 'sort' query string parameters as well as link headers.
+    """
+
+    def __init__(self, resource, default_sort=None, filters=None):
+        self.allowed_filters = filters
         self.filters = {}
-        self.allowed_filters = None
+        self.sort_fields = []
 
-        if allowed_filters in (ALL, None):
-            allowed_filters = ALL
-        elif isinstance(allowed_filters, (list, tuple)):
-            allowed_filters = {field: ALL for field in allowed_filters}
-        elif isinstance(allowed_filters, dict):
+    def bind(self, resource):
+        fs = resource.schema
+        filters = self.allowed_filters
+
+        # TODO only allow filters supported by the manager
+
+        if filters in (ALL, None):
+            filters = ALL
+        elif isinstance(filters, (list, tuple)):
+            filters = {field: ALL for field in filters}
+        elif isinstance(filters, dict):
             pass
 
-        for name, field in fieldset.fields.items():
+        for name, field in fs.fields.items():
             try:
                 available_comparators = COMPARATORS_BY_TYPE[field.__class__]
             except KeyError:
                 continue
 
-            if allowed_filters == ALL:
+            if filters == ALL:
                 self.filters[name] = field, available_comparators
-            elif name in allowed_filters:
-                if allowed_filters[name] == ALL:
+            elif name in filters:
+                if filters[name] == ALL:
                     comparators = available_comparators
                 else:
-                    comparators = [c for c in allowed_filters[name] if c in available_comparators]
+                    comparators = [c for c in filters[name] if c in available_comparators]
 
                 self.filters[name] = field, comparators
 
-    def _filter_field_schema(self, field, comparators):
-        if len(comparators) == 1 and comparators[0].name == IMPLICIT_COMPARATOR:
-            return comparators[0].schema(field)
-
-        explicit_options = {
-            "type": "object",
-            "properties": {c.name: c.schema(field) for c in comparators if c.name != IMPLICIT_COMPARATOR},
-            "minProperties": 1,
-            "maxProperties": 1,
-        }
-
-        if comparators[IMPLICIT_COMPARATOR] in comparators:
-            return {
-                "oneOf": [
-                    explicit_options,
-                    comparators[IMPLICIT_COMPARATOR].schema(field)
-                ]
-            }
-
-        return explicit_options
-
-
-
-    # def get_sa_expression(self, model, where):
-    #     expressions = []
-    #
-    #     for name, where_clause in where.items():
-    #         field, comparators = self.fields[name]
-    #         column = getattr(self.model, field.attribute)
-    #
-    #         try:
-    #             validate(where_clause, self._filter_field_schema(field))
-    #         except ValidationError as ve:
-    #             abort(400, message="Bad filter: {}".format(where_clause))
-    #
-    #         comparator = None
-    #         value = None
-    #
-    #         if isinstance(where_clause, dict):
-    #             for c in comparators:
-    #                 if c.name in where_clause:
-    #                     comparator = c
-    #                     value = where_clause[c.name]
-    #                     break
-    #
-    #             if not comparator:
-    #                 abort(400, message='Bad filter expression: {}'.format(where_clause))
-    #         elif isinstance(where_clause, list):
-    #             comparator = self.comparators['$in']
-    #             value = where_clause
-    #         else:
-    #             comparator = self.comparators['$eq']
-    #             value = where_clause
-    #
-    #         expressions.append(comparator.expression(column, value))
-    #
-    #     if len(expressions) == 1:
-    #         return expressions[0]
-    #
-    #     # TODO ranking by default with text-search.
-    #
-    #     return and_(*expressions)
-
-    def schema(self):
-        return {
-            "type": "object",
-            "properties": {
-                name: self._filter_field_schema(field, comparators)
-                for name, (field, comparators) in self.filters.items()
-            },
-            "additionalProperties": False
-        }
-
-SORT_DESCENDING = -1
-SORT_ASCENDING = 1
-
-class Sort(Schema):
-
-    def __init__(self, fieldset, allowed_filters=None):
-        sortable = None
-        if allowed_filters in (ALL, None):
-            sortable = fieldset.fields
-        elif isinstance(allowed_filters, (list, tuple, dict)):
-            sortable = {name: fieldset.fields[name] for name in allowed_filters}
+        if filters in (ALL, None):
+            sort = fs.fields
+        elif isinstance(filters, (list, tuple, dict)):
+            sort = {name: fs.fields[name] for name in filters}
         else:
             raise RuntimeError("Meta.allowed_filters is not configured properly")
 
-        self.sortable = [name for name, field in sortable.items()
-                         if field.__class__ in (fields.String, fields.Boolean, fields.Number, fields.Integer)]
+        self.sort_fields = {name: field for name, field in sort.items() if self._is_sortable(field)}
 
-    def get_sa_sort_criteria(self, model, fieldset, sort):
-        for name, order in sort.items():
-            field = fieldset.fields[name]
-            column = getattr(model, field.attribute)
+    @classmethod
+    def _is_sortable(cls, field):
+        return isinstance(field, (fields.String, fields.Boolean, fields.Number, fields.Integer))
 
-            if order == SORT_DESCENDING:
-                yield column.desc()
-            else:
-                yield column.asc()
+    def _filter_field_schema(self, field, comparators):
+        if len(comparators) == 1 and comparators[0].name == EQUALITY_COMPARATOR:
+            return comparators[0].schema(field)
+
+        comparator_options = {
+            "type": "object",
+            "properties": {c.name: c.schema(field) for c in comparators if c.name != EQUALITY_COMPARATOR},
+            "minProperties": 1,
+            "maxProperties": 1
+        }
+
+        if COMPARATORS[EQUALITY_COMPARATOR] in comparators:
+            return {
+                "oneOf": [
+                    comparator_options,
+                    COMPARATORS[EQUALITY_COMPARATOR].schema(field)
+                ]
+            }
+
+        return comparator_options
 
     def schema(self):
-        return {
+        request_schema = {
             "type": "object",
             "properties": {
-                name: {"type": "integer", "enum": [SORT_DESCENDING, SORT_ASCENDING]}
-                for name in self.sortable
-            },
-            "additionalProperties": False
+                "where": {
+                    "type": "object",
+                    "properties": {
+                        name: self._filter_field_schema(field, comparators)
+                        for name, (field, comparators) in self.filters.items()
+                    },
+                    "additionalProperties": False
+                },
+                "sort": {
+                    "type": "object",
+                    "properties": { # FIXME switch to tuples
+                        name: {"type": "integer", "enum": [DESCENDING_ORDER, ASCENDING_ORDER]}
+                        for name in self.sort_fields
+                    },
+                    "additionalProperties": False
+                },
+                "page": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "per_page": {
+                    "type": "integer",
+                    "minimum": 1,
+                   # "maximum": self.resource.potion.max_per_page
+                }
+            }
+
         }
+
+        response_schema = {
+            "type": "array",
+            "items": {"$ref": "#"}
+        }
+
+        return response_schema, request_schema
+
+    def convert(self, value):
+        pass
+        # TODO properties -> field attributes
+        # parse filters

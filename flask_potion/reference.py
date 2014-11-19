@@ -41,3 +41,10 @@ class ResourceReference(object):
 
     def __repr__(self):
         return "<ResourceReference '{}'>".format(self.resolve().meta.name)
+
+
+class ResourceBound(object):
+    resource = None
+
+    def bind(self, resource):
+        self.resource = resource

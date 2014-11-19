@@ -3,7 +3,7 @@ import operator
 from flask import current_app, make_response, json
 from six import wraps
 from werkzeug.wrappers import BaseResponse
-from .util import unpack
+from .utils import unpack
 
 
 class Api(object):
@@ -100,6 +100,8 @@ class Api(object):
             self.views.append((rule, view, endpoint, methods))
 
     def add_resource(self, resource):
+        resource.potion = self
+
         if resource in self.resources.values():
             return
 

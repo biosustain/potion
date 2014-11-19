@@ -2,7 +2,7 @@ from collections import OrderedDict
 import six
 from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
-from .util import unpack
+from .utils import unpack
 from .exceptions import ValidationError as PotionValidationError
 
 

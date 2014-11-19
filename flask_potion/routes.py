@@ -57,8 +57,8 @@ should do a HTTP redirect to:
 from collections import OrderedDict
 from functools import wraps
 import re
-from types import MethodType
 from flask import request
+from .reference import ResourceBound
 from .schema import Schema, FieldSet
 
 
@@ -77,7 +77,8 @@ class DeferredSchema(object):
 
     def __call__(self, resource):
         schema = self.schema_class(*self.schema_args, **self.schema_kwargs)
-        schema.binding = resource
+        if isinstance(schema, ResourceBound):
+            schema.bind(resource)
         return schema
 
     @classmethod
@@ -196,7 +197,7 @@ class Route(object):
         rule = self.rule
 
         if rule is None:
-            rule = '/{}'.format(self.attribute)
+            rule = '/{}'.format(attribute_to_route_uri(self.attribute))
         elif callable(rule):
             rule = rule(resource)
 

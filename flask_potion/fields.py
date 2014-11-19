@@ -1,25 +1,17 @@
 from datetime import datetime
 import time
-import re
-import collections
+
 import aniso8601
 from flask import url_for, current_app
-from jsonschema import ValidationError
 from werkzeug.utils import cached_property
+
 from . import resolvers
-from .reference import ResourceReference
+from .utils import get_value
+from .reference import ResourceReference, ResourceBound
 from .schema import Schema
-from .exceptions import ValidationError as PotionValidationError
+
 
 # FIXME this code is similar to Flask-RESTful code. Need to add license
-def _get_value_for_key(key, obj, default):
-    if hasattr(obj, '__getitem__'):
-        try:
-            return obj[key]
-        except (IndexError, KeyError):
-            pass
-    return getattr(obj, key, default)
-
 
 class Raw(Schema):
     """
@@ -117,7 +109,7 @@ class Raw(Schema):
 
     def output(self, key, obj):
         key = key if self.attribute is None else self.attribute
-        return self.format(_get_value_for_key(key, obj, self.default))
+        return self.format(get_value(key, obj, self.default))
 
 
 # FIXME this code is similar to Flask-RESTful code. Need to add license
@@ -298,7 +290,7 @@ class Object(Raw):
         raise NotImplementedError()
         # TODO support g
         if self.properties:
-            return {key: field.format(_get_value_for_key(key, value, field.default)) for key, field in
+            return {key: field.format(get_value(key, value, field.default)) for key, field in
                     self.properties.items()}
 
         if self.additional_properties or self.pattern_properties:
@@ -461,40 +453,40 @@ class Number(Raw):
         return float(value)
 
 
-class ToOne(Raw):
+class ToOne(Raw, ResourceBound):
     def __init__(self, resource, formatter=resolvers.RefResolver(), **kwargs):
-        self._resource = ResourceReference(resource)
+        self.reference = ResourceReference(resource)
         self.formatter = formatter
-        self.binding = None
+        self.target = None
 
         def schema():
-            resource_url = url_for(self.resource.endpoint)
-            resource_reference = {"$ref": "{}/schema".format(resource_url)}
+            target = self.target
+            target_url = url_for(target.endpoint)
+            target_reference = {"$ref": "{}/schema".format(target_url)}
             response_schema = {
                 "oneOf": [
-                    formatter.schema(resource),
-                    resource_reference
+                    formatter.schema(target),
+                    target_reference
                 ]
             }
 
-            natural_keys = resource.meta.natural_keys
+            natural_keys = target.meta.natural_keys
             if natural_keys:
                 request_schema = {
-                    "anyOf": [formatter.schema(resource)] + [nk.request for nk in natural_keys]
+                    "anyOf": [formatter.schema(target)] + [nk.request for nk in natural_keys]
                 }
             else:
-                request_schema = resource_reference
+                request_schema = target_reference
             return response_schema, request_schema
 
         super(ToOne, self).__init__(schema, **kwargs)
 
-    @cached_property
-    def resource(self):
-        return self._resource.resolve(self.binding)  # FIXME XXX could just have this in Potion instance
+    def bind(self, resource):
+        super(ToOne, self).bind(resource)
+        self.target = self.reference.resolve(resource)
 
     def format(self, item):
         raise NotImplementedError()  # TODO
-
 
     def converter(self, value):
         pass
@@ -505,13 +497,14 @@ class ToMany(Array):
         super(ToMany, self).__init__(ToOne(resource, nullable=False), **kwargs)
 
 
-class Inline(Raw):
+class Inline(Raw, ResourceBound):
+
     def __init__(self, resource, **kwargs):
         self.reference = ResourceReference(resource)
-        self.binding = None
+        self.target = None
 
         def schema():
-            if self.binding == self.resource:
+            if self.resource == self.target:
                 return {"$ref": "#"}
 
             # resource_url = url_for(self.resource.endpoint)
@@ -522,16 +515,16 @@ class Inline(Raw):
 
         super(Inline, self).__init__(schema, **kwargs)
 
-    @cached_property
-    def resource(self):
-        return self.reference.resolve(self.binding)
+    def bind(self, resource):
+        super(Inline, self).bind(resource)
+        self.target = self.reference.resolve(resource)
 
     def format(self, item):
-        return self.resource.schema.format(item)
+        return self.target.schema.format(item)
 
     def convert(self, item):
         # TODO create actual model instance here?
-        return self.resource.schema.convert(item)
+        return self.target.schema.convert(item)
 
 
         # class InlineModel(fields.Nested):
