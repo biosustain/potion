@@ -1,11 +1,17 @@
+from itertools import islice
+from operator import attrgetter, and_
 from flask import current_app
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from .exceptions import DuplicateKey, ItemNotFound
+from .utils import get_value
 from .signals import before_create, before_update, after_update, before_delete, after_delete
 from flask_sqlalchemy import BaseQuery, Pagination, get_state
 from werkzeug.exceptions import abort
 
+ASCENDING_ORDER = 1
+DESCENDING_ORDER = -1
 
 class Relation(object):
     def __init__(self, resource, attribute, target_resource=None):
@@ -25,6 +31,7 @@ class Relation(object):
 
 class Manager(object):
     relation_type = Relation
+    supported_comparators = ()
     
     def __init__(self, resource, model):
         self.resource = resource
@@ -61,21 +68,48 @@ class MemoryRelation(Relation):
 
 class MemoryManager(Manager):
     relation_type = MemoryRelation
+    supported_comparators = ('$eq', '$ne', '$lt', '$gt', '$le', '$ge', '$in', '$startswith', '$endswith')
 
     def __init__(self, resource, model):
         super(MemoryManager, self).__init__(resource, model)
         self.id_attribute = resource.meta.get('id_attribute', 'id')
         self.id_sequence = 0
         self.items = {}
-        self.session = {}
+        self.session = []
 
     def _new_item_id(self):
         self.id_sequence += 1
         return self.id_sequence
 
-    def instances(self):
-        # TODO filter, sort, pagination
-        return list(self.items.values())
+    @staticmethod
+    def _filter_items(items, where):
+        for item in items:
+            # TODO ensure condition uses the field attribute, not the post attribute
+            if all(condition(item) for condition in where):
+                yield item
+
+    @staticmethod
+    def _sort_items(items, sort):
+        for key, order in reversed(sort):
+            reverse = order == DESCENDING_ORDER
+            items = sorted(items, key=attrgetter(key), reverse=reverse)
+        return items
+
+    def _paginate(self, items, page=None, per_page=None):
+        page = page or 1
+        per_page = per_page or self.resource.potion.default_per_page
+        start = per_page * (page - 1)
+        return list(islice(items, start, start + per_page))
+
+    def instances(self, where=None, sort=None, page=None, per_page=None):
+        items = self.items.values()
+
+        if where is not None:
+            items = self._filter_items(items, where)
+        if sort is not None:
+            items = self._sort_items(items, sort)
+
+        return self._paginate(items, page, per_page)
 
     def create(self, properties, commit=True):
         item_id = self._new_item_id()
@@ -105,7 +139,7 @@ class MemoryManager(Manager):
         if commit:
             self.items[item_id] = item
         else:
-            self.session[item_id] = item
+            self.session.append((item_id, item))
 
         return item
 
@@ -114,12 +148,11 @@ class MemoryManager(Manager):
         del self.items[item_id]
 
     def commit(self):
-        for id, item in self.session:
-            self.items[id] = item
+        for item_id, item in self.session:
+            self.items[item_id] = item
 
     def begin(self):
-        self.session = {}
-
+        self.session = []
 
 
 class SQLAlchemyRelation(Relation):
@@ -135,8 +168,22 @@ class SQLAlchemyRelation(Relation):
         getattr(item, self.attribute).remove(target_item)
 
 
+SA_COMPARATOR_EXPRESSIONS = {
+    '$eq': lambda column, value: column == value,
+    '$ne': lambda column, value: column != value,
+    '$in': lambda column, value: column.in_(value) if len(value) else False,
+    '$lt': lambda column, value: column < value,
+    '$gt': lambda column, value: column > value,
+    '$le': lambda column, value: column <= value,
+    '$ge': lambda column, value: column >= value,
+    '$text': lambda column, value: column.op('@@')(func.plainto_tsquery(value)),
+    '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
+    '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%'))
+}
+
 class SQLAlchemyManager(Manager):
     relation_type = SQLAlchemyRelation
+    supported_comparators = tuple(SA_COMPARATOR_EXPRESSIONS.keys())
 
     def __init__(self, resource, model):
         super(SQLAlchemyManager, self).__init__(resource, model)
@@ -155,12 +202,38 @@ class SQLAlchemyManager(Manager):
     def _query(self):
         return self.model.query
 
-    def instances(self):
+    def _where_expression(self, where):
+        expressions = []
+
+        for condition in where:
+            column = getattr(self.model, condition.attribute)
+            expressions.append(SA_COMPARATOR_EXPRESSIONS[condition.comparator.name](column, condition.value))
+
+        if len(expressions) == 1:
+            return expressions[0]
+
+        # TODO ranking by default with text-search.
+
+        return and_(*expressions)
+
+    def _order_by(self, sort):
+        for attribute, order in sort.items():
+            column = getattr(self.model, attribute)
+
+            if order == DESCENDING_ORDER:
+                yield column.desc()
+            else:
+                yield column.asc()
+
+    def instances(self, where=None, sort=None, page=None, per_page=None):
         query = self._query()
-        # TODO filters
-        # TODO sort
-        # TODO pagination
-        return query.all()
+
+        if where:
+            query = query.filter(self._where_expression(where))
+        if sort:
+            query = query.order_by(*self._order_by(sort))
+
+        return query.paginate(page=page, per_page=per_page)
 
     def create(self, properties, commit=True):
         # noinspection properties
