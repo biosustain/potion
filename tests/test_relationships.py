@@ -1,5 +1,5 @@
 from unittest import TestCase
-from flask.ext.potion.filter import Instances
+from flask.ext.potion.instances import Instances
 from flask_potion import Potion, fields
 from flask_potion.routes import ItemAttributeRoute
 from potion.client import Resource

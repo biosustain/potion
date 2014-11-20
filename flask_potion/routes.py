@@ -58,6 +58,7 @@ from collections import OrderedDict
 from functools import wraps
 import re
 from flask import request
+from .instances import Instances
 from .reference import ResourceBound
 from .schema import Schema, FieldSet
 
@@ -213,9 +214,9 @@ class Route(object):
         def view(*args, **kwargs):
             instance = resource()
             print(request_schema)
-            print(args, kwargs)
+            print('NEW REQUEST',args, kwargs)
 
-            if isinstance(request_schema, FieldSet):
+            if isinstance(request_schema, (FieldSet, Instances)):
                 kwargs.update(request_schema.parse_request(request))
             elif isinstance(request_schema, Schema):
                 args += [request_schema.parse_request(request)]
@@ -336,13 +337,14 @@ class MethodRoute(Route):
             response_schema, request_schema, view_func = meth
             instance = resource()
             print(request_schema, response_schema, methods, request.method)
+            print(isinstance(request_schema, Instances))
 
-            if isinstance(request_schema, FieldSet):
+            if isinstance(request_schema, (FieldSet, Instances)):
                 kwargs.update(request_schema.parse_request(request))
             elif isinstance(request_schema, Schema):
                 args += (request_schema.parse_request(request),)
 
-            print(args, kwargs)
+            print('A KWA',args, kwargs)
             response = view_func(instance, *args, **kwargs)
 
             # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.

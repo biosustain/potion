@@ -10,7 +10,7 @@ from sqlalchemy.orm import class_mapper
 import sqlalchemy.types as sa_types
 
 from . import fields
-from flask.ext.potion.filter import Instances
+from .instances import Instances
 from .utils import AttributeDict
 from .manager import SQLAlchemyManager
 from .routes import Route, MethodRoute, DeferredSchema
@@ -215,19 +215,36 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
     manager = None
 
     @Route.GET('', rel="instances")
-    def instances(self, where, sort, page=None, per_page=None):
-        print("INSTANCES", where, sort, page, per_page)
-        # where = None
-        # sort = None
-        #
-        # try:
-        #     if "where" in request.args:
-        #         where = json.loads(request.args["where"])
-        # except:
-        #     abort(400, message='Bad filter: Must be valid JSON object')
-        #     # FIXME XXX proper aborts & error messages
+    def instances(self, **kwargs):
+        """
+        :param where:
+        :param sort:
+        :param int page:
+        :param int per_page:
+        :return:
+        """
+        print("INSTANCES", kwargs)
 
-        return self.manager.instances()
+        # TODO link headers for next/previous/last page. Pagination object.
+        return self.manager.paginated_instances(**kwargs)
+
+        # TODO links must contain filters & sort
+        # links = [(request.path, item_list.page, item_list.per_page, 'self')]
+        #
+        # if item_list.has_prev:
+        #     links.append((request.path, 1, item_list.per_page, 'first'))
+        #     links.append((request.path, item_list.page - 1, item_list.per_page, 'prev'))
+        # if item_list.has_next:
+        #     links.append((request.path, item_list.pages, item_list.per_page, 'last'))
+        #     links.append((request.path, item_list.page + 1, item_list.per_page, 'next'))
+        #
+        # headers = {'Link': ','.join((LINK_HEADER_FORMAT_STR.format(*link) for link in links))}
+        # return super(ModelResource, cls).marshal_item_list(item_list.items), 200, headers
+
+        LINK_HEADER_FORMAT_STR = '<{0}?page={1}&per_page={2}>; rel="{3}"'
+
+        return pagination.items
+
 
     # TODO custom schema (Instances/Instances) that contains the necessary schema.
     instances.request_schema = DeferredSchema(Instances, 'self') # TODO NOTE Instances('self') for filter, etc. schema

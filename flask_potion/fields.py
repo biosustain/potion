@@ -5,7 +5,7 @@ import aniso8601
 from flask import url_for, current_app
 from werkzeug.utils import cached_property
 
-from . import resolvers
+from . import natural_keys
 from .utils import get_value
 from .reference import ResourceReference, ResourceBound
 from .schema import Schema
@@ -93,16 +93,16 @@ class Raw(Schema):
         """
         return value
 
-    def convert(self, value, validate=True):
+    def convert(self, instance, validate=True):
         """
         Convert a JSON value representation to a Python object. Noop by default.
         """
         if validate:
-            value = super(Raw, self).convert(value)
+            instance = super(Raw, self).convert(instance)
 
-        if value is not None:
-            return self.converter(value)
-        return value
+        if instance is not None:
+            return self.converter(instance)
+        return instance
 
     def converter(self, value):
         return value
@@ -454,7 +454,7 @@ class Number(Raw):
 
 
 class ToOne(Raw, ResourceBound):
-    def __init__(self, resource, formatter=resolvers.RefResolver(), **kwargs):
+    def __init__(self, resource, formatter=natural_keys.RefResolver(), **kwargs):
         self.reference = ResourceReference(resource)
         self.formatter = formatter
         self.target = None

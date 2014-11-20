@@ -1,5 +1,7 @@
+from __future__ import division
 from itertools import islice
-from operator import attrgetter, and_
+from math import ceil
+from operator import attrgetter, and_, itemgetter
 from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -7,11 +9,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from .exceptions import DuplicateKey, ItemNotFound
 from .utils import get_value
 from .signals import before_create, before_update, after_update, before_delete, after_delete
-from flask_sqlalchemy import BaseQuery, Pagination, get_state
+from flask_sqlalchemy import get_state
 from werkzeug.exceptions import abort
-
-ASCENDING_ORDER = 1
-DESCENDING_ORDER = -1
 
 class Relation(object):
     def __init__(self, resource, attribute, target_resource=None):
@@ -29,6 +28,23 @@ class Relation(object):
         raise NotImplementedError()
 
 
+class Pagination(object):
+
+    def __init__(self, items, page, per_page, pages):
+        self.items = items
+        self.page = page
+        self.per_page = per_page
+        self.pages = pages
+
+    @property
+    def has_prev(self):
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        return self.page < self.pages
+
+
 class Manager(object):
     relation_type = Relation
     supported_comparators = ()
@@ -40,7 +56,10 @@ class Manager(object):
     def relation_factory(self, attribute, target_resource=None):
         return self.relation_type(self.resource, attribute, target_resource)
 
-    def instances(self, where=None, sort=None, page=None, per_page=None):
+    def paginated_instances(self, page, per_page, where=None, sort=None):
+        pass
+
+    def instances(self, where=None, sort=None):
         pass
     
     def create(self, properties, commit=True):
@@ -90,18 +109,20 @@ class MemoryManager(Manager):
 
     @staticmethod
     def _sort_items(items, sort):
-        for key, order in reversed(sort):
-            reverse = order == DESCENDING_ORDER
-            items = sorted(items, key=attrgetter(key), reverse=reverse)
+        for key, reverse in reversed(sort):
+            items = sorted(items, key=lambda item: get_value(key, item, None), reverse=reverse)
         return items
 
-    def _paginate(self, items, page=None, per_page=None):
-        page = page or 1
-        per_page = per_page or self.resource.potion.default_per_page
+    def _paginate(self, items, page, per_page):
+        items = list(items)
         start = per_page * (page - 1)
-        return list(islice(items, start, start + per_page))
+        pages = int(ceil(len(items) / per_page))
+        return Pagination(items[start:start + per_page], page, per_page, pages)
 
-    def instances(self, where=None, sort=None, page=None, per_page=None):
+    def paginated_instances(self, page, per_page, where=None, sort=None):
+        return self._paginate(self.instances(where=where, sort=sort), page, per_page)
+
+    def instances(self, where=None, sort=None):
         items = self.items.values()
 
         if where is not None:
@@ -109,7 +130,7 @@ class MemoryManager(Manager):
         if sort is not None:
             items = self._sort_items(items, sort)
 
-        return self._paginate(items, page, per_page)
+        return items
 
     def create(self, properties, commit=True):
         item_id = self._new_item_id()
@@ -217,13 +238,16 @@ class SQLAlchemyManager(Manager):
         return and_(*expressions)
 
     def _order_by(self, sort):
-        for attribute, order in sort.items():
+        for attribute, reverse in sort.items():
             column = getattr(self.model, attribute)
 
-            if order == DESCENDING_ORDER:
+            if reverse:
                 yield column.desc()
             else:
                 yield column.asc()
+
+    def paginated_instances(self, page, per_page, where=None, sort=None):
+        return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)
 
     def instances(self, where=None, sort=None, page=None, per_page=None):
         query = self._query()
@@ -233,7 +257,7 @@ class SQLAlchemyManager(Manager):
         if sort:
             query = query.order_by(*self._order_by(sort))
 
-        return query.paginate(page=page, per_page=per_page)
+        return query
 
     def create(self, properties, commit=True):
         # noinspection properties

@@ -1,20 +1,28 @@
 from collections import namedtuple
-from . import fields
-from .manager import DESCENDING_ORDER, ASCENDING_ORDER
+from . import fields, ValidationError
+import collections
+
+from flask import json, request
+from werkzeug.exceptions import InternalServerError
+from werkzeug.utils import cached_property
+from .exceptions import InvalidJSON
+from .manager import Pagination
 from .reference import ResourceBound
 from .utils import get_value
 from .schema import Schema
 
 
-Comparator = namedtuple('Comparator', ['name', 'schema', 'supported_types'])
+Comparator = namedtuple('Comparator', ['name', 'schema', 'expression', 'supported_types'])
 
 DEFAULT_COMPARATORS = (
     Comparator('$eq',
-                lambda field: field.response,
-                (fields.Boolean, fields.String, fields.Integer, fields.Number)),
+               lambda field: field.response,
+               lambda eq, value: value == eq,
+               (fields.Boolean, fields.String, fields.Integer, fields.Number)),
     Comparator('$ne',
-                lambda field: field.response,
-                (fields.Boolean, fields.String, fields.Integer, fields.Number)),
+               lambda field: field.response,
+               lambda ne, value: value != ne,
+               (fields.Boolean, fields.String, fields.Integer, fields.Number)),
     Comparator('$in',
                lambda field: {
                    "type": "array",
@@ -22,36 +30,44 @@ DEFAULT_COMPARATORS = (
                    "uniqueItems": True,
                    "items": field.response  # NOTE: None is valid.
                },
+               lambda in_, value: value in in_,
                (fields.String, fields.Integer, fields.Number)),
     Comparator('$lt',
                lambda field: {"type": "number"},
+               lambda lt, value: value < lt,
                (fields.Integer, fields.Number)),
     Comparator('$gt',
                lambda field: {"type": "number"},
+               lambda gt, value: value > gt,
                (fields.Integer, fields.Number)),
     Comparator('$lte',
                lambda field: {"type": "number"},
+               lambda lte, value: value <= lte,
                (fields.Integer, fields.Number)),
     Comparator('$gte',
                lambda field: {"type": "number"},
+               lambda gte, value: value <= gte,
                (fields.Integer, fields.Number)),
     Comparator('$text',
                lambda field: {
                    "type": "string",
                    "minLength": 1
                },
+               None,
                (fields.String,)),
     Comparator('$startswith',  # TODO case insensitive
                lambda field: {
                    "type": "string",
                    "minLength": 1
                },
+               lambda sw, value: value and value.startswith(sw),
                (fields.String,)),
     Comparator('$endswith',  # TODO case insensitive
                lambda field: {
                    "type": "string",
                    "minLength": 1
                },
+               lambda ew, value: value and value.endswith(ew),
                (fields.String,))
 
 )
@@ -67,6 +83,7 @@ EQUALITY_COMPARATOR = '$eq'
 
 ALL = '*'
 
+
 class Condition(object):
     def __init__(self, attribute, comparator, value):
         self.attribute = attribute
@@ -74,7 +91,7 @@ class Condition(object):
         self.value = value
 
     def __call__(self, item):
-        return self.comparator(self.value, get_value(self.attribute, item, None))
+        return self.comparator.expression(self.value, get_value(self.attribute, item, None))
 
 
 class Instances(Schema, ResourceBound):
@@ -90,6 +107,8 @@ class Instances(Schema, ResourceBound):
         self.sort_fields = []
 
     def bind(self, resource):
+        super(Instances, self).bind(resource)
+
         fs = resource.schema
         filters = self.allowed_filters
 
@@ -152,37 +171,47 @@ class Instances(Schema, ResourceBound):
 
         return comparator_options
 
+    @cached_property
+    def _where_schema(self):
+        return {
+            "type": "object",
+            "properties": {
+                name: self._filter_field_schema(field, comparators)
+                for name, (field, comparators) in self.filters.items()
+            },
+            "additionalProperties": False
+        }
+
+    @cached_property
+    def _sort_schema(self):
+        return {
+            "type": "object",
+            "properties": {  # FIXME switch to tuples
+                             name: {"type": "boolean"}
+                             for name in self.sort_fields
+            },
+            "additionalProperties": False
+        }
+
     def schema(self):
         request_schema = {
             "type": "object",
             "properties": {
-                "where": {
-                    "type": "object",
-                    "properties": {
-                        name: self._filter_field_schema(field, comparators)
-                        for name, (field, comparators) in self.filters.items()
-                    },
-                    "additionalProperties": False
-                },
-                "sort": {
-                    "type": "object",
-                    "properties": { # FIXME switch to tuples
-                        name: {"type": "integer", "enum": [DESCENDING_ORDER, ASCENDING_ORDER]}
-                        for name in self.sort_fields
-                    },
-                    "additionalProperties": False
-                },
+                "where": self._where_schema,
+                "sort": self._sort_schema,
                 "page": {
                     "type": "integer",
-                    "minimum": 1
+                    "minimum": 1,
+                    "default": 1
                 },
                 "per_page": {
                     "type": "integer",
                     "minimum": 1,
-                   # "maximum": self.resource.potion.max_per_page
+                    "maximum": self.resource.potion.max_per_page,
+                    "default": self.resource.potion.default_per_page
                 }
-            }
-
+            },
+            "additionalProperties": True
         }
 
         response_schema = {
@@ -192,7 +221,78 @@ class Instances(Schema, ResourceBound):
 
         return response_schema, request_schema
 
-    def convert(self, value):
-        pass
-        # TODO properties -> field attributes
-        # parse filters
+    # def convert(self, value):
+    # pass
+    #     # TODO properties -> field attributes
+    #     # parse filters
+
+    def _convert_where(self, where):
+        for name, condition in where.items():
+            field, comparators = self.filters[name]
+
+            value = None
+            comparator = None
+            if isinstance(condition, dict):
+                for c in comparators:
+                    if c.name in condition:
+                        comparator = c
+                        value = condition[c.name]
+                        break
+
+                assert comparator is not None
+            elif isinstance(condition, list):
+                comparator = COMPARATORS['$in']
+                value = condition
+            else:
+                comparator = COMPARATORS['$eq']
+                value = condition
+
+            yield Condition(field.attribute or name, comparator, value)
+
+    def _convert_sort(self, sort):
+        for name, reverse in sort.items():
+            field = self.sort_fields[name]
+            yield field.attribute or name, reverse
+
+    def parse_request(self, request):
+        # TODO convert instances to FieldSet
+        # TODO (implement in FieldSet too:) load values from request.args
+        try:
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', self.resource.potion.default_per_page, type=int)
+            where = json.loads(request.args.get('where', '{}'))  # FIXME
+            sort = json.loads(request.args.get('sort', '{}'), object_pairs_hook=collections.OrderedDict)
+        except ValueError:
+            raise InvalidJSON()
+
+        result = self.convert({
+            "page": page,
+            "per_page": per_page,
+            "where": where,
+            "sort": sort
+        })
+
+        result['where'] = tuple(self._convert_where(result['where']))
+        result['sort'] = tuple(self._convert_sort(result['sort']))
+        return result
+
+    def format(self, items):
+        return [self.resource.schema.format(item) for item in items]
+
+    def format_response(self, items):
+        if isinstance(items, list):
+            return self.format(items)
+
+        # # TODO links must contain filters & sort
+        links = [(request.path, items.page, items.per_page, 'self')]
+
+        if items.has_prev:
+            links.append((request.path, 1, items.per_page, 'first'))
+            links.append((request.path, items.page - 1, items.per_page, 'prev'))
+        if items.has_next:
+            links.append((request.path, items.page + 1, items.per_page, 'next'))
+
+        links.append((request.path, items.pages, items.per_page, 'last'))
+
+        headers = {'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links))}
+        return self.format(items.items), 200, headers

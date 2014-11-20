@@ -33,7 +33,7 @@ class ApiTestCase(BaseTestCase):
     def test_api_crud_resource(self):
         class BookResource(Resource):
             class Schema:
-                title = fields.String()
+                title = fields.String(attribute='name')
 
             class Meta:
                 name = "book"
@@ -47,75 +47,15 @@ class ApiTestCase(BaseTestCase):
         print("RESPONSE", response.json)
         self.maxDiff = None
         self.assertEqual({
-                             "$schema": "http://json-schema.org/draft-04/hyper-schema#",
-                             "type": "object",
-                             "properties": {
-                                 "title": {
-                                     "type": "string"
-                                 },
-                                 "id": {
-                                     "type": "integer",
-                                     "minimum": 1,
-                                     "readOnly": True
-                                 }
+                             "title": {
+                                 "type": "string"
                              },
-                             "links": [
-                                 {
-                                     "method": "POST",
-                                     "rel": "create",
-                                     "schema": {"$ref": "#"},
-                                     "targetSchema": {"$ref": "#"},
-                                     "href": "" # TODO /api/book or .
-                                 },
-                                 {
-                                     "method": "GET",
-                                     "rel": "describedBy",
-                                     "href": "schema"
-                                 },
-                                 {
-                                     "method": "DELETE",
-                                     "rel": "destroy",
-                                     "href": "{id}"
-                                 },
-                                 {
-                                     "method": "GET",
-                                     "rel": "instances",
-                                     "schema": {
-                                         "additionalProperties": False,
-                                         "type": "object",
-                                         "properties": {  # TODO
-                                                          "page": {
-                                                              "type": "integer"
-                                                          },
-                                                          "sort": {
-                                                              "type": "string"
-                                                          },
-                                                          "per_page": {
-                                                              "type": "integer"
-                                                          },
-                                                          "where": {
-                                                              "type": "string"
-                                                          }
-                                         }
-                                     },
-                                     "targetSchema": {"TODO": True},
-                                     "href": ""
-                                 },
-                                 {
-                                     "targetSchema": {"$ref": "#"},
-                                     "method": "GET",
-                                     "rel": "self",
-                                     "href": "{id}"
-                                 },
-                                 {
-                                     "schema": {"$ref": "#"},
-                                     "method": "PATCH",
-                                     "rel": "update",
-                                     "targetSchema": {"$ref": "#"}, # TODO different schema without required fields
-                                     "href": "{id}"
-                                 }
-                             ]
-                         }, response.json)
+                             "id": {
+                                 "type": "integer",
+                                 "minimum": 1,
+                                 "readOnly": True
+                             }
+                         }, response.json['properties'])
 
         response = self.client.post("/book", data={"title": "Foo"})
 
@@ -129,14 +69,15 @@ class ApiTestCase(BaseTestCase):
         print("RESPONSE", response.data)
 
         self.assertEqual({
-                     "id": 1,
-                     "title": "Bar"
-                 }, response.json)
-
+                             "id": 1,
+                             "title": "Bar"
+                         }, response.json)
 
         response = self.client.post("/book", data={"title": "Bat"})
+        response = self.client.post("/book", data={"title": "Foo"})
         response = self.client.get("/book")
         print("RESPONSE", response.data)
+        print("RESPONSE", response.json)
 
         self.assertEqual([
                              {
@@ -146,5 +87,24 @@ class ApiTestCase(BaseTestCase):
                              {
                                  "id": 2,
                                  "title": "Bat"
+                             },
+                             {
+                                 "id": 3,
+                                 "title": "Foo"
+                             }
+                         ], response.json)
+
+        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        response = self.client.get('/book?where={"title": {"$startswith": "B"}}&sort={"id": true}')
+        print("RESPONSE", response.data)
+
+        self.assertEqual([
+                             {
+                                 "id": 2,
+                                 "title": "Bat"
+                             },
+                             {
+                                 "id": 1,
+                                 "title": "Bar"
                              }
                          ], response.json)

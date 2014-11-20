@@ -3,7 +3,7 @@ import six
 from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
 from .utils import unpack
-from .exceptions import ValidationError as PotionValidationError
+from .exceptions import ValidationError as PotionValidationError, PotionException
 
 
 class Schema(object):
@@ -34,13 +34,13 @@ class Schema(object):
     def format(self, value):
         return value
 
-    def convert(self, value):
+    def convert(self, instance):
         try:
-            print(value)
-            self._validator.validate(value)
+            self._validator.validate(instance)
         except ValidationError as ve:
-            raise PotionValidationError(ve)
-        return value
+            errors = self._validator.iter_errors(instance)
+            raise PotionValidationError(errors)
+        return instance
 
     def parse_request(self, request):
         data = request.json

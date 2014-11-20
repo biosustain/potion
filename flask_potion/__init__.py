@@ -1,8 +1,10 @@
 from collections import OrderedDict
 import operator
-from flask import current_app, make_response, json
+from flask import current_app, make_response, json, jsonify
+from jsonschema import ValidationError
 from six import wraps
 from werkzeug.wrappers import BaseResponse
+from .exceptions import PotionException
 from .utils import unpack
 
 
@@ -32,6 +34,15 @@ class Api(object):
         for rule, view, endpoint, methods in self.views:
             self._complete_view(rule, view_func=view, endpoint=endpoint, methods=methods)
 
+        @app.errorhandler(PotionException)
+        def handle_invalid_usage(error):
+            print('FAIL', error)
+            return error.make_response()
+
+
+        @app.errorhandler(ValidationError)
+        def handle_invalid_usage(error):
+            print("FAIL FAIL FAIL ")
 
     def output(self, view):
         # FIXME from Flask-RESTful
