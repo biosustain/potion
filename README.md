@@ -1,5 +1,9 @@
 # Potion
 
+<p style="text-align:center">
+    <img src="https://raw.githubusercontent.com/biosustain/potion/master/docs/_static/Potion.png">
+</p>
+
 ## Inspiration & Alternatives
 
 Potion used to be based on Flask-RESTful. It no longer shares any code with Flask-RESTful, but there are some residual
