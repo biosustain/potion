@@ -1,6 +1,6 @@
 from flask_potion import Api, fields
-from flask_potion.manager import MemoryManager
-from flask_potion.resource import Resource
+from flask_potion.backends.memory import MemoryManager
+from flask_potion.resource import ModelResource
 from tests import BaseTestCase
 
 
@@ -10,7 +10,7 @@ class ApiTestCase(BaseTestCase):
         self.api = Api(self.app)
 
     def test_api_register_resource(self):
-        class BookResource(Resource):
+        class BookResource(ModelResource):
             class Meta:
                 name = "book"
                 manager = MemoryManager
@@ -31,7 +31,7 @@ class ApiTestCase(BaseTestCase):
         self.assert200(response)
 
     def test_api_crud_resource(self):
-        class BookResource(Resource):
+        class BookResource(ModelResource):
             class Schema:
                 title = fields.String(attribute='name')
 

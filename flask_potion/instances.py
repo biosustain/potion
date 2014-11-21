@@ -6,7 +6,7 @@ from flask import json, request
 from werkzeug.exceptions import InternalServerError
 from werkzeug.utils import cached_property
 from .exceptions import InvalidJSON
-from .manager import Pagination
+from .backends import Pagination
 from .reference import ResourceBound
 from .utils import get_value
 from .schema import Schema

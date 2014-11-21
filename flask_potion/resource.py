@@ -12,7 +12,7 @@ import sqlalchemy.types as sa_types
 from . import fields
 from .instances import Instances
 from .utils import AttributeDict
-from .manager import SQLAlchemyManager
+from .backends.sqlalchemy import SQLAlchemyManager
 from .routes import Route, MethodRoute, DeferredSchema
 from .schema import FieldSet
 
@@ -65,7 +65,7 @@ class PotionMeta(type):
         return class_
 
 
-class PotionResource(six.with_metaclass(PotionMeta, object)):
+class Resource(six.with_metaclass(PotionMeta, object)):
     meta = None
     routes = None
     schema = None
@@ -76,7 +76,7 @@ class PotionResource(six.with_metaclass(PotionMeta, object)):
             ("$schema", "http://json-schema.org/draft-04/hyper-schema#"),
         ])
 
-        # copy title, description from Resource.meta
+        # copy title, description from ModelResource.meta
         for property in ('title', 'description'):
             value = getattr(self.meta, property)
             if value:
@@ -118,7 +118,7 @@ class ResourceMeta(PotionMeta):
         return class_
 
 
-class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
+class ModelResource(six.with_metaclass(ResourceMeta, Resource)):
     manager = None
 
     @Route.GET('', rel="instances")
@@ -187,7 +187,7 @@ class Resource(six.with_metaclass(ResourceMeta, PotionResource)):
         cache = False
 
 
-# class StrainResource(Resource):
+# class StrainResource(ModelResource):
 #
 #     class Meta:
 #         natural_keys = (

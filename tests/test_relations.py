@@ -1,8 +1,7 @@
 from unittest import TestCase
-from flask.ext.potion.instances import Instances
-from flask_potion import Potion, fields
+from flask_potion.resource import ModelResource
+from flask_potion import Api, fields
 from flask_potion.routes import ItemAttributeRoute
-from potion.client import Resource
 
 
 class RelationshipTestCase(TestCase):
@@ -47,9 +46,8 @@ class RelationshipTestCase(TestCase):
 
     def test_item_route(self):
 
-        potion = Potion()
 
-        class DrinkResource(potion.Resource):
+        class DrinkResource(ModelResource):
 
             recipe = ItemAttributeRoute(
                 fields.Array(
@@ -74,16 +72,13 @@ class RelationshipTestCase(TestCase):
 
     def test_relationship(self):
 
-        potion = Potion()
-
-        class ProjectResource(potion.Resource):
-            tasks = Instances('tasks')
+        # class ProjectResource(ModelResource):
+        #     tasks = Instances('tasks')
 
             # class Meta:
             #     model = Project
 
-
-        class TaskResource(potion.Resource):
+        class TaskResource(ModelResource):
             # class Meta:
             #     model = Task
 

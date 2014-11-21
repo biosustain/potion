@@ -66,11 +66,16 @@ class SchemaTestCase(TestCase):
                     "age": 12
                 }})
 
-        self.assertEqual({'type': 'string'}, cx.exception.ve.schema)
-        self.assertEqual("type", cx.exception.ve.validator)
-        self.assertEqual("string", cx.exception.ve.validator_value)
-        self.assertEqual(12, cx.exception.ve.instance)
-        self.assertEqual(('properties', 'age'), tuple(cx.exception.ve.absolute_path))
+        self.assertEqual({
+                             'errors': [
+                                 {
+                                     'path': ('properties', 'age'),
+                                     'validationOf': {'type': 'string'}
+                                 }
+                             ],
+                             'message': 'Bad Request',
+                             'status': 400
+                         }, cx.exception.as_dict())
 
 
     def test_schema_class_parse_request(self):

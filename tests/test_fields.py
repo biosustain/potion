@@ -1,5 +1,6 @@
 from unittest import TestCase
 from werkzeug.exceptions import BadRequest
+from flask_potion.exceptions import ValidationError
 from flask_potion import fields
 
 
@@ -96,19 +97,19 @@ class FieldsTestCase(TestCase):
         self.assertEqual(12.5, foo_attribute.output("age", {"yearsBornAgo": 12.5}))
 
     def test_number_convert(self):
-        with self.assertRaises(BadRequest):
+        with self.assertRaises(ValidationError):
             fields.Number().convert("nope")
 
-        with self.assertRaises(BadRequest):
+        with self.assertRaises(ValidationError):
             fields.Number(nullable=False).convert(None)
 
-        with self.assertRaises(BadRequest):
+        with self.assertRaises(ValidationError):
             fields.Number(minimum=3).convert(2)
 
-        with self.assertRaises(BadRequest):
+        with self.assertRaises(ValidationError):
             fields.Number(minimum=3, exclusive_minimum=True).convert(3)
 
-        with self.assertRaises(BadRequest):
+        with self.assertRaises(ValidationError):
             fields.Number(maximum=3, exclusive_maximum=True).convert(3)
 
         self.assertEqual(3, fields.Number(maximum=3).convert(3))
@@ -125,13 +126,13 @@ class FieldsTestCase(TestCase):
                          }, fields.String(min_length=2, max_length=3, pattern="[A-Z][0-9]{1,2}").response)
 
     def test_string_convert(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             fields.String(min_length=8).convert("123456")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             fields.String(max_length=10).convert("abcdefghijklmnopqrstuvwxyz")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             fields.String(pattern="^[fF]oo$").convert("Boo")
 
         self.assertEqual("foo", fields.String(pattern="^[fF]oo$").convert("foo"))
@@ -139,22 +140,22 @@ class FieldsTestCase(TestCase):
         self.assertEqual(None, fields.String(nullable=True).convert(None))
 
     def test_kv_convert(self):
-        kv = fields.KeyValue(fields.Integer, nullable=False)
+        o = fields.Object(fields.Integer, nullable=False)
 
-        self.assertEqual({"x": 123}, kv.convert({"x": 123}))
+        self.assertEqual({"x": 123}, o.convert({"x": 123}))
 
         self.assertEqual({
                              "type": "object",
                              "additionalProperties": {
                                  "type": "integer"
                              }
-                         }, kv.schema)
+                         }, o.schema)
 
         with self.assertRaises(ValueError):
-            kv.convert({"y": "string"})
+            o.convert({"y": "string"})
 
         with self.assertRaises(ValueError):
-            kv.convert(None)
+            o.convert(None)
 
     def test_kv_convert_pattern(self):
         kv = fields.KeyValue(fields.Integer, key_pattern="[A-Z][0-9]+")

@@ -12,8 +12,8 @@ class ResourceReference(object):
         """
         Resolve attempts three different methods for resolving a reference:
 
-        - if the reference is a Resource, return it
-        - if the reference is a Resource name in the current_app.unrest API context, return it
+        - if the reference is a ModelResource, return it
+        - if the reference is a ModelResource name in the current_app.unrest API context, return it
         - if the reference is a complete module.class string, import and return it
         """
         name = self.name
@@ -21,8 +21,8 @@ class ResourceReference(object):
         if name == 'self':
             return binding
 
-        from .resource import Resource
-        if inspect.isclass(name) and issubclass(name, Resource):
+        from .resource import ModelResource
+        if inspect.isclass(name) and issubclass(name, ModelResource):
             return name
 
         # FIXME XXX need a better back-reference to the Potion instance
@@ -37,7 +37,7 @@ class ResourceReference(object):
         except ValueError:
             pass
 
-        raise RuntimeError('Resource named "{}" is not registered with Potion'.format(name))
+        raise RuntimeError('ModelResource named "{}" is not registered with Potion'.format(name))
 
     def __repr__(self):
         return "<ResourceReference '{}'>".format(self.resolve().meta.name)

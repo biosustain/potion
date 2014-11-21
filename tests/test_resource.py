@@ -1,15 +1,18 @@
 from flask import json
-from flask_potion import fields
-from flask_potion.resource import Resource
+from flask_potion import fields, Api
+from flask_potion.resource import ModelResource
 from tests import BaseTestCase
 
 
 class ResourceTestCase(BaseTestCase):
 
+    def setUp(self):
+        super(ResourceTestCase, self).setUp()
+        self.api = Api(self.app)
 
     def test_resource(self):
 
-        class FooResource(Resource):
+        class FooResource(ModelResource):
 
             class Schema:
                 name = fields.String()
@@ -17,61 +20,13 @@ class ResourceTestCase(BaseTestCase):
             class Meta:
                 name = 'foo'
 
+        self.api.add_resource(FooResource)
+
         #self.assertEqual(['create', 'update', 'schema'], list(FooResource.routes.()))
 
         data, code, headers = FooResource().described_by()
-        print(json.dumps(data,indent=2))
         self.assertEqual({
-                             "$schema": "http://json-schema.org/draft-04/hyper-schema#",
-                             "type": "object",
-                             "links": [
-                                 {
-                                     "href": "",
-                                     "method": "POST",
-                                     "rel": "create",
-                                     "targetSchema": {
-                                         "$ref": "#"
-                                     }
-                                 },
-                                 {
-                                     "href": "schema",
-                                     "method": "GET",
-                                     "rel": "describedBy"
-                                 },
-                                 {
-                                     "href": "{id}",
-                                     "method": "DELETE",
-                                     "rel": "destroy"
-                                 },
-                                 {
-                                     "href": "",
-                                     "method": "GET",
-                                     "rel": "instances",
-                                     "targetSchema": {
-                                         "TODO": True
-                                     } # TODO Instances()
-                                 },
-                                 {
-                                     "href": "{id}",
-                                     "method": "GET",
-                                     "rel": "self",
-                                     "targetSchema": {
-                                         "$ref": "#"
-                                     }
-                                 },
-                                 {
-                                     "href": "{id}",
-                                     "method": "PATCH",
-                                     "rel": "update",
-                                     "targetSchema": {
-                                         "$ref": "#"
-                                     } # TODO patch() mode without required fields
-                                 }
-                             ],
-                             "properties": {
-                                 "name": {
-                                     "type": "string"
-                                 }
+                             "name": {
+                                 "type": "string"
                              }
-                         }
-                         , data)
+                         }, data["properties"])

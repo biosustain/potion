@@ -1,6 +1,6 @@
 import json
 from flask_potion import fields
-from flask_potion.resource import PotionResource
+from flask_potion.resource import Resource
 from flask_potion.routes import Route, MethodRoute, DeferredSchema
 from flask_potion.schema import FieldSet, Schema
 from tests import BaseTestCase
@@ -8,7 +8,7 @@ from tests import BaseTestCase
 
 class RouteTestCase(BaseTestCase):
     def test_route(self):
-        class FooResource(PotionResource):
+        class FooResource(Resource):
             class Meta:
                 name = 'foo'
 
@@ -25,7 +25,7 @@ class RouteTestCase(BaseTestCase):
 
 class ResourceTestCase(BaseTestCase):
     def test_potion_resource(self):
-        class FooResource(PotionResource):
+        class FooResource(Resource):
             class Meta:
                 title = 'Foo bar'
 
@@ -51,7 +51,7 @@ class ResourceTestCase(BaseTestCase):
                              }, data)
 
     def test_resource_simple_route(self):
-        class FooResource(PotionResource):
+        class FooResource(Resource):
             @Route.POST()
             def foo(self):
                 return True
@@ -82,7 +82,7 @@ class ResourceTestCase(BaseTestCase):
                              }, data)
 
     def test_resource_route_rule_resolution(self):
-        class FooResource(PotionResource):
+        class FooResource(Resource):
             @Route.GET(lambda r: '/<{}:id>'.format(r.meta.id_converter), rel="self")
             def read(self, id):
                 return {"id": id}
@@ -97,33 +97,22 @@ class ResourceTestCase(BaseTestCase):
 
         data, code, headers = FooResource().described_by()
         self.assertJSONEqual({
-                                 "$schema": "http://json-schema.org/draft-04/hyper-schema#",
-                                 "links": [
-                                     {
-                                         "rel": "describedBy",
-                                         "href": "schema",
-                                         "method": "GET"
-                                     },
-                                     {
-                                         "rel": "self",
-                                         "href": "{id}",
-                                         "method": "GET",
-                                         "targetSchema": {
-                                             "type": "object",
-                                             "properties": {
-                                                 "id": {
-                                                     "type": "integer",
-                                                     "default": 0
-                                                 }
-                                             },
-                                             "additionalProperties": False
+                                 "rel": "self",
+                                 "href": "{id}",
+                                 "method": "GET",
+                                 "targetSchema": {
+                                     "type": "object",
+                                     "properties": {
+                                         "id": {
+                                             "type": "integer"
                                          }
-                                     }
-                                 ]
-                             }, data)
+                                     },
+                                     "additionalProperties": False
+                                 }
+                             }, data["links"][1])
 
     def test_resource_method_route(self):
-        class FooResource(PotionResource):
+        class FooResource(Resource):
             @Route.POST()
             def bar(self, value):
                 pass
@@ -186,8 +175,7 @@ class ResourceTestCase(BaseTestCase):
 
 
     def test_resource_schema(self):
-        class UserResource(PotionResource):
-
+        class UserResource(Resource):
             @Route.GET('/<int:id>', rel="self")
             def read(self, id):
                 return {"name": "Foo", "age": 123}
@@ -196,37 +184,18 @@ class ResourceTestCase(BaseTestCase):
 
             class Schema:
                 name = fields.String()
-                age = fields.Integer()
+                age = fields.PositiveInteger(nullable=True)
 
             class Meta:
                 name = 'user'
 
         data, code, headers = UserResource().described_by()
         self.assertEqual({
-                             "$schema": "http://json-schema.org/draft-04/hyper-schema#",
-                             "type": "object",
-                             "properties": {
-                                 "name": {
-                                     "type": "string"
-                                 },
-                                 "age": {
-                                     "type": "integer",
-                                     "default": 0
-                                 }
+                             "name": {
+                                 "type": "string"
                              },
-                             "links": [
-                                 {
-                                     "rel": "describedBy",
-                                     "href": "schema",
-                                     "method": "GET"
-                                 },
-                                 {
-                                     "rel": "self",
-                                     "href": "{id}",
-                                     "method": "GET",
-                                     "targetSchema": {  # FIXME not needed if rel == "self"
-                                         "$ref": "#"
-                                     }
-                                 }
-                             ]
-                         }, data)
+                             "age": {
+                                 "type": ["integer", "null"],
+                                 "minimum": 1
+                             }
+                         }, data["properties"])
