@@ -53,7 +53,7 @@ DEFAULT_COMPARATORS = (
                    "type": "string",
                    "minLength": 1
                },
-               None,
+               lambda text, value: value and text in value,
                (fields.String,)),
     Comparator('$startswith',  # TODO case insensitive
                lambda field: {
@@ -101,7 +101,7 @@ class Instances(Schema, ResourceBound):
     Works like a field, but reads 'where' and 'sort' query string parameters as well as link headers.
     """
 
-    def __init__(self, resource, default_sort=None, filters=None):
+    def __init__(self, reference, default_sort=None, filters=None):
         self.allowed_filters = filters
         self.filters = {}
         self.sort_fields = []
@@ -283,7 +283,6 @@ class Instances(Schema, ResourceBound):
         if isinstance(items, list):
             return self.format(items)
 
-        # # TODO links must contain filters & sort
         links = [(request.path, items.page, items.per_page, 'self')]
 
         if items.has_prev:
@@ -294,5 +293,6 @@ class Instances(Schema, ResourceBound):
 
         links.append((request.path, items.pages, items.per_page, 'last'))
 
+        # FIXME links must contain filters & sort
         headers = {'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links))}
         return self.format(items.items), 200, headers

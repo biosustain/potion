@@ -2,11 +2,17 @@ from __future__ import division
 from itertools import islice
 from math import ceil
 from operator import attrgetter, and_, itemgetter
+import datetime
 from flask import current_app
+import six
 from sqlalchemy import func
+import sqlalchemy.types as sa_types
+from sqlalchemy.dialects import postgres
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.exc import NoResultFound
 from .exceptions import DuplicateKey, ItemNotFound
+from . import fields
 from .utils import get_value
 from .signals import before_create, before_update, after_update, before_delete, after_delete
 from flask_sqlalchemy import get_state
@@ -53,6 +59,23 @@ class Manager(object):
         self.resource = resource
         self.model = model
 
+    @staticmethod
+    def _get_field_from_python_type(python_type):
+        try:
+            return {
+                str: fields.String,
+                six.text_type: fields.String,
+                int: fields.Integer,
+                float: fields.Number,
+                bool: fields.Boolean,
+                list: fields.Array,
+                dict: fields.KeyValue,
+                datetime.date: fields.DateString,
+                datetime.datetime: fields.DateTimeString
+            }[python_type]
+        except KeyError:
+            raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
+
     def relation_factory(self, attribute, target_resource=None):
         return self.relation_type(self.resource, attribute, target_resource)
 
@@ -73,6 +96,9 @@ class Manager(object):
     
     def delete(self, item):
         pass
+
+    def delete_by_id(self, id):
+        return self.delete(self.read(id))
 
     def commit(self):
         pass
@@ -209,12 +235,68 @@ class SQLAlchemyManager(Manager):
     def __init__(self, resource, model):
         super(SQLAlchemyManager, self).__init__(resource, model)
 
-        mapper = resource.meta.mapper
+        meta = resource.meta
+        mapper = class_mapper(model)
+
+        self.id_attribute = meta.get('id_attribute', mapper.primary_key[0].name)
 
         if resource.meta.id_field:
-            self._id_column = getattr(model, resource.meta.id_field)
+            self.id_column = getattr(model, resource.meta.id_field)
         else:
-            self._id_column = mapper.primary_key[0]
+            self.id_column = mapper.primary_key[0]
+
+        # resource name: use model table's name if not set explicitly
+        if 'name' not in meta:
+            meta['name'] = model.__tablename__.lower()
+
+        fs = resource.schema
+        include_fields = meta.get('include_fields', None)
+        exclude_fields = meta.get('exclude_fields', None)
+        read_only_fields = meta.get('read_only_fields', ())
+        write_only_fields = meta.get('write_only_fields', ())
+        pre_declared_fields = {f.attribute or k for k, f in fs.schema.items()}
+
+        for name, column in mapper.columns.items():
+            if (include_fields and name in include_fields) or \
+                    (exclude_fields and name not in exclude_fields) or \
+                    not (include_fields or exclude_fields):
+                if column.primary_key or column.foreign_keys:
+                    continue
+                if name in pre_declared_fields:
+                    continue
+
+                args = ()
+                kwargs = {}
+
+                if isinstance(column.type, postgres.ARRAY):
+                    field_class = fields.Array
+                    args = (fields.String,)
+                elif isinstance(column.type, sa_types.String) and column.type.length:
+                    field_class = fields.String
+                    kwargs = {'max_length': column.type.length}
+                elif isinstance(column.type, postgres.HSTORE):
+                    field_class = fields.KeyValue
+                    args = (fields.String,)
+                elif hasattr(postgres, 'JSON') and isinstance(column.type, postgres.JSON):
+                    field_class = fields.Raw
+                    kwargs = {"schema": {}}
+                else:
+                    field_class = self._get_field_from_python_type(column.type.python_type)
+
+                kwargs['nullable'] = column.nullable
+
+                if column.default is not None and column.default.is_scalar:
+                    kwargs['default'] = column.default.arg
+
+                io = "rw"
+                if name in read_only_fields:
+                    io = "r"
+                elif name in write_only_fields:
+                    io = "w"
+
+                # if not (column.nullable or column.default):
+                #     meta["required_fields"].append(name)
+                fs.fields["name"] = field_class(*args, io=io, attribute=name, **kwargs)
 
     @staticmethod
     def _get_session():
@@ -285,7 +367,7 @@ class SQLAlchemyManager(Manager):
     def read(self, id):
         try:
             # NOTE SQLAlchemy's .get() does not work well with .filter(), therefore using .one()
-            return self._query().filter(self._id_column == id).one()
+            return self._query().filter(self.id_column == id).one()
         except NoResultFound:
             abort(404, resource=self.resource.meta.name, id=id)
 

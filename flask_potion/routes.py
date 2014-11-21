@@ -75,11 +75,17 @@ class DeferredSchema(object):
         self.schema_class = class_
         self.schema_args = args
         self.schema_kwargs = kwargs
+        self._cached_schemas = {}
 
     def __call__(self, resource):
+        if resource in self._cached_schemas:
+            return self._cached_schemas[resource]
+
         schema = self.schema_class(*self.schema_args, **self.schema_kwargs)
         if isinstance(schema, ResourceBound):
             schema.bind(resource)
+
+        self._cached_schemas[resource] = schema
         return schema
 
     @classmethod

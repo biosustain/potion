@@ -44,7 +44,6 @@ class ApiTestCase(BaseTestCase):
 
         response = self.client.get("/book/schema")
 
-        print("RESPONSE", response.json)
         self.maxDiff = None
         self.assertEqual({
                              "title": {
@@ -59,14 +58,12 @@ class ApiTestCase(BaseTestCase):
 
         response = self.client.post("/book", data={"title": "Foo"})
 
-        print("RESPONSE", response.data)
         self.assertEqual({
                              "id": 1,
                              "title": "Foo"
                          }, response.json)
 
         response = self.client.patch("/book/1", data={"title": "Bar"})
-        print("RESPONSE", response.data)
 
         self.assertEqual({
                              "id": 1,
@@ -76,8 +73,6 @@ class ApiTestCase(BaseTestCase):
         response = self.client.post("/book", data={"title": "Bat"})
         response = self.client.post("/book", data={"title": "Foo"})
         response = self.client.get("/book")
-        print("RESPONSE", response.data)
-        print("RESPONSE", response.json)
 
         self.assertEqual([
                              {
@@ -94,9 +89,7 @@ class ApiTestCase(BaseTestCase):
                              }
                          ], response.json)
 
-        print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
         response = self.client.get('/book?where={"title": {"$startswith": "B"}}&sort={"id": true}')
-        print("RESPONSE", response.data)
 
         self.assertEqual([
                              {
@@ -108,3 +101,19 @@ class ApiTestCase(BaseTestCase):
                                  "title": "Bar"
                              }
                          ], response.json)
+
+        response = self.client.delete("/book/2")
+        self.assertStatus(response, 204)
+
+        response = self.client.patch("/book/1", data={"title": None})
+        self.assert400(response)
+        self.assertEqual({
+                             'status': 400,
+                             'message': 'Bad Request',
+                             'errors': [
+                                 {
+                                     'path': ['title'],
+                                     'validationOf': {'type': 'string'}
+                                 }
+                             ],
+                         }, response.json)
