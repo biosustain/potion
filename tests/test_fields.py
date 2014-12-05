@@ -1,4 +1,5 @@
 from unittest import TestCase
+import unittest
 from werkzeug.exceptions import BadRequest
 from flask_potion.exceptions import ValidationError
 from flask_potion import fields
@@ -139,28 +140,33 @@ class FieldsTestCase(TestCase):
         self.assertEqual("123456", fields.String().convert("123456"))
         self.assertEqual(None, fields.String(nullable=True).convert(None))
 
-    def test_kv_convert(self):
+    def test_object_convert(self):
         o = fields.Object(fields.Integer, nullable=False)
 
         self.assertEqual({"x": 123}, o.convert({"x": 123}))
 
+        self.assertEqual(o.request, o.response)
         self.assertEqual({
                              "type": "object",
                              "additionalProperties": {
                                  "type": "integer"
                              }
-                         }, o.schema)
+                         }, o.response)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             o.convert({"y": "string"})
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             o.convert(None)
 
-    def test_kv_convert_pattern(self):
-        kv = fields.KeyValue(fields.Integer, key_pattern="[A-Z][0-9]+")
+    @unittest.SkipTest
+    def test_object_convert_properties(self):
+        pass
 
-        self.assertEqual({"A3": 1, "B12": 2}, kv.convert({"A3": 1, "B12": 2}))
+    def test_object_convert_pattern(self):
+        o = fields.Object(fields.Integer, pattern="[A-Z][0-9]+")
+
+        self.assertEqual({"A3": 1, "B12": 2}, o.convert({"A3": 1, "B12": 2}))
 
         self.assertEqual({
                              "type": "object",
@@ -168,11 +174,11 @@ class FieldsTestCase(TestCase):
                              "patternProperties": {
                                  "[A-Z][0-9]+": {"type": "integer"}
                              }
-                         }, kv.schema)
+                         }, o.response)
 
-        with self.assertRaises(ValueError):
-            kv.convert({"A2": "string"})
+        with self.assertRaises(ValidationError):
+            o.convert({"A2": "string"})
 
-        with self.assertRaises(ValueError):
-            kv.convert({"Wrong": 1})
+        with self.assertRaises(ValidationError):
+            o.convert({"Wrong": 1})
 

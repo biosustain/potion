@@ -175,78 +175,17 @@ class Array(Raw):
         return [self.container.convert(v) for v in value]
 
 
-class KeyValue(Raw):
-    """
-    A field for an object containing properties of a single type specified by a schema or field.
-
-    :param Raw cls_or_instance: field class or instance
-    :param str pattern: an optional regular expression that all property keys must match
-    """
-
-    def __init__(self, cls_or_instance, pattern=None, **kwargs):
-        self.container = container = _field_from_object(self, cls_or_instance)
-
-        if pattern:
-            schema = lambda s: {
-                "type": "object",
-                "additionalProperties": False,
-                "patternProperties": {
-                    pattern: s
-                }
-            }
-        else:
-            schema = lambda s: {
-                "type": "object",
-                "additionalProperties": s
-            }
-
-        super(KeyValue, self).__init__(lambda: (schema(container.response), schema(container.request)), **kwargs)
-
-    def format(self, value):
-        return {k: self.container.format(v) for k, v in value.items()}
-
-    def converter(self, value):
-        return {k: self.container.convert(v) for k, v in value.items()}
-
-
-class AttributeMapped(KeyValue):
-    """
-    Maps property keys from a JSON object to a list of items using `mapping_attribute`. The mapping attribute is the
-    name of the attribute where the value of the property key is set on the property values.
-
-    .. seealso::
-
-        :class:`InlineModel` field is typically used with this field in a common SQLAlchemy pattern.
-
-    :param Raw cls_or_instance: field class or instance
-    :param str pattern: an optional regular expression that all property keys must match
-    :param str mapping_attribute: mapping attribute
-    """
-
-    def __init__(self, *args, mapping_attribute=None, **kwargs):
-        self.mapping_attribute = mapping_attribute
-        super().__init__(*args, **kwargs)
-
-    def _set_mapping_attribute(self, obj, value):
-        setattr(obj, self.mapping_attribute, value)
-        return obj
-
-    def format(self, value):
-        return {getattr(v, self.mapping_attribute): self.container.format(v) for v in value}
-
-    def converter(self, value):
-        return [self._set_mapping_attribute(self.container.convert(v), k) for k, v in value.items()]
-
-
 class Object(Raw):
     """
     A versatile field for an object, containing either properties all of a single type, properties matching a pattern,
     or named properties matching some fields.
 
+    `Raw.attribute` is not used in pattern properties and additional properties.
+
     :param properties: field class, instance, or dictionary of {property: field} pairs
     :param str pattern: an optional regular expression that all property keys must match
     :param dict pattern_properties: dictionary of {property: field} pairs
-    :param dict additional_properties: field class or instance
+    :param Raw additional_properties: field class or instance
     """
 
     def __init__(self, properties=None, pattern=None, pattern_properties=None, additional_properties=None, **kwargs):
@@ -281,27 +220,89 @@ class Object(Raw):
             return response, request
 
         if self.pattern_properties and (len(self.pattern_properties) > 1 or self.additional_properties):
-            raise NotImplementedError("Only one pattern property, which CANNOT BE combined with additionalProperties,"
-                                      " is currently supported.")
+            raise NotImplementedError("Only one pattern property is currently supported "
+                                      "and it cannot be combined with additionalProperties")
 
         super(Object, self).__init__(schema, **kwargs)
 
-    def format(self, value):
-        raise NotImplementedError()
-        # TODO support g
-        if self.properties:
-            return {key: field.format(get_value(key, value, field.default)) for key, field in
-                    self.properties.items()}
+    @cached_property
+    def _property_attributes(self):
+        return [field.attribute or key for key, field in self.properties.items()]
 
-        if self.additional_properties or self.pattern_properties:
-            pass
+    def format(self, value):
+        output = {}
+
+        if self.properties:
+            output = {key: field.format(get_value(field.attribute or key, value, field.default)) for key, field in self.properties.items()}
         else:
-            return {k: self.container.format(v) for k, v in value.items()}
+            output = {}
+
+        if self.pattern_properties:
+            pattern, field = next(iter(self.pattern_properties.items()))
+
+            if not self.additional_properties:
+                output.update({key: field.format(get_value(key, value, field.default))
+                               for key, value in value.items() if key not in self._property_attributes})
+            else:
+                raise NotImplementedError()
+                # TODO match regular expression
+        elif self.additional_properties:
+            field = self.additional_properties
+            output.update({key: field.format(get_value(key, value, field.default))
+                           for key, value in value.items() if key not in self._property_attributes})
+
+        return output
+
+    def converter(self, instance):
+        result = {}
+
+        if self.properties:
+            result = {field.attribute or key: field.convert(instance.get(key, None)) for key, field in self.properties.items()}
+
+        if self.pattern_properties:
+            pattern, field = next(iter(self.pattern_properties.items()))
+
+            if not self.additional_properties:
+                result.update({key: field.convert(value)
+                               for key, value in instance.items() if key not in result})
+            else:
+                raise NotImplementedError()
+                # TODO match regular expression
+        elif self.additional_properties:
+            field = self.additional_properties
+            result.update({key: field.convert(value) for key, value in instance.items() if key not in result})
+
+        return result
+
+
+class AttributeMapped(Object):
+    """
+    Maps property keys from a JSON object to a list of items using `mapping_attribute`. The mapping attribute is the
+    name of the attribute where the value of the property key is set on the property values.
+
+    .. seealso::
+
+        :class:`InlineModel` field is typically used with this field in a common SQLAlchemy pattern.
+
+    :param Raw cls_or_instance: field class or instance
+    :param str pattern: an optional regular expression that all property keys must match
+    :param str mapping_attribute: mapping attribute
+    """
+
+    def __init__(self, cls_or_instance, mapping_attribute=None, **kwargs):
+        self.mapping_attribute = mapping_attribute
+        # TODO reject additional_properties, properties, pattern_properties, pattern
+        super(AttributeMapped, self).__init__(additional_properties=cls_or_instance, **kwargs)
+
+    def _set_mapping_attribute(self, obj, value):
+        setattr(obj, self.mapping_attribute, value)
+        return obj
+
+    def format(self, value):
+        return {get_value(self.mapping_attribute, v, None): self.additional_properties.format(v) for v in value}
 
     def converter(self, value):
-        raise NotImplementedError()
-
-        return {k: self.container.convert(v) for k, v in value.items()}
+        return [self._set_mapping_attribute(self.additional_properties.convert(v), k) for k, v in value.items()]
 
 
 class String(Raw):
