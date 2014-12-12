@@ -5,7 +5,6 @@ from . import Relation, Manager, Pagination
 from ..utils import get_value
 
 
-
 class MemoryRelation(Relation):
     pass
 

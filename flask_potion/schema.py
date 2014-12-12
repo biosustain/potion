@@ -2,6 +2,7 @@ from collections import OrderedDict
 import six
 from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
+from .reference import ResourceBound
 from .utils import unpack
 from .exceptions import ValidationError as PotionValidationError, PotionException
 
@@ -56,11 +57,22 @@ class Schema(object):
         return self.format(data), code, headers
 
 
-class FieldSet(Schema):
+class FieldSet(Schema, ResourceBound):
 
     def __init__(self, fields, required_fields=None):
         self.fields = fields
         self.required = required_fields or ()
+
+    def bind(self, resource):
+        ResourceBound.bind(self, resource)
+        for key, field in self.fields.items():
+            if isinstance(field, ResourceBound):
+                field.bind(resource)
+
+    def set(self, key, field):
+        self.fields[key] = field
+        if self.resource and isinstance(field, ResourceBound):
+            field.bind(self.resource)
 
     def schema(self):
         response_schema = {

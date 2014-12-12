@@ -1,15 +1,10 @@
 from collections import OrderedDict
-import datetime
 from operator import attrgetter
 import itertools
 from collections import defaultdict
-
 import six
-from sqlalchemy.dialects import postgres
-from sqlalchemy.orm import class_mapper
-import sqlalchemy.types as sa_types
-
 from . import fields
+from .reference import ResourceBound
 from .instances import Instances
 from .utils import AttributeDict
 from .backends.sqlalchemy import SQLAlchemyManager
@@ -29,14 +24,16 @@ class PotionMeta(type):
                 if not k.startswith('__'):
                     meta[k] = v
 
-            if 'name' not in changes:
-                meta['name'] = class_.__name__.lower()
+            if not changes.get('name', None):
+                meta['name'] = name.lower()
 
             # NKs: group by type -- e.g. string, integer, object, array -- while keeping order intact:
-            if 'natural_keys' in meta:
-                meta['natural_keys_by_type'] = natural_keys_by_type = defaultdict(list)
-                for nk in meta['natural_keys']:
-                    natural_keys_by_type[nk.matcher_type(class_)].append(nk)
+            # if 'natural_keys' in meta:
+            #     meta['natural_keys_by_type'] = natural_keys_by_type = defaultdict(list)
+            #     for nk in meta['natural_keys']:
+            #         natural_keys_by_type[nk.matcher_type(class_)].append(nk)
+        else:
+            meta['name'] = name.lower()
 
         if 'Schema' in members:
             schema = dict(members['Schema'].__dict__)
@@ -53,22 +50,20 @@ class PotionMeta(type):
                 if name in fs.fields:
                     fs.fields[name].io = "w"
 
+            fs.bind(class_)
+
         for name, m in members.items():
-            if isinstance(m, (Route, MethodRoute)):
-                m.binding = class_
-
-                if m.attribute is None:
-                    m.attribute = name
-
-                routes[m.attribute] = m
-
+            if isinstance(m, ResourceBound):
+                m.bind(class_)
         return class_
 
 
 class Resource(six.with_metaclass(PotionMeta, object)):
+    api = None
     meta = None
     routes = None
     schema = None
+    route_prefix = None
 
     @Route.GET('/schema', rel="describedBy", attribute="schema")
     def described_by(self): # No "targetSchema" because that would be way too meta.
@@ -113,8 +108,12 @@ class ResourceMeta(PotionMeta):
 
             if 'model' in changes:
                 fs = class_.schema
-                fs.fields[meta.id_attribute] = meta.id_field_class(io="r", attribute=meta.id_attribute)
+                fs.set('$id', meta.id_field_class(io="r", attribute=meta.id_attribute))
                 class_.manager = meta.manager(class_, meta.model)
+
+                if meta.include_type:
+                    fs.set('$type', fields.ItemType(class_))
+
         return class_
 
 
@@ -142,14 +141,14 @@ class ModelResource(six.with_metaclass(ResourceMeta, Resource)):
         print('CREATED',item)
         return item
 
-    create.request_schema = create.response_schema = DeferredSchema(fields.Inline, 'self')
+    create.request_schema = create.response_schema = DeferredSchema(fields.Inline, 'self', attribute='create')
 
     @Route.GET(lambda r: '/<{}:id>'.format(r.meta.id_converter), rel="self")
     def read(self, id):
         return self.manager.read(id)
 
     read.request_schema = None
-    read.response_schema = DeferredSchema(fields.Inline, 'self')
+    read.response_schema = DeferredSchema(fields.Inline, 'self', attribute='read')
 
     @read.PATCH(rel="update")
     def update(self, properties, id):
@@ -172,6 +171,7 @@ class ModelResource(six.with_metaclass(ResourceMeta, Resource)):
         id_attribute = 'id'
         id_converter = 'int'
         id_field_class = fields.PositiveInteger  # Must inherit from Integer or String
+        include_type = True
         manager = SQLAlchemyManager
         include_fields = None
         exclude_fields = None

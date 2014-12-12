@@ -5,18 +5,14 @@ from flask import current_app
 
 
 class ResourceReference(object):
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, value):
+        self.value = value
 
     def resolve(self, binding=None):
         """
-        Resolve attempts three different methods for resolving a reference:
-
-        - if the reference is a ModelResource, return it
-        - if the reference is a ModelResource name in the current_app.unrest API context, return it
-        - if the reference is a complete module.class string, import and return it
+        Attempt to resolve the reference value and return the matching :class:`Resource`.
         """
-        name = self.name
+        name = self.value
 
         if name == 'self':
             return binding
@@ -27,7 +23,9 @@ class ResourceReference(object):
 
         # FIXME XXX need a better back-reference to the Potion instance
         if hasattr(current_app, 'potion'):
-            return current_app.potion.get_resource_class(name)
+            print( current_app.potion.resources)
+            if name in  current_app.potion.resources:
+                return current_app.potion.resources[name]
 
         try:
             if isinstance(name, six.string_types):
@@ -37,10 +35,10 @@ class ResourceReference(object):
         except ValueError:
             pass
 
-        raise RuntimeError('ModelResource named "{}" is not registered with Potion'.format(name))
+        raise RuntimeError('Resource named "{}" is not registered with Potion'.format(name))
 
     def __repr__(self):
-        return "<ResourceReference '{}'>".format(self.resolve().meta.name)
+        return "<ResourceReference '{}'>".format(self.value)
 
 
 class ResourceBound(object):

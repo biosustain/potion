@@ -85,7 +85,7 @@ class SQLAlchemyManager(Manager):
                     field_class = fields.String
                     kwargs = {'max_length': column.type.length}
                 elif isinstance(column.type, postgres.HSTORE):
-                    field_class = fields.KeyValue
+                    field_class = fields.Object
                     args = (fields.String,)
                 elif hasattr(postgres, 'JSON') and isinstance(column.type, postgres.JSON):
                     field_class = fields.Raw
@@ -105,8 +105,8 @@ class SQLAlchemyManager(Manager):
                     io = "w"
 
                 # if not (column.nullable or column.default):
-                #     meta["required_fields"].append(name)
-                fs.fields["name"] = field_class(*args, io=io, attribute=name, **kwargs)
+                #     fs.required.append(name)
+                fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
     @staticmethod
     def _get_session():

@@ -21,17 +21,16 @@ class Resolver(object):
 class RefResolver(Resolver):
 
     def schema(self, resource):
-        resource_url = url_for(resource.endpoint)
         return {
             "type": "object",
             "properties": {
                 "$ref": {
                     "type": "string",
                     "format": "uri",
-                    "pattern": "^{}".format(re.escape(resource_url))
+                    "pattern": "^{}\/[^/]+$".format(re.escape(resource.route_prefix))
                 }
+                # TODO consider replacing with {$type: foo, $value: 123}
             },
-            "required": ["$ref"],
             "additionalProperties": False
         }
 
@@ -51,10 +50,10 @@ class PropertyResolver(Resolver):
         self.property = property
 
     def schema(self, resource):
-        return resource.schema[self.property].response_schema
+        return resource.schema.fields[self.property].response
 
     def format(self, resource, item):
-        return resource.schema[self.property].output(self.property, item)
+        return resource.schema.fields[self.property].output(self.property, item)
 
     def resolve(self, resource, value):
         instances = resource.manager.instances(where={self.property: value})
@@ -71,12 +70,12 @@ class PropertiesResolver(Resolver):
     def schema(self, resource):
         return {
             "type": "array",
-            "items": [resource.schema[p].response_schema for p in self.properties],
+            "items": [resource.schema.fields[p].response for p in self.properties],
             "additionalItems": False
         }
 
     def format(self, resource, item):
-        return [resource.schema[p].output(p, item) for p in self.properties]
+        return [resource.schema.fields[p].output(p, item) for p in self.properties]
 
     def resolve(self, resource, value):
         instances = resource.manager.instances(where={property: value[i] for i, property in enumerate(self.properties)})
@@ -88,10 +87,10 @@ class PropertiesResolver(Resolver):
 
 class IDResolver(Resolver):
     def schema(self, resource):
-        return resource.meta.id_field.response_schema
+        return resource.schema.fields['$id'].response
 
     def format(self, resource, item):
-        return resource.meta.id_field.output(resource.meta.id_attribute, item)
+        return resource.schema.fields['$id'].output(resource.meta.id_attribute, item)
 
     def resolve(self, resource, value):
         return resource.manager.read(value)

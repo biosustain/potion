@@ -7,6 +7,9 @@ from werkzeug.wrappers import BaseResponse
 from .exceptions import PotionException
 from .utils import unpack
 
+__version_info__ = (1, 0, 0)
+__version__ = '.'.join(map(str, __version_info__))
+
 
 class Api(object):
     def __init__(self, app=None, decorators=None, prefix=None, default_per_page=20, max_per_page=100):
@@ -26,6 +29,8 @@ class Api(object):
 
     def init_app(self, app):
         self.app = app
+        app.potion = self
+
         self._complete_view('/schema',
                             view_func=self.output(self._schema_view),
                             endpoint='schema',
@@ -111,7 +116,9 @@ class Api(object):
             self.views.append((rule, view, endpoint, methods))
 
     def add_resource(self, resource):
-        resource.potion = self
+        resource.api = self
+        resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
+        print('register')
 
         if resource in self.resources.values():
             return

@@ -111,6 +111,9 @@ class Raw(Schema):
         key = key if self.attribute is None else self.attribute
         return self.format(get_value(key, obj, self.default))
 
+    def __repr__(self):
+        return '{}(attribute={})'.format(self.__class__.__name__, repr(self.attribute))
+
 
 # FIXME this code is similar to Flask-RESTful code. Need to add license
 def _field_from_object(parent, cls_or_instance):
@@ -458,33 +461,27 @@ class ToOne(Raw, ResourceBound):
     def __init__(self, resource, formatter=natural_keys.RefResolver(), **kwargs):
         self.reference = ResourceReference(resource)
         self.formatter = formatter
-        self.target = None
 
         def schema():
             target = self.target
-            target_url = url_for(target.endpoint)
-            target_reference = {"$ref": "{}/schema".format(target_url)}
-            response_schema = {
-                "oneOf": [
-                    formatter.schema(target),
-                    target_reference
-                ]
-            }
+            default_schema = formatter.schema(target)
+            response_schema = default_schema
 
             natural_keys = target.meta.natural_keys
             if natural_keys:
                 request_schema = {
-                    "anyOf": [formatter.schema(target)] + [nk.request for nk in natural_keys]
+                    "anyOf": [default_schema] + [nk.schema(target) for nk in natural_keys]
                 }
             else:
-                request_schema = target_reference
+                request_schema = default_schema
             return response_schema, request_schema
 
         super(ToOne, self).__init__(schema, **kwargs)
 
-    def bind(self, resource):
-        super(ToOne, self).bind(resource)
-        self.target = self.reference.resolve(resource)
+    @cached_property
+    def target(self):
+        print(self.reference, self.resource)
+        return self.reference.resolve(self.resource)
 
     def format(self, item):
         raise NotImplementedError()  # TODO
@@ -507,11 +504,7 @@ class Inline(Raw, ResourceBound):
         def schema():
             if self.resource == self.target:
                 return {"$ref": "#"}
-
-            # resource_url = url_for(self.resource.endpoint)
-            # return { "$ref": "{}/schema".format(resource_url) }
             # FIXME complete with API prefix
-
             return {"$ref": self.resource.routes["schema"].rule_factory(self.resource)}
 
         super(Inline, self).__init__(schema, **kwargs)
@@ -519,8 +512,10 @@ class Inline(Raw, ResourceBound):
     def bind(self, resource):
         super(Inline, self).bind(resource)
         self.target = self.reference.resolve(resource)
+        print('bind(', self, resource, self.reference, self.target, ')')
 
     def format(self, item):
+        print('format(', self)
         return self.target.schema.format(item)
 
     def convert(self, item):
@@ -542,3 +537,14 @@ class Inline(Raw, ResourceBound):
         #
         #     def format(self, obj):
         #         return marshal(obj, self.fields)
+
+class ItemType(Raw):
+    def __init__(self, resource):
+        self.resource = resource
+        super(ItemType, self).__init__(lambda: {
+            "type": "string",
+            "enum": [self.resource.meta.name]
+        }, io="r")
+
+    def format(self, value):
+        return self.resource.meta.name
