@@ -207,8 +207,8 @@ class Instances(Schema, ResourceBound):
                 "per_page": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": self.resource.potion.max_per_page,
-                    "default": self.resource.potion.default_per_page
+                    "maximum": self.resource.api.max_per_page,
+                    "default": self.resource.api.default_per_page
                 }
             },
             "additionalProperties": True
@@ -259,7 +259,7 @@ class Instances(Schema, ResourceBound):
         # TODO (implement in FieldSet too:) load values from request.args
         try:
             page = request.args.get('page', 1, type=int)
-            per_page = request.args.get('per_page', self.resource.potion.default_per_page, type=int)
+            per_page = request.args.get('per_page', self.resource.api.default_per_page, type=int)
             where = json.loads(request.args.get('where', '{}'))  # FIXME
             sort = json.loads(request.args.get('sort', '{}'), object_pairs_hook=collections.OrderedDict)
         except ValueError:
@@ -279,20 +279,24 @@ class Instances(Schema, ResourceBound):
     def format(self, items):
         return [self.resource.schema.format(item) for item in items]
 
-    def format_response(self, items):
-        if isinstance(items, list):
-            return self.format(items)
+    def format_response(self, items_or_pagination):
+        if isinstance(items_or_pagination, list):
+            return self.format(items_or_pagination)
 
-        links = [(request.path, items.page, items.per_page, 'self')]
+        links = [(request.path, items_or_pagination.page, items_or_pagination.per_page, 'self')]
 
-        if items.has_prev:
-            links.append((request.path, 1, items.per_page, 'first'))
-            links.append((request.path, items.page - 1, items.per_page, 'prev'))
-        if items.has_next:
-            links.append((request.path, items.page + 1, items.per_page, 'next'))
+        if items_or_pagination.has_prev:
+            links.append((request.path, 1, items_or_pagination.per_page, 'first'))
+            links.append((request.path, items_or_pagination.page - 1, items_or_pagination.per_page, 'prev'))
+        if items_or_pagination.has_next:
+            links.append((request.path, items_or_pagination.page + 1, items_or_pagination.per_page, 'next'))
 
-        links.append((request.path, items.pages, items.per_page, 'last'))
+        links.append((request.path, items_or_pagination.pages, items_or_pagination.per_page, 'last'))
 
         # FIXME links must contain filters & sort
-        headers = {'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links))}
-        return self.format(items.items), 200, headers
+        headers = {
+            'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links))
+            'X-Total-Count': items_or_pagination.total
+        }
+
+        return self.format(items_or_pagination.items), 200, headers
