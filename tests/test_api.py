@@ -49,55 +49,73 @@ class ApiTestCase(BaseTestCase):
                              "title": {
                                  "type": "string"
                              },
-                             "id": {
+                             "$id": {
                                  "type": "integer",
                                  "minimum": 1,
                                  "readOnly": True
-                             }
+                             },
+                             '$type': {
+                                 'enum': ['book'],
+                                 'readOnly': True,
+                                 'type': 'string'
+                             },  # or "$uri"
                          }, response.json['properties'])
 
         response = self.client.post("/book", data={"title": "Foo"})
 
         self.assertEqual({
-                             "id": 1,
+                             "$id": 1,
+                             "$type": "book",
                              "title": "Foo"
                          }, response.json)
+
+        self.assertEqual({
+                             'id': 1,
+                             'name': 'Foo'
+                         }, BookResource.manager.read(1))
 
         response = self.client.patch("/book/1", data={"title": "Bar"})
 
         self.assertEqual({
-                             "id": 1,
+                             "$id": 1,
+                             "$type": "book",
                              "title": "Bar"
                          }, response.json)
 
-        response = self.client.post("/book", data={"title": "Bat"})
-        response = self.client.post("/book", data={"title": "Foo"})
+        self.client.post("/book", data={"title": "Bat"})
+        self.client.post("/book", data={"title": "Foo"})
         response = self.client.get("/book")
 
         self.assertEqual([
                              {
-                                 "id": 1,
+                                 "$id": 1,
+                                 "$type": "book",
                                  "title": "Bar"
                              },
                              {
-                                 "id": 2,
+                                 "$id": 2,
+                                 "$type": "book",
                                  "title": "Bat"
                              },
                              {
-                                 "id": 3,
+                                 "$id": 3,
+                                 "$type": "book",
                                  "title": "Foo"
                              }
                          ], response.json)
 
-        response = self.client.get('/book?where={"title": {"$startswith": "B"}}&sort={"id": true}')
+        response = self.client.get('/book?where={"title": {"$startswith": "B"}}&sort={"$id": true}')
 
+        self.pp(response.json)
         self.assertEqual([
                              {
-                                 "id": 2,
+                                 "$id": 2,
+                                 "$type": "book",
                                  "title": "Bat"
                              },
                              {
-                                 "id": 1,
+                                 "$id": 1,
+                                 "$type": "book",
                                  "title": "Bar"
                              }
                          ], response.json)
@@ -107,6 +125,7 @@ class ApiTestCase(BaseTestCase):
 
         response = self.client.patch("/book/1", data={"title": None})
         self.assert400(response)
+
         self.assertEqual({
                              'status': 400,
                              'message': 'Bad Request',

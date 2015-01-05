@@ -82,6 +82,7 @@ class Api(object):
         return ''.join((self.prefix, rule))
 
     def _complete_view(self, rule, **kwargs):
+        print('Oh    ',rule, kwargs)
         self.app.add_url_rule(self._complete_rule(rule), **kwargs)
 
     def _schema_view(self):
@@ -118,7 +119,6 @@ class Api(object):
     def add_resource(self, resource):
         resource.api = self
         resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
-        print('register')
 
         if resource in self.resources.values():
             return

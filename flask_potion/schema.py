@@ -49,7 +49,9 @@ class Schema(object):
         if not data and request.method in ('GET', 'HEAD'):
             data = dict(request.args)
 
-        return self.convert(data)
+        c = self.convert(data)
+        print('CCCONVERTED', data, c)
+        return c
 
     def format_response(self, response):
         data, code, headers = unpack(response)
@@ -94,10 +96,7 @@ class FieldSet(Schema, ResourceBound):
         return response_schema, request_schema
 
     def format(self, item):
-        return OrderedDict((
-            (key, field.output(key, item))
-            for key, field in self.fields.items()
-        ))
+        return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items())
 
     def convert(self, obj, pre_resolved_properties=None, patch=False, strict=False):
         converted = dict(pre_resolved_properties) if pre_resolved_properties else {}

@@ -1,3 +1,4 @@
+from functools import wraps
 from flask import _app_ctx_stack, _request_ctx_stack
 from werkzeug.exceptions import NotFound
 from werkzeug.urls import url_parse
@@ -61,3 +62,22 @@ def get_value(key, obj, default):
         except (IndexError, KeyError):
             pass
     return getattr(obj, key, default)
+
+
+def doublewrap(f):
+    '''
+    a decorator decorator, allowing the decorator to be used as:
+    @decorator(with, arguments, and=kwargs)
+    or
+    @decorator
+    '''
+    @wraps(f)
+    def new_dec(*args, **kwargs):
+        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+            # actual decorated function
+            return f(args[0])
+        else:
+            # decorator arguments
+            return lambda realf: f(realf, *args, **kwargs)
+
+    return new_dec

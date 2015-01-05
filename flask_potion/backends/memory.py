@@ -6,7 +6,23 @@ from ..utils import get_value
 
 
 class MemoryRelation(Relation):
-    pass
+
+    def instances(self, item, page=None, per_page=None):
+        collection = item.get(self.attribute, set())
+
+        # TODO pagination, sort, etc.
+        # FIXME need to handle removed items
+        return [self.target_resource.manager.read(id) for id in collection]
+
+    def add(self, item, target_item):
+        item[self.attribute] = collection = item.get(self.attribute, set())
+        item_id = target_item[self.target_resource.manager.id_attribute]
+        collection.add(item_id)
+
+    def remove(self, item, target_item):
+        item[self.attribute] = collection = item.get(self.attribute, set())
+        item_id = target_item[self.target_resource.manager.id_attribute]
+        collection.remove(item_id)
 
 
 class MemoryManager(Manager):
@@ -40,8 +56,7 @@ class MemoryManager(Manager):
     def _paginate(self, items, page, per_page):
         items = list(items)
         start = per_page * (page - 1)
-        pages = int(ceil(len(items) / per_page))
-        return Pagination(items[start:start + per_page], page, per_page, pages)
+        return Pagination(items[start:start + per_page], page, per_page, len(items))
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         return self._paginate(self.instances(where=where, sort=sort), page, per_page)

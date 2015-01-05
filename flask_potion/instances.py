@@ -187,7 +187,7 @@ class Instances(Schema, ResourceBound):
         return {
             "type": "object",
             "properties": {  # FIXME switch to tuples
-                             name: {"type": "boolean"}
+                             name: {"type": "boolean", "title": "Reverse order?"}
                              for name in self.sort_fields
             },
             "additionalProperties": False
@@ -295,7 +295,7 @@ class Instances(Schema, ResourceBound):
 
         # FIXME links must contain filters & sort
         headers = {
-            'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links))
+            'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links)),
             'X-Total-Count': items_or_pagination.total
         }
 

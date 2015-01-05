@@ -1,4 +1,5 @@
 import datetime
+from math import ceil
 import six
 from flask_potion import fields
 
@@ -9,7 +10,7 @@ class Relation(object):
         self.attribute = attribute
         self.target_resource = target_resource
 
-    def instances(self, item, where=None, sort=None, page=None, per_page=None):
+    def instances(self, item, page=None, per_page=None):
         raise NotImplementedError()
 
     def add(self, item, target_item):
@@ -77,11 +78,15 @@ class Manager(object):
 
 class Pagination(object):
 
-    def __init__(self, items, page, per_page, pages):
+    def __init__(self, items, page, per_page, total):
         self.items = items
         self.page = page
         self.per_page = per_page
-        self.pages = pages
+        self.total = total
+
+    @property
+    def pages(self):
+        return int(ceil(self.total / self.per_page))
 
     @property
     def has_prev(self):

@@ -25,8 +25,10 @@ class BaseTestCase(TestCase):
 
     def create_app(self):
         app = Flask(__name__)
-        app.secret_key = '00112233445566778899AABBCCDDEEFF'
+        app.secret_key = 'XXX'
         app.test_client_class = ApiClient
         app.debug = True
         return app
 
+    def pp(self, obj):
+        print(json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': ')))

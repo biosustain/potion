@@ -3,7 +3,7 @@ from flask import url_for
 from werkzeug.utils import cached_property
 from .exceptions import ItemNotFound
 from .schema import Schema
-from .utils import route_from
+from .utils import route_from, get_value
 import six
 
 class Resolver(object):
@@ -34,11 +34,19 @@ class RefResolver(Resolver):
             "additionalProperties": False
         }
 
+    def _item_uri(self, resource, item):
+        # return url_for('{}.instance'.format(self.resource.meta.id_attribute, item, None), get_value(self.resource.meta.id_attribute, item, None))
+        return '{}/{}'.format(resource.route_prefix, get_value(resource.meta.id_attribute, item, None))
+
     def format(self, resource, item):
-        return {"$ref": resource.get_item_url(item)}
+        return {"$ref": self._item_uri(resource, item)}
 
     def resolve(self, resource, value):
-        endpoint, args = route_from(value["$ref"])
+        try:
+            endpoint, args = route_from(value["$ref"], 'GET')
+        except Exception as e:
+            print(e)
+            raise e
         # XXX verify endpoint is correct (it should be)
         # assert resource.endpoint == endpoint
         return resource.manager.read(args['id'])

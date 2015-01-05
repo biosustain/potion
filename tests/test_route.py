@@ -1,7 +1,7 @@
 import json
-from flask_potion import fields
+from flask_potion import fields, Api
 from flask_potion.resource import Resource
-from flask_potion.routes import Route, MethodRoute, DeferredSchema
+from flask_potion.routes import Route, DeferredSchema
 from flask_potion.schema import FieldSet, Schema
 from tests import BaseTestCase
 
@@ -12,10 +12,11 @@ class RouteTestCase(BaseTestCase):
             class Meta:
                 name = 'foo'
 
-        route = Route(lambda resource: {
+        route = Route(rule='/test')
+        route.GET(rel='test')(lambda resource: {
             'success': True,
             'boundToResource': resource.meta.name
-        }, rule='/test', rel='test')
+        })
 
         view = route.view_factory('', FooResource)
 
@@ -93,6 +94,7 @@ class ResourceTestCase(BaseTestCase):
                 name = 'foo'
                 id_converter = 'int'
 
+        Api().add_resource(FooResource)
         self.assertEqual('/foo/<int:id>', FooResource.read.rule_factory(FooResource))
 
         data, code, headers = FooResource().described_by()

@@ -55,15 +55,20 @@ should do a HTTP redirect to:
 
 """
 from collections import OrderedDict
-from functools import wraps
 import re
+from types import MethodType
+
 from flask import request
+from werkzeug.utils import cached_property
 from .fields import _field_from_object
+from . import fields
 from .utils import get_value
 from .instances import Instances
-from .reference import ResourceBound
+from .reference import ResourceBound, ResourceReference
 from .schema import Schema, FieldSet
 
+
+HTTP_METHODS = ('GET', 'PUT', 'POST', 'PATCH', 'DELETE')
 
 def url_rule_to_uri_pattern(rule):
     # TODO convert from underscore to camelCase
@@ -102,8 +107,7 @@ class DeferredSchema(object):
         return schema
 
 
-class LinkView(object):
-
+class Link(object):
     def __init__(self,
                  view_func,
                  rel=None,
@@ -153,328 +157,129 @@ class LinkView(object):
         return schema
 
 
+def _method_decorator(method):
+    def wrapper(self, *args, **kwargs):
+        print(self, args, kwargs)
+        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+            return self._set_method_link(method, args[0], **kwargs)
+        else:
+            return lambda f: self._set_method_link(method, f, *args, **kwargs)
+
+    wrapper.__name__ = method
+    return wrapper
+
+
 class Route(object):
-    def __init__(self,
-                 view_func,
-                 method='GET',
-                 rule=None,
-                 rel=None,
-                 attribute=None,
-                 schema=None,
-                 response_schema=None,
-                 format_response=True,
-                 view_decorator=None):
+    def __init__(self, rule=None, attribute=None, format_response=True):
         self.rule = rule
         self.attribute = attribute
         self.format_response = format_response
-        self.view_decorator = view_decorator
+        self.current_link = None
+        self._method_links = {}
 
-        self.link = LinkView(view_func,
-                             rel=rel,
-                             route=self,
-                             schema=schema,
-                             method=method,
-                             response_schema=response_schema,
-                             format_response=format_response)
-
-    def __getattr__(self, name):
-        return getattr(self.link, name)
-
-    @property
-    def request_schema(self):
-        return self.link.request_schema
-
-    @request_schema.setter
-    def request_schema(self, schema):
-        self.link.request_schema = schema
-
-    @property
-    def response_schema(self):
-        return self.link.response_schema
-
-    @response_schema.setter
-    def response_schema(self, schema):
-        self.link.response_schema = schema
-
-    def __get__(self, obj, owner):
-        if obj is None:
-            return self
-        return lambda *args, **kwargs: self.link.view_func.__call__(obj, *args, **kwargs)
-
-    def links(self):
-        yield self.link
-
-    def methods(self):
-        yield self.link.method
-
-    @staticmethod
-    def _rule_factory(route, resource, relative=False):
-        rule = route.rule
-
-        if rule is None:
-            rule = '/{}'.format(attribute_to_route_uri(route.attribute))
-        elif callable(rule):
-            rule = rule(resource)
-
-        if relative:
-            return rule[1:]
-        return ''.join((resource.route_prefix, rule))
-
-    def rule_factory(self, resource, relative=False):
-        return self._rule_factory(self, resource, relative)
-
-    @staticmethod
-    def _view_factory(route, link, name, resource):
-        request_schema = DeferredSchema.resolve(link.request_schema, resource)
-        response_schema = DeferredSchema.resolve(link.response_schema, resource)
-        view_func = link.view_func
-
-        def view(*args, **kwargs):
-            instance = resource()
-            print(request_schema)
-            print('NEW REQUEST',args, kwargs, request)
-            print('NEW REQUEST', view_func, request_schema, response_schema)
-
-            if isinstance(request_schema, (FieldSet, Instances)):
-                kwargs.update(request_schema.parse_request(request))
-            elif isinstance(request_schema, Schema):
-                args += (request_schema.parse_request(request),)
-
-            response = view_func(instance, *args, **kwargs)
-
-            # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.
-
-            if response_schema is None or not route.format_response:
-                return response
-            else:
-                return response_schema.format_response(response)
-
-        return view
-
-    def view_factory(self, name, resource):
-        return self._view_factory(self, self.link, name, resource)
-
-    # TODO auto-generate these from all available methods
-    @classmethod
-    def GET(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='GET', view_class=cls, **kwargs))
-        return wrapper
+        for method in HTTP_METHODS:
+            setattr(self, method, MethodType(_method_decorator(method), self))
 
     @classmethod
-    def POST(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='POST', view_class=cls, **kwargs))
-        return wrapper
+    def for_method(cls, method, func, rule=None, **kwargs):
+        instance = cls(rule=rule,
+                       attribute=kwargs.pop('attribute', None),
+                       format_response=kwargs.pop('format_response', True))
+        instance._set_method_link(method, func, **kwargs)
+        return instance
 
-    @classmethod
-    def PATCH(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='PATCH', view_class=cls, **kwargs))
-        return wrapper
-
-    @classmethod
-    def PUT(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='PUT', view_class=cls, **kwargs))
-        return wrapper
-
-    @classmethod
-    def DELETE(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='DELETE', view_class=cls, **kwargs))
-        return wrapper
-
-
-class MethodRoute(Route):
-
-    def __init__(self, view_func, rule=None, rel=None, method='GET', attribute=None, view_class=Route):
-        super().__init__(view_func, rule=rule, rel=rel, method=method, attribute=attribute)
-        self.method_views = {method: self.link}
-        self.view_class = view_class
-
-        # for method in ('GET', 'POST', 'PATCH', 'PUT'):
-        #     decorator = lambda **kwargs: \
-        #         lambda func: wraps(func)(self._set_method_view_func(method, func, **kwargs))
-        #     #decorator = MethodType(decorator, self, self.__class__)
-        #
-        #     setattr(self, method, decorator) #MethodType(decorator, self, self.__class__))
-
-    def links(self):
-        return self.method_views.values()
-
-    def methods(self):
-        return self.method_views.keys()
-
-    def _set_method_view_func(self, method, view_func, rel=None, schema=None, response_schema=None):
-        link = LinkView(view_func,
+    def _set_method_link(self, method, view_func, rel=None, schema=None, response_schema=None):
+        link = Link(view_func,
                         rel=rel,
                         route=self,
                         method=method,
                         schema=schema,
                         response_schema=response_schema)
-
-        self.link = link
-        self.method_views[method] = link
+        self.current_link = link
+        self._method_links[method] = link
         return self
 
-    # TODO auto-generate these
-    def GET(self, **kwargs):
-        def wrapper(func):
-            return wraps(func)(self._set_method_view_func('GET', func, **kwargs))
-        return wrapper
+    def __getattr__(self, name):
+        return getattr(self.current_link, name)
 
-    def PUT(self, **kwargs):
-        def wrapper(func):
-            return wraps(func)(self._set_method_view_func('PUT', func, **kwargs))
-        return wrapper
-
-    def POST(self, **kwargs):
-        def wrapper(func):
-            return wraps(func)(self._set_method_view_func('POST', func, **kwargs))
-        return wrapper
-
-    def DELETE(self, **kwargs):
-        def wrapper(func):
-            return wraps(func)(self._set_method_view_func('DELETE', func, **kwargs))
-        return wrapper
-
-    def PATCH(self, **kwargs):
-        def wrapper(func):
-            return wraps(func)(self._set_method_view_func('PATCH', func, **kwargs))
-        return wrapper
-
-    def rule_factory(self, resource, relative=False):
-        return self.view_class._rule_factory(self, resource, relative)
-
-    def view_factory(self, name, resource):
-        method_views = {}
-
-        for name, link in self.method_views.items():
-            method_views[name] = self.view_class._view_factory(self, link, name, resource)
-
-        def view(*args, **kwargs):
-            method = method_views.get(request.method)
-            if method is None and request.method == 'HEAD':
-                method = method_views['GET']
-            return method(*args, **kwargs)
-        return view
+    def __get__(self, obj, owner):
+        if obj is None:
+            return self
+        return lambda *args, **kwargs: self.current_link.view_func.__call__(obj, *args, **kwargs)
 
     def __repr__(self):
-        return '{}("{}")'.format(self.__class__.__name__, self.rule)
+        return '{}({})'.format(self.__class__.__name__, repr(self.rule))
 
+    @property
+    def request_schema(self):
+        return self.current_link.request_schema
 
-def route(rule=None, method='GET', **view_kwargs):
-    def wrapper(fn):
-        return wraps(fn)(Route(fn, rule, method, **view_kwargs))
-    return wrapper
+    @request_schema.setter
+    def request_schema(self, schema):
+        self.current_link.request_schema = schema
 
+    @property
+    def response_schema(self):
+        return self.current_link.response_schema
 
-class ItemRoute(Route):
-
-    # TODO FIXME implement ItemMethodRoute
-
-    @staticmethod
-    def _rule_factory(route, resource, relative=False):
-        rule = route.rule
-        id_matcher = '<{}:id>'.format(resource.meta.id_converter)
-
-        if rule is None:
-            rule = '/{}'.format(attribute_to_route_uri(route.attribute))
-        elif callable(rule):
-            rule = rule(resource)
-
-
-        if relative:
-            return ''.join((id_matcher, '/', rule[1:]))
-        return ''.join(('/', resource.meta.name, '/', id_matcher, rule))
-
-    @staticmethod
-    def _view_factory(route, link, name, resource):
-        original_view = Route._view_factory(route, link, name, resource)
-        def view(*args, id, **kwargs):
-            item = resource.manager.read(id)
-            return original_view(item, *args, **kwargs)
-        return view
-
-    @classmethod
-    def GET(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='GET', view_class=cls, **kwargs))
-        return wrapper
-
-    @classmethod
-    def POST(cls, rule=None, **kwargs):
-        def wrapper(func):
-            return wraps(func)(MethodRoute(func, rule=rule, method='POST', view_class=cls, **kwargs))
-        return wrapper
-
-
-
-class Route_(object):
-    def __init__(self, rule=None, attribute=None, format_response=True, view_decorator=None):
-        self.rule = rule
-        self.attribute = attribute
-        self.view_decorator = view_decorator
-        self.format_response = format_response
+    @response_schema.setter
+    def response_schema(self, schema):
+        self.current_link.response_schema = schema
 
     def links(self):
-        return ()
+        return self._method_links.values()
 
     def methods(self):
-        return (link.method for link in self.links())
+        return [link.method for link in self.links()]
 
-    @staticmethod
-    def _rule_factory(route, resource, relative=False):
-        rule = route.rule
+    def _rule_factory(self, resource, relative=False):
+        rule = self.rule
 
         if rule is None:
-            rule = '/{}'.format(attribute_to_route_uri(route.attribute))
+            rule = '/{}'.format(attribute_to_route_uri(self.attribute))
         elif callable(rule):
             rule = rule(resource)
 
         if relative:
             return rule[1:]
-        return ''.join(('/', resource.meta.name, rule))
 
-    def rule_factory(self, resource, relative=False):
-        return self._rule_factory(self, resource, relative)
+        return ''.join((resource.route_prefix, rule))
 
-    @staticmethod
-    def _view_factory(route, link, name, resource):
+    def _view_factory(self, link, name, resource):
         request_schema = DeferredSchema.resolve(link.request_schema, resource)
         response_schema = DeferredSchema.resolve(link.response_schema, resource)
         view_func = link.view_func
 
-        if route.view_decorator:
-            view_func = route.view_decorator(view_func)
-
         def view(*args, **kwargs):
             instance = resource()
-            print(request_schema)
-            print('NEW REQUEST',args, kwargs, request)
-            print('NEW REQUEST', view_func, request_schema, response_schema)
-
             if isinstance(request_schema, (FieldSet, Instances)):
                 kwargs.update(request_schema.parse_request(request))
             elif isinstance(request_schema, Schema):
                 args += (request_schema.parse_request(request),)
 
+            print('$$$$%', instance, args, kwargs, request_schema)
+
             response = view_func(instance, *args, **kwargs)
 
             # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.
+            print('response', self, response, self.format_response, response_schema)
 
-            if response_schema is None or not route.format_response:
+            if response_schema is None or not self.format_response:
                 return response
             else:
                 return response_schema.format_response(response)
 
         return view
 
+    def rule_factory(self, resource, relative=False):
+        return self._rule_factory(resource, relative)
+
     def view_factory(self, name, resource):
         method_views = {}
-        for link in self.links():
-            method_views[link.method] = self._view_factory(self, link, name, resource)
+
+        for name, link in self._method_links.items():
+            method_views[name] = self._view_factory(link, name, resource)
+
         def view(*args, **kwargs):
             method = method_views.get(request.method)
             if method is None and request.method == 'HEAD':
@@ -483,26 +288,28 @@ class Route_(object):
         return view
 
 
-class NewMethodRoute(Route_):
-    def __init__(self, method_views, rule=None, attribute=None, view_class=None, current_method=None):
-        self.method_views = method_views
-        self.current_view = self.method_views[current_method]
-        # self.attribute = attribute
-        # self.rule = rule
+def _route_decorator(method):
+    @classmethod
+    def decorator(cls, *args, **kwargs):
+        print(cls, args, kwargs)
+        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+            return cls.for_method(method, args[0])
+        else:
+            return lambda f: cls.for_method(method, f, *args, **kwargs)
+    decorator.__name__ = method
+    return decorator
 
-    def links(self):
-        return self.method_views.values()
+for method in HTTP_METHODS:
+    setattr(Route, method, _route_decorator(method))
 
 
-class ItemRoute_(Route_):
-
-    @staticmethod
-    def _rule_factory(route, resource, relative=False):
-        rule = route.rule
+class ItemRoute(Route):
+    def _rule_factory(self, resource, relative=False):
+        rule = self.rule
         id_matcher = '<{}:id>'.format(resource.meta.id_converter)
 
         if rule is None:
-            rule = '/{}'.format(attribute_to_route_uri(route.attribute))
+            rule = '/{}'.format(attribute_to_route_uri(self.attribute))
         elif callable(rule):
             rule = rule(resource)
 
@@ -510,70 +317,104 @@ class ItemRoute_(Route_):
             return ''.join((id_matcher, '/', rule[1:]))
         return ''.join(('/', resource.meta.name, '/', id_matcher, rule))
 
-    @staticmethod
-    def _view_factory(route, link, name, resource):
-        original_view = Route_._view_factory(route, link, name, resource)
+    def _view_factory(self, link, name, resource):
+        original_view = super(ItemRoute, self)._view_factory(link, name, resource)
         def view(*args, id, **kwargs):
             item = resource.manager.read(id)
             return original_view(item, *args, **kwargs)
         return view
 
 
-class ItemAttributeRoute(ItemRoute_):
-    def __init__(self, cls_or_instance, io=None, **kwargs):
-        super(ItemAttributeRoute, self).__init__(**kwargs)
+class RouteSet(object):
+    # TODO consider adding dependencies() function for resolving relations before the routes are added
+
+    def routes(self):
+        pass
+
+
+class ItemAttributeRoute(RouteSet):
+    def __init__(self, cls_or_instance, io=None, attribute=None):
         self.field = _field_from_object(ItemAttributeRoute, cls_or_instance)
+        self.attribute = attribute
         self.io = io
 
-    def links(self):
+    def routes(self):
+        io = self.io or self.field.io
         field = self.field
-        io = self.io or field.io
-        attribute = field.attribute or self.attribute
-
-        def read_attribute(resource, item):
-            return get_value(attribute, item, field.default)
-
-        def update_attribute(resource, item, value):
-            item = resource.manager.update(item, {attribute: value})
-            return get_value(attribute, item, field.default)
+        route = ItemRoute(attribute=self.attribute)
+        attribute = field.attribute or route.attribute
 
         if "r" in io:
-            yield LinkView(read_attribute,
-                           method='GET',
-                           rel=to_camel_case(attribute),
-                           response_schema=field)
+            @route.GET(response_schema=field,
+                       rel=lambda route: to_camel_case('read_{}'.format(route.attribute)))
+            def read_attribute(resource, item):
+                return get_value(attribute, item, field.default)
+
         if "w" in io:
-            yield LinkView(update_attribute,
-                           method='POST',
-                           rel=to_camel_case('update_{}'.format(attribute)),
-                           response_schema=field,
-                           schema=field)
+            @route.POST(schema=field,
+                        response_schema=field,
+                        rel=lambda route: to_camel_case('update_{}'.format(route.attribute)))
+            def update_attribute(resource, item, value):
+                attribute = field.attribute or route.attribute
+                item = resource.manager.update(item, {attribute: value})
+                return get_value(attribute, item, field.default)
+
+        yield route
 
 
-class RelationRoute(ItemRoute_):
-    """
-    A relationship route returns `{"$ref"}` objects for purposes of cache-ability, a core principle of REST.
-    """
+class Relation(RouteSet, ResourceBound):
     def __init__(self, resource, backref=None, io="rw", attribute=None, **kwargs):
-        super(RelationRoute, self).__init__(kwargs.pop('binding', None), attribute)
-        self.resource = resource
+        self.reference = ResourceReference(resource)
+        self.attribute = attribute
         self.backref = backref
         self.io = io
 
-    @staticmethod
-    def read_relation(resource, item, where, sort):
-        pass
+    @cached_property
+    def target(self):
+        return self.reference.resolve(self.resource)
 
-    @staticmethod
-    def add_to_relation(resource, item, child):
-        pass
+    # FIXME can only be loaded after target is added to API
+    def routes(self):
+        io = self.io
+        rule = '/{}'.format(attribute_to_route_uri(self.attribute))
 
-    @staticmethod
-    def remove_to_relation(resource, item, child):
-        pass
+        relation_route = ItemRoute(rule='{}/<{}:target_id>'.format(rule, self.target.meta.id_converter))
+        relations_route = ItemRoute(rule=rule)
+
+        if "r" in io:
+            @relations_route.GET
+            def relation_instances(resource, item, **kwargs):
+                relation = self.resource.manager.relation_factory(self.attribute, self.target)
+                return relation.instances(item, **kwargs)
+
+            # TODO pagination via RelationInstances
+            relations_route.response_schema = fields.ToMany(self.target)
+        if "w" in io:
+            @relations_route.POST
+            def relation_add(resource, item, target_item):
+                print('$$$$$$$', resource, item, target_item)
+                relation = self.resource.manager.relation_factory(self.attribute, self.target)
+                relation.add(item, target_item)
+                return target_item
+
+            relation_add.request_schema = fields.ToOne(self.target)
+            relation_add.response_schema = fields.ToOne(self.target)
+
+            @relation_route.DELETE
+            def relation_remove(resource, item, target_id):
+                child = self.target.manager.read(target_id)
+                relation = self.resource.manager.relation_factory(self.attribute, self.target)
+                relation.remove(item, child)
+                return None, 204
+            yield relation_route
+
+        # TODO dependencies?
+
+        if io:
+            yield relations_route
 
 
-class ItemMapAttributeRoute(ItemRoute):
+class ItemMapAttribute(RouteSet):
     """
     Adds a route that includes the keys to a dictionary attribute and allows these to be read, set, and deleted
     either individually or in bulk.
@@ -584,14 +425,89 @@ class ItemMapAttributeRoute(ItemRoute):
     GET /item/:id/scores/:key/
     PUT /item/:id/scores/:key/
     DELETE /item/:id/scores/:key/
+
+    :param str mapping_attribute: Must map to an attribute that is of type :class:`str`
     """
-    pass
+
+    def __init__(self, cls_or_instance, io=None, **kwargs):
+        self.field = field = _field_from_object(cls_or_instance)
+        self.object_field = fields.AttributeMapped(field, **kwargs)
+        self.io = io
 
     # @Route.GET(lambda r: '/<id:{}>/attribute/<key>'.format(r.meta.id_converter))
     # def attribute(self, item, key):
     #     pass
 
+    def routes(self):
+        field = self.field
+        object_field = self.object_field
+        attribute = field.attribute or self.attribute
+        rule = '/{}'.format(attribute_to_route_uri(attribute))
+        io = self.io or field.io
+
+        object = ItemRoute(rule=rule)
+        # object_property = ItemRoute(rule=rule)
+
+        @object.GET(response_schema=object_field)
+        def read(resource, item):
+            return get_value(attribute, item, {})
+
+        read.response_schema = object_field
+
+        @object.POST(schema=object_field)
+        def write(resource, item, value):
+            resource.manager.update(item, {attribute: value})
+            return value
+
+        # TODO PATCH object
+
+        # @object_property.GET(response_schema=field)
+        # def read_property(resource, item, key, value):
+        #     # TODO ensure key matches pattern.
+        #     pass
+        #
+        # @object_property.POST(schema=field)
+        # def write_property(resource, item, key, value):
+        #     # TODO ensure key matches pattern.
+        #     pass
+        #
+        # @object_property.DELETE
+        # def remove_property(resource, item, key):
+        #     # TODO ensure key matches pattern.
+        #     pass
+
+        yield object
 
 
-class RouteSet(object):
-    pass
+class ItemSetAttributeRoute(ItemRoute):
+    """
+    GET /item/:id/values
+    POST /item/:id/value/:value_id
+    DELETE /item/:id/value/:value_id
+
+    The URL of each item must stay consistent when the order of the list changes.
+
+    Direct addressing is only supported when an `id_attribute` is given. This must be an attribute
+    that is unique and cannot be changed. Without it, only read-only mode can be supported.
+
+    Depending on the type of collection, sorting and filtering may or may not be supported.
+
+    """
+
+    def __init__(self, cls_or_instance, id_attribute=None, id_field=None, io="r"):
+        if "w" in io:
+            raise NotImplementedError("ItemListAttributeRoute only supports read-only mode for now.")
+
+        pass
+
+    @ItemRoute.GET()
+    def read_items(self):
+        pass
+
+    @ItemRoute.GET()
+    def read_item(self, item, position):
+        pass
+
+    @read_item.POST()
+    def add_item(self, item):
+        pass

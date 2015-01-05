@@ -1,8 +1,10 @@
 from datetime import datetime
+import re
 import time
 
 import aniso8601
 from flask import url_for, current_app
+import six
 from werkzeug.utils import cached_property
 
 from . import natural_keys
@@ -10,8 +12,6 @@ from .utils import get_value
 from .reference import ResourceReference, ResourceBound
 from .schema import Schema
 
-
-# FIXME this code is similar to Flask-RESTful code. Need to add license
 
 class Raw(Schema):
     """
@@ -115,6 +115,11 @@ class Raw(Schema):
         return '{}(attribute={})'.format(self.__class__.__name__, repr(self.attribute))
 
 
+class Any(Raw):
+    def __init__(self, **kwargs):
+        super(Any, self).__init__({"type": ["null", "string", "number", "boolean", "object", "array"]}, **kwargs)
+
+
 # FIXME this code is similar to Flask-RESTful code. Need to add license
 def _field_from_object(parent, cls_or_instance):
     if isinstance(cls_or_instance, type):
@@ -176,6 +181,9 @@ class Array(Raw):
 
     def converter(self, value):
         return [self.container.convert(v) for v in value]
+
+
+List = Array
 
 
 class Object(Raw):
@@ -348,13 +356,12 @@ class Date(Raw):
                                    }, **kwargs)
 
     def format(self, value):
-        return int(time.mktime(value.timetuple()) * 1000)
+        return {"$date": int(time.mktime(value.timetuple()) * 1000)}
 
     def converter(self, value):
-        return datetime.fromtimestamp(value / 1000)
+        # TODO support both $dateObj and string formats
+        return datetime.fromtimestamp(value["$date"] / 1000)
 
-
-#
 
 class DateString(Raw):
     """
@@ -467,14 +474,15 @@ class ToOne(Raw, ResourceBound):
             default_schema = formatter.schema(target)
             response_schema = default_schema
 
-            natural_keys = target.meta.natural_keys
-            if natural_keys:
-                request_schema = {
-                    "anyOf": [default_schema] + [nk.schema(target) for nk in natural_keys]
-                }
-            else:
-                request_schema = default_schema
-            return response_schema, request_schema
+            # TODO support $id rather than $refObj
+            # natural_keys = target.meta.natural_keys
+            # if natural_keys:
+            #     request_schema = {
+            #         "anyOf": [default_schema] + [nk.schema(target) for nk in natural_keys]
+            #     }
+            # else:
+            #     request_schema = default_schema
+            return default_schema
 
         super(ToOne, self).__init__(schema, **kwargs)
 
@@ -484,10 +492,11 @@ class ToOne(Raw, ResourceBound):
         return self.reference.resolve(self.resource)
 
     def format(self, item):
-        raise NotImplementedError()  # TODO
+        print('format', item)
+        return self.formatter.format(self.target, item)
 
     def converter(self, value):
-        pass
+        return self.formatter.resolve(self.target, value)
 
 
 class ToMany(Array):
@@ -523,21 +532,6 @@ class Inline(Raw, ResourceBound):
         return self.target.schema.convert(item)
 
 
-        # class InlineModel(fields.Nested):
-        #
-        # def __init__(self, fields, model, **kwargs):
-        #         super().__init__(fields, **kwargs)
-        #         self.model = model
-        #
-        #     def convert(self, obj):
-        #         obj = EmbeddedJob.complete(super().convert(obj))
-        #         if obj is not None:
-        #             obj = self.model(**obj)
-        #         return obj
-        #
-        #     def format(self, obj):
-        #         return marshal(obj, self.fields)
-
 class ItemType(Raw):
     def __init__(self, resource):
         self.resource = resource
@@ -548,3 +542,30 @@ class ItemType(Raw):
 
     def format(self, value):
         return self.resource.meta.name
+
+
+class ItemUri(Raw):
+    def __init__(self, resource):
+        self.resource = resource
+        super(ItemUri, self).__init__(lambda: {
+            "type": "string",
+            "pattern": "^{}\/[^/]+$".format(re.escape(resource.route_prefix))
+        }, io="r")
+
+    def format(self, value):
+        return '{}/{}'.format(self.resource.route_prefix, get_value(self.resource.meta.id_attribute, value, None))
+
+
+class sa:
+    class InlineModel(Object):
+        def __init__(self, properties, model, **kwargs):
+            super(sa.InlineModel, self).__init__(properties, **kwargs)
+            self.model = model
+
+        def converter(self, instance):
+            instance = super(sa.InlineModel, self).converter(instance)
+            # obj = EmbeddedJob.complete(super().convert(obj))
+            # TODO commit()?
+            if instance is not None:
+                instance = self.model(**instance)
+            return instance

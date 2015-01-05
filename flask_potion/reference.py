@@ -24,7 +24,7 @@ class ResourceReference(object):
         # FIXME XXX need a better back-reference to the Potion instance
         if hasattr(current_app, 'potion'):
             print( current_app.potion.resources)
-            if name in  current_app.potion.resources:
+            if name in current_app.potion.resources:
                 return current_app.potion.resources[name]
 
         try:
