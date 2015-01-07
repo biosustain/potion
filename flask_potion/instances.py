@@ -18,7 +18,7 @@ DEFAULT_COMPARATORS = (
     Comparator('$eq',
                lambda field: field.response,
                lambda eq, value: value == eq,
-               (fields.Boolean, fields.String, fields.Integer, fields.Number)),
+               (fields.Boolean, fields.String, fields.Integer, fields.Number, fields.ToOne)),
     Comparator('$ne',
                lambda field: field.response,
                lambda ne, value: value != ne,
@@ -76,7 +76,7 @@ COMPARATORS = {c.name: c for c in DEFAULT_COMPARATORS}
 
 COMPARATORS_BY_TYPE = {
     t: [c for c in DEFAULT_COMPARATORS if t in c.supported_types]
-    for t in (fields.Boolean, fields.String, fields.Integer, fields.Number)
+    for t in (fields.Boolean, fields.String, fields.Integer, fields.Number, fields.ToOne)
 }
 
 EQUALITY_COMPARATOR = '$eq'
@@ -232,7 +232,9 @@ class Instances(Schema, ResourceBound):
 
             value = None
             comparator = None
-            if isinstance(condition, dict):
+            if isinstance(condition, dict) and '$ref' not in condition:
+                # if len(condition) == 1 and '$ref' in condition:
+
                 for c in comparators:
                     if c.name in condition:
                         comparator = c
@@ -245,7 +247,7 @@ class Instances(Schema, ResourceBound):
                 value = condition
             else:
                 comparator = COMPARATORS['$eq']
-                value = condition
+                value = field.convert(condition)
 
             yield Condition(field.attribute or name, comparator, value)
 

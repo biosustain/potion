@@ -91,6 +91,8 @@ class Raw(Schema):
         """
         Format a Python value representation for output in JSON. Noop by default.
         """
+        if value is not None:
+            return self.formatter(value)
         return value
 
     def convert(self, instance, validate=True):
@@ -103,6 +105,9 @@ class Raw(Schema):
         if instance is not None:
             return self.converter(instance)
         return instance
+
+    def formatter(self, value):
+        return value
 
     def converter(self, value):
         return value
@@ -467,7 +472,7 @@ class Number(Raw):
 class ToOne(Raw, ResourceBound):
     def __init__(self, resource, formatter=natural_keys.RefResolver(), **kwargs):
         self.reference = ResourceReference(resource)
-        self.formatter = formatter
+        self._formatter = formatter
 
         def schema():
             target = self.target
@@ -491,12 +496,12 @@ class ToOne(Raw, ResourceBound):
         print(self.reference, self.resource)
         return self.reference.resolve(self.resource)
 
-    def format(self, item):
+    def formatter(self, item):
         print('format', item)
-        return self.formatter.format(self.target, item)
+        return self._formatter.format(self.target, item)
 
     def converter(self, value):
-        return self.formatter.resolve(self.target, value)
+        return self._formatter.resolve(self.target, value)
 
 
 class ToMany(Array):

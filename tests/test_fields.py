@@ -1,5 +1,6 @@
 from unittest import TestCase
 import unittest
+from datetime import datetime
 from werkzeug.exceptions import BadRequest
 from flask_potion.exceptions import ValidationError
 from flask_potion import fields
@@ -117,6 +118,13 @@ class FieldsTestCase(TestCase):
         self.assertEqual(3, fields.Number(minimum=3).convert(3))
         self.assertEqual(None, fields.Number(nullable=True).convert(None))
         self.assertEqual(1.23, fields.Number().convert(1.23))
+
+    def test_date_convert(self):
+        with self.assertRaises(ValidationError):
+            fields.Date().convert({"$nope": True})
+
+        self.assertEqual(datetime(2009, 2, 14, 0, 16, 40), fields.Date().convert({"$date": 1234567000000}))
+        self.assertEqual({"$date": 1329174000000}, fields.Date().format(datetime(2012, 2, 14, 0, 0, 0)))
 
     def test_string_schema(self):
         self.assertEqual({
