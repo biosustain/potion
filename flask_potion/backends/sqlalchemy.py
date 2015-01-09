@@ -1,13 +1,13 @@
 from operator import and_
 from flask import current_app, abort
-from flask.ext.sqlalchemy import get_state
+from flask_sqlalchemy import get_state
 from sqlalchemy import types as sa_types
 from sqlalchemy.dialects import postgres
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.exc import NoResultFound
 from .. import fields
-from ..exceptions import DuplicateKey
+from ..exceptions import DuplicateKey, ItemNotFound
 from . import Relation, Manager
 from ..signals import before_create, before_update, after_update, before_delete, after_delete
 
@@ -50,13 +50,13 @@ class SQLAlchemyManager(Manager):
 
         self.id_attribute = meta.get('id_attribute', mapper.primary_key[0].name)
 
-        if resource.meta.id_field:
+        if 'id_field' in resource.meta:
             self.id_column = getattr(model, resource.meta.id_field)
         else:
             self.id_column = mapper.primary_key[0]
 
         # resource name: use model table's name if not set explicitly
-        if 'name' not in meta:
+        if not hasattr(resource.Meta, 'name'):
             meta['name'] = model.__tablename__.lower()
 
         fs = resource.schema
@@ -64,7 +64,7 @@ class SQLAlchemyManager(Manager):
         exclude_fields = meta.get('exclude_fields', None)
         read_only_fields = meta.get('read_only_fields', ())
         write_only_fields = meta.get('write_only_fields', ())
-        pre_declared_fields = {f.attribute or k for k, f in fs.schema.items()}
+        pre_declared_fields = {f.attribute or k for k, f in fs.fields.items()}
 
         for name, column in mapper.columns.items():
             if (include_fields and name in include_fields) or \
@@ -174,12 +174,14 @@ class SQLAlchemyManager(Manager):
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
             raise
 
+        return item
+
     def read(self, id):
         try:
             # NOTE SQLAlchemy's .get() does not work well with .filter(), therefore using .one()
             return self._query().filter(self.id_column == id).one()
         except NoResultFound:
-            abort(404, resource=self.resource.meta.name, id=id)
+            raise ItemNotFound(self.resource, id=id)
 
     def update(self, item, changes, commit=True):
         session = self._get_session()

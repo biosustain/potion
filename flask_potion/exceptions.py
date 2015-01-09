@@ -27,8 +27,27 @@ class ItemNotFound(PotionException):
     http_exception = NotFound
 
     def __init__(self, resource, natural_key=None, id=None):
-        NotFound.__init__()
+        super(ItemNotFound, self).__init__()
+        self.resource = resource
+        self.id = id
+        self.natural_key = natural_key
 
+
+    def as_dict(self):
+        dct = super(ItemNotFound, self).as_dict()
+
+        if self.id is not None:
+            dct['item'] = {
+                "$type": self.resource.meta.name,
+                "$id": self.id
+            }
+        return dct
+
+    def make_response(self):
+        code = self.http_exception.code
+        response = jsonify(self.as_dict())
+        response.status_code = self.status_code
+        return response
 
 class ValidationError(PotionException):
     http_exception = BadRequest

@@ -49,9 +49,7 @@ class Schema(object):
         if not data and request.method in ('GET', 'HEAD'):
             data = dict(request.args)
 
-        c = self.convert(data)
-        print('CCCONVERTED', data, c)
-        return c
+        return self.convert(data)
 
     def format_response(self, response):
         data, code, headers = unpack(response)
@@ -98,14 +96,10 @@ class FieldSet(Schema, ResourceBound):
     def format(self, item):
         return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items())
 
-    def convert(self, obj, pre_resolved_properties=None, patch=False, strict=False):
+    def convert(self, instance, pre_resolved_properties=None, patch_instance=False, strict=False):
         converted = dict(pre_resolved_properties) if pre_resolved_properties else {}
-        # TODO move converted properties into object_
-        print(obj)
-        obj = super(FieldSet, self).convert(obj)
-        print(obj,'converted')
-
-        # FIXME consider validating entire schema at the beginning for proper error messages.
+        object_ = super(FieldSet, self).convert(instance)
+        print(object_, 'validated')
 
         for key, field in self.fields.items():
             if 'w' not in field.io:
@@ -117,15 +111,11 @@ class FieldSet(Schema, ResourceBound):
 
             value = None
 
-            print('>',value, key, field)
             try:
-                value = obj[key]
+                value = object_[key]
                 value = field.convert(value, validate=False)
-                print('>>')
-            # except ValueError as ve:
-            #     raise PotionValidationError(ve, key)
             except KeyError:
-                if patch:
+                if patch_instance:
                     continue
 
                 if field.default is not None:
@@ -134,20 +124,14 @@ class FieldSet(Schema, ResourceBound):
                     value = None
                 elif key not in self.required and not strict:
                     value = None
-                # else:
-                #     raise ValidationError('missing-property', property=key)
 
             converted[field.attribute or key] = value
-        #
-        # if strict:
-        #     unknown_fields = set(object_.keys()) - set(self.fields.keys())
-        #     if unknown_fields:
-        #         raise ValidationError('unknown-properties', unknown_fields)
-        print(converted, 'OUT')
         return converted
 
     def parse_request(self, request):
         data = request.json
+
+        # FIXME raise error if request body is not JSON
 
         if not data and request.method in ('GET', 'HEAD'):
             data = {}
@@ -159,5 +143,7 @@ class FieldSet(Schema, ResourceBound):
         if not self.fields:
             return {}
 
-        return self.convert(data)
+        print('PArsing', request.method)
+
+        return self.convert(data, patch_instance=request.method == 'PATCH')
 

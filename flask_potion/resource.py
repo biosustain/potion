@@ -2,10 +2,8 @@ from collections import OrderedDict
 import inspect
 from operator import attrgetter
 import itertools
-from collections import defaultdict
 import six
 from . import fields
-from .natural_keys import RefResolver
 from .reference import ResourceBound
 from .instances import Instances
 from .utils import AttributeDict
@@ -198,8 +196,8 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         updated_item = self.manager.update(item, properties)
         return updated_item
 
-    update.request_schema = DeferredSchema(fields.Inline, 'self')
-    update.response_schema = DeferredSchema(fields.Inline, 'self')
+    update.request_schema = DeferredSchema(fields.Inline, 'self', patch_instance=True)
+    update.response_schema = update.request_schema
 
     @update.DELETE(rel="destroy")
     def destroy(self, id):

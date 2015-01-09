@@ -78,11 +78,15 @@ class Api(object):
 
         return wrapper
 
+    def _before_first_request(self):
+        # TODO resolve all RouteSet dependencies
+        # TODO attempt to generate entire schema (i.e sanity-check everything)
+        pass
+
     def _complete_rule(self, rule):
         return ''.join((self.prefix, rule))
 
     def _complete_view(self, rule, **kwargs):
-        print('Oh    ',rule, kwargs)
         self.app.add_url_rule(self._complete_rule(rule), **kwargs)
 
     def _schema_view(self):

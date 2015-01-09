@@ -257,6 +257,7 @@ class Instances(Schema, ResourceBound):
             yield field.attribute or name, reverse
 
     def parse_request(self, request):
+
         # TODO convert instances to FieldSet
         # TODO (implement in FieldSet too:) load values from request.args
         try:

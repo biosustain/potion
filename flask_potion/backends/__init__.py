@@ -38,7 +38,7 @@ class Manager(object):
                 float: fields.Number,
                 bool: fields.Boolean,
                 list: fields.Array,
-                dict: fields.Properties,
+                dict: fields.Object,
                 datetime.date: fields.DateString,
                 datetime.datetime: fields.DateTimeString
             }[python_type]

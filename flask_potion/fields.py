@@ -181,7 +181,7 @@ class Array(Raw):
 
         super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)), **kwargs)
 
-    def format(self, value):
+    def formatter(self, value):
         return [self.container.format(v) for v in value]
 
     def converter(self, value):
@@ -429,7 +429,7 @@ class Integer(Raw):
 
         super(Integer, self).__init__(schema, default=default, **kwargs)
 
-    def format(self, value):
+    def formatter(self, value):
         return int(value)
 
 
@@ -444,7 +444,6 @@ class PositiveInteger(Integer):
 
 class Number(Raw):
     def __init__(self,
-                 default=0,
                  minimum=None,
                  maximum=None,
                  exclusive_minimum=False,
@@ -463,9 +462,9 @@ class Number(Raw):
             if exclusive_maximum:
                 schema['exclusiveMaximum'] = True
 
-        super(Number, self).__init__(schema, default=default, **kwargs)
+        super(Number, self).__init__(schema, **kwargs)
 
-    def format(self, value):
+    def formatter(self, value):
         return float(value)
 
 
@@ -511,8 +510,9 @@ class ToMany(Array):
 
 class Inline(Raw, ResourceBound):
 
-    def __init__(self, resource, **kwargs):
+    def __init__(self, resource, patch_instance=False, **kwargs):
         self.reference = ResourceReference(resource)
+        self.patch_instance = patch_instance
         self.target = None
 
         def schema():
@@ -526,15 +526,12 @@ class Inline(Raw, ResourceBound):
     def bind(self, resource):
         super(Inline, self).bind(resource)
         self.target = self.reference.resolve(resource)
-        print('bind(', self, resource, self.reference, self.target, ')')
 
     def format(self, item):
-        print('format(', self)
         return self.target.schema.format(item)
 
     def convert(self, item):
-        # TODO create actual model instance here?
-        return self.target.schema.convert(item)
+        return self.target.schema.convert(item, patch_instance=self.patch_instance)
 
 
 class ItemType(Raw):
