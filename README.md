@@ -4,11 +4,6 @@
     <img src="https://raw.githubusercontent.com/biosustain/potion/master/docs/_static/Potion.png" width="100">
 </p>
 
-## Inspiration & Alternatives
-
-Potion used to be based on Flask-RESTful. It no longer shares any code with Flask-RESTful, but there are some residual
-similarities, particularly when it comes to fields. Python-Eve and Flask-Classy are the other two major inspirations.
-Eve is a good alternative for those seeking to work with MongoDB, which is not yet supported in Potion.
 
 ## Planned Features
 
@@ -44,3 +39,20 @@ PostgreSQL-specific features relying on text-search indexes & JSON/JSONB column 
 
 Long-term aims of the framework include support for message-driven communication with the client, potentially using
 WebSocket and `asyncio`.
+
+## Python client
+
+[Potion-client](https://github.com/biosustain/potion-client) is a Python REST client written to leverage the JSON Schema
+and referencing features of Potion.
+
+## Inspiration & Alternatives
+
+The predecessor to Potion was to built on Flask-RESTful. There are still some similarities, particularly when it comes
+to fields. Python-Eve and Flask-Classy are the other two major inspirations.
+Eve is a good alternative for those seeking to work with MongoDB, which is not yet supported by Potion.
+
+## Authors
+
+Potion is written and maintained by [Lars Schöning](https://github.com/lyschoening).
+
+[Thanks to our contributors](https://github.com/biosustain/potion/graphs/contributors).
