@@ -5,10 +5,11 @@ from sqlalchemy import types as sa_types
 from sqlalchemy.dialects import postgres
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 from .. import fields
 from ..exceptions import DuplicateKey, ItemNotFound
-from . import Relation, Manager
+from . import Relation, Manager, Pagination
 from ..signals import before_create, before_update, after_update, before_delete, after_delete
 
 SA_COMPARATOR_EXPRESSIONS = {
@@ -26,9 +27,13 @@ SA_COMPARATOR_EXPRESSIONS = {
 
 
 class SQLAlchemyRelation(Relation):
-    def instances(self, item, where=None, sort=None, page=None, per_page=None):
+    def instances(self, item, page=None, per_page=None):
         query = getattr(item, self.attribute)
-        # TODO pagination, sort, etc.
+
+        if isinstance(query, InstrumentedList):
+            return query # Pagination.from_list(query, page, per_page)
+
+        # TODO pagination
         return query.all()
 
     def add(self, item, target_item):

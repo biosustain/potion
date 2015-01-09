@@ -7,21 +7,21 @@
 
 ## Description
 
-Potion is an opinionated self-documenting JSON-based RESTful API framework for SQLAlchemy. It ships complete with an
+Potion is an opinionated self-documenting JSON-based RESTful API framework for Flask and SQLAlchemy. It ships complete with an
 object & role-based permission system, resource-to-resource references, customizable routes and all sorts of route-generation
-goodies, a validation system that actually tells you where the errors are, pagination, filtering & sorting.
+goodies, a validation system that actually tells you where the errors are, signals, pagination, filtering & sorting.
 
 Relationships in Potion encourage an API that is somewhere in-between of what MongoDB/NoSQL and PostgreSQL/SQL
 can be in terms of relational structure. Some level of aggregation is still expected to be done on the client side.
 
 The problem of RESTful referencing has been solved in Potion by including references as JSON-ref objects (e.g.
  `{"$ref": "/resource/1"}`). A REST client can resolve these references on the fly when parsing JSON from the API and the
- result is RESTful and cacheable because there is always exactly one endpoint for each resource instance.
- Due to the extra requests this sometimes requires, you should use Potion with SPDY or the upcoming HTTP/2.0.
+ result is RESTful and cachable because there is always exactly one endpoint for each resource instance.
+ Due to the extra requests this sometimes requires, you should use Potion with SPDY or the upcoming HTTP/2.
 
-While Potion can be used with any database supported by SQLAlchemy, it primarily targets PostgreSQL and has
-PostgreSQL-specific features relying on text-search indexes & JSON/JSONB column types. Due to the way Potion is written,
-it can be extended with other storage engines very easily.
+Potion can be used with any database supported by SQLAlchemy and it supports several PostgreSQL specific features
+ such as text-search indexes & JSON/JSONB column types. Due to the way Potion is written,
+it can very easily be extended for other storage engines.
 
 # Immediate goals (add this to the description after release):
 
@@ -32,12 +32,12 @@ should be done through the Potion API and not the underlying SQLAlchemy models.
 
 # Long-term goals
 
-Potion is written in a way that makes it very cacheable and it is planned to eventually include an automatic and thorough
+Potion is written in a way that makes it very cachable and it is planned to eventually include an automatic and thorough
 caching solution with Potion. The optional permissions system adds some complexity to the caching, but it's a problem
 that can be solved.
 
 Long-term aims of the framework also include support for message-driven communication with the client using
-WebSocket and `asyncio`. Web applications today are push not pull and any modern API should support subscriptions.
+WebSocket and `asyncio`. Web applications today are push not pull, and any modern API should support subscriptions.
 (If you need push notification today, you can already roll your own solution using Potion's signaling system).
 
 ## Python client

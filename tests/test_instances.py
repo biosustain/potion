@@ -14,9 +14,6 @@ class RelationTestCase(BaseTestCase):
     def test_pagination(self):
         pass
 
-    def test_where(self):
-        pass
-
     def test_where_to_one(self):
         class Person(ModelResource):
             class Schema:
@@ -75,20 +72,3 @@ class RelationTestCase(BaseTestCase):
         self.assertJSONEqual([
             {'$id': 5, '$type': 'person', 'mother': {'$ref': '/person/2'}, 'name': 'Clare'}
         ], response.json)
-
-    def test_where_to_many(self):
-        class Person(ModelResource):
-            class Schema:
-                name = fields.String()
-                parents = fields.ToMany('person')
-
-            class Meta:
-                name = "person"
-                model = name
-                manager = MemoryManager
-
-
-
-    @unittest.SkipTest
-    def test_where_relation(self):
-        pass

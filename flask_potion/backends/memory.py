@@ -54,9 +54,7 @@ class MemoryManager(Manager):
         return items
 
     def _paginate(self, items, page, per_page):
-        items = list(items)
-        start = per_page * (page - 1)
-        return Pagination(items[start:start + per_page], page, per_page, len(items))
+        return Pagination.from_list(list(items), page, per_page)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         return self._paginate(self.instances(where=where, sort=sort), page, per_page)

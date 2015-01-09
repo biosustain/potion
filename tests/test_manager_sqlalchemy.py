@@ -96,7 +96,6 @@ class SQLAlchemyTestCase(BaseTestCase):
         type_ = lambda i: {"$id": i, "$type": "type", "name": "Type-{}".format(i), "machines": []}
 
         for i in range(1, 10):
-            expected = {"$id": i, "$type": "type", "name": "Type-{}".format(i), "machines": []}
             response = self.client.post('/type', data={"name": "Type-{}".format(i), "machines": []})
             self.assert200(response)
             self.assertJSONEqual(type_(i), response.json)
@@ -172,58 +171,76 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assert404(response)
 
 
-# class SQLAlchemyRelationTestCase(BaseTestCase):
-#
-#     def setUp(self):
-#         super(SQLAlchemyRelationTestCase, self).setUp()
-#         self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
-#         self.api = Api(self.app)
-#         self.sa = sa = SQLAlchemy(self.app)
-#
-#         class User(sa.Model):
-#             id = sa.Column(sa.Integer, primary_key=True)
-#             name = sa.Column(sa.String(60), nullable=False)
-#
-#         class Group(sa.Model):
-#             id = sa.Column(sa.Integer, primary_key=True)
-#             name = sa.Column(sa.String(60), nullable=False)
-#
-#         sa.create_all()
-#
-#         class UserResource(SAResource):
-#             class Meta:
-#                 model = User
-#
-#             friends = Relation('user')
-#
-#
-#         class GroupResource(SAResource):
-#             class Meta:
-#                 model = Group
-#
-#             members = Relation('user')
-#
-#         self.api.add_resource(UserResource)
-#         self.api.add_resource(GroupResource)
-#
-#
-#
-#     # def test_relationship_post(self):
-#     #     self.request('POST', '/tree', {'name': 'Apple tree'}, {'name': 'Apple tree', '_uri': '/tree/1'}, 200)
-#     #     self.request('GET', '/tree/1/fruits', None, [], 200)
-#     #
-#     #     self.request('POST', '/fruit', {'name': 'Apple'},
-#     #                  {'name': 'Apple', '_uri': '/fruit/1', 'sweetness': 5, 'tree': None}, 200)
-#     #
-#     #     self.request('POST', '/tree/1/fruits', '/fruit/1',
-#     #                  {'name': 'Apple', '_uri': '/fruit/1', 'sweetness': 5, 'tree': '/tree/1'}, 200)
-#     #
-#     # def test_relationship_get(self):
-#     #     self.test_relationship_post()
-#     #     self.request('GET', '/tree/1/fruits', None,
-#     #                  [{'name': 'Apple', '_uri': '/fruit/1', 'sweetness': 5, 'tree': '/tree/1'}], 200)
-#     #
-#     # def test_relationship_delete(self):
-#     #     self.test_relationship_post()
-#     #     self.request('DELETE', '/tree/1/fruits', '/fruit/1', None, 204)
-#     #     #self.request('GET', '/apple/seed_count', None, 2, 200)
+class SQLAlchemyRelationTestCase(BaseTestCase):
+
+    def setUp(self):
+        super(SQLAlchemyRelationTestCase, self).setUp()
+        self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
+        self.api = Api(self.app)
+        self.sa = sa = SQLAlchemy(self.app)
+
+        class User(sa.Model):
+            id = sa.Column(sa.Integer, primary_key=True)
+            parent_id = sa.Column(sa.Integer, sa.ForeignKey(id))
+            name = sa.Column(sa.String(60), nullable=False)
+
+            parent = sa.relationship('User', remote_side=[id], backref=backref('children'))
+
+        class Group(sa.Model):
+            id = sa.Column(sa.Integer, primary_key=True)
+            name = sa.Column(sa.String(60), nullable=False)
+
+        class GroupMembership(sa.Model):
+            id = sa.Column(sa.Integer, primary_key=True)
+            user_id = sa.Column(sa.Integer, sa.ForeignKey(User.id), nullable=False)
+            group_id = sa.Column(sa.Integer, sa.ForeignKey(Group.id), nullable=False)
+
+            user = sa.relationship(User)
+            group = sa.relationship(Group)
+
+        sa.create_all()
+
+        class UserResource(ModelResource):
+            class Meta:
+                model = User
+
+            children = Relation('self')
+
+        class GroupResource(ModelResource):
+            class Meta:
+                model = Group
+
+            members = Relation(UserResource)
+
+        self.api.add_resource(UserResource)
+        self.api.add_resource(GroupResource)
+
+    def test_relationship_post(self):
+        response = self.client.post('/user', data={"name": "Foo"})
+        self.assert200(response)
+        self.assertJSONEqual({'$id': 1, '$type': 'user', "name": "Foo"}, response.json)
+
+        response = self.client.post('/user', data={"name": "Bar"})
+        self.assert200(response)
+        self.assertJSONEqual({'$id': 2, '$type': 'user', "name": "Bar"}, response.json)
+
+        response = self.client.post('/user/1/children', data={"$ref": "/user/2"})
+        self.assert200(response)
+        self.assertJSONEqual({"$ref": "/user/2"}, response.json)
+
+    def test_relationship_get(self):
+        self.test_relationship_post()
+
+        response = self.client.get('/user/1/children')
+        self.assert200(response)
+        self.assertJSONEqual([{"$ref": "/user/2"}], response.json)
+
+    def test_relationship_delete(self):
+        self.test_relationship_post()
+
+        response = self.client.delete('/user/1/children/2')
+        self.assertStatus(response, 204)
+
+        response = self.client.get('/user/1/children')
+        self.assert200(response)
+        self.assertJSONEqual([], response.json)

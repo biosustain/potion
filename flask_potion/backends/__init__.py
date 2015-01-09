@@ -95,3 +95,8 @@ class Pagination(object):
     @property
     def has_next(self):
         return self.page < self.pages
+
+    @classmethod
+    def from_list(cls, items, page, per_page):
+        start = per_page * (page - 1)
+        return Pagination(items[start:start + per_page], page, per_page, len(items))
