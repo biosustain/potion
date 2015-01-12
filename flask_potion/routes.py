@@ -346,6 +346,7 @@ class Relation(RouteSet, ResourceBound):
                 print('$$$$$$$', resource, item, target_item)
                 relation = self.resource.manager.relation_factory(self.attribute, self.target)
                 relation.add(item, target_item)
+                self.resource.manager.commit()
                 return target_item
 
             relation_add.request_schema = fields.ToOne(self.target)
@@ -356,6 +357,7 @@ class Relation(RouteSet, ResourceBound):
                 child = self.target.manager.read(target_id)
                 relation = self.resource.manager.relation_factory(self.attribute, self.target)
                 relation.remove(item, child)
+                self.resource.manager.commit()
                 return None, 204
             yield relation_route
 

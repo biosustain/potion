@@ -264,6 +264,7 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         self.assert200(response)
         self.assertJSONEqual([{"$ref": "/user/{}".format(i)} for i in range(42, 50)], response.json)
 
+        self.assertEqual('48', response.headers['X-Total-Count'])
         self.assertEqual('</user/1/children?page=3&per_page=20>; rel="self",'
                          '</user/1/children?page=1&per_page=20>; rel="first",'
                          '</user/1/children?page=2&per_page=20>; rel="prev",'

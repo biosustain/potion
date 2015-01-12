@@ -2,6 +2,8 @@ from __future__ import division
 from math import ceil
 from ..exceptions import ItemNotFound
 from . import Relation, Manager, Pagination
+from flask.ext.potion.signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
+    after_remove_from_relation
 from ..utils import get_value
 
 
@@ -21,14 +23,18 @@ class MemoryRelation(Relation):
         return Pagination.from_list(items, page, per_page)
 
     def add(self, item, target_item):
+        before_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
         item[self.attribute] = collection = item.get(self.attribute, set())
         item_id = target_item[self.target_resource.manager.id_attribute]
         collection.add(item_id)
+        after_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
 
     def remove(self, item, target_item):
+        before_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
         item[self.attribute] = collection = item.get(self.attribute, set())
         item_id = target_item[self.target_resource.manager.id_attribute]
         collection.remove(item_id)
+        after_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
 
 
 class MemoryManager(Manager):

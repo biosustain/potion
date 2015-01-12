@@ -14,10 +14,10 @@ before_delete = _potion.signal('before-delete')
 
 after_delete = _potion.signal('after-delete')
 
-before_add_to_relationship = _potion.signal('before-add-to-relationship')
+before_add_to_relation = _potion.signal('before-add-to-relation')
 
-after_add_to_relationship = _potion.signal('after-add-to-relationship')
+after_add_to_relation = _potion.signal('after-add-to-relation')
 
-before_remove_from_relationship = _potion.signal('before-remove-from-relationship')
+before_remove_from_relation = _potion.signal('before-remove-from-relation')
 
-after_remove_from_relationship = _potion.signal('after-remove-from-relationship')
+after_remove_from_relation = _potion.signal('after-remove-from-relation')

@@ -1,7 +1,7 @@
 from operator import and_
 from flask import current_app, abort
 from flask_sqlalchemy import get_state
-from sqlalchemy import types as sa_types
+from sqlalchemy import types as sa_types, func
 from sqlalchemy.dialects import postgres
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
@@ -10,7 +10,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from .. import fields
 from ..exceptions import DuplicateKey, ItemNotFound
 from . import Relation, Manager, Pagination
-from ..signals import before_create, before_update, after_update, before_delete, after_delete
+from ..signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
+    before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 
 SA_COMPARATOR_EXPRESSIONS = {
     '$eq': lambda column, value: column == value,
@@ -40,10 +41,14 @@ class SQLAlchemyRelation(Relation):
         return query.all()
 
     def add(self, item, target_item):
+        before_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
         getattr(item, self.attribute).append(target_item)
+        after_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
 
     def remove(self, item, target_item):
+        before_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
         getattr(item, self.attribute).remove(target_item)
+        after_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
 
 
 class SQLAlchemyManager(Manager):
@@ -182,6 +187,7 @@ class SQLAlchemyManager(Manager):
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
             raise
 
+        after_create.send(self.resource, item=item)
         return item
 
     def read(self, id):
@@ -221,7 +227,7 @@ class SQLAlchemyManager(Manager):
         session.delete(item)
         session.commit()
 
-        after_delete.send(self, item=item)
+        after_delete.send(self.resource, item=item)
 
 
 class PrincipalsManager(SQLAlchemyManager):
