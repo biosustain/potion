@@ -70,6 +70,7 @@ class ValidationError(PotionException):
             {
                 'validationOf': {error.validator: error.validator_value},
                 "path": self._complete_path(error)
+                # 'message': error.message
             }
             for error in self.errors
         ]

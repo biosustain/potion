@@ -1,59 +1,3 @@
-"""
-
-
-
-sub-resources:
-
-strict sub-resources are no problem.
-
-
-one-to-one:
-
-use filters.
-
-
-
-
-one-to-many:
-
-/project/1/tasks
-/task.project
-
-
-/task/1/project?
-
-/project/tasks
-
-
-
-
-
-
-many-to-many:
-
-
-/group/1/members
-/user/1.groups
-
-
-/user/1/memberships
-/membership/1,1
-
-
-
-Relationships should be references rather than full items so that the cache only has to be invalidated if an item is
-added or removed, but not if any other values change.
-
-
-/user/{userID}/groups/{groupID}
-should do a HTTP redirect to:
-/memberships/{uuid}
-
-
-
-
-
-"""
 from collections import OrderedDict
 import re
 from types import MethodType
@@ -63,7 +7,7 @@ from werkzeug.utils import cached_property
 from .fields import _field_from_object
 from . import fields
 from .utils import get_value
-from .instances import Instances
+from .instances import Instances, RelationInstances
 from .reference import ResourceBound, ResourceReference
 from .schema import Schema, FieldSet
 
@@ -383,12 +327,19 @@ class Relation(RouteSet, ResourceBound):
 
         if "r" in io:
             @relations_route.GET
-            def relation_instances(resource, item, **kwargs):
+            def relation_instances(resource, item, page, per_page):
                 relation = self.resource.manager.relation_factory(self.attribute, self.target)
-                return relation.instances(item, **kwargs)
+                return relation.instances(item, page=page, per_page=per_page)
 
-            # TODO pagination via RelationInstances
-            relations_route.response_schema = fields.ToMany(self.target)
+            relations_route.request_schema = FieldSet({
+                "page": fields.Integer(minimum=1, default=1),
+                "per_page": fields.Integer(minimum=1,
+                                           default=20, # FIXME use API reference
+                                           maximum=50)
+            })
+
+            relations_route.response_schema = RelationInstances(self.target)
+
         if "w" in io:
             @relations_route.POST
             def relation_add(resource, item, target_item):

@@ -3,10 +3,11 @@ from . import fields, ValidationError
 import collections
 
 from flask import json, request
-from werkzeug.exceptions import InternalServerError
+from flask_sqlalchemy import Pagination as SAPagination
 from werkzeug.utils import cached_property
 from .exceptions import InvalidJSON
 from .backends import Pagination
+from .fields import ToMany
 from .reference import ResourceBound
 from .utils import get_value
 from .schema import Schema
@@ -94,12 +95,45 @@ class Condition(object):
         return self.comparator.expression(self.value, get_value(self.attribute, item, None))
 
 
-class Instances(Schema, ResourceBound):
+class PaginationMixin(object):
+    query_params = ()
+
+    def format_response(self, data):
+        if not isinstance(data, (Pagination, SAPagination)):
+            return self.format(data)
+
+        links = [(request.path, data.page, data.per_page, 'self')]
+
+        if data.has_prev:
+            links.append((request.path, 1, data.per_page, 'first'))
+            links.append((request.path, data.page - 1, data.per_page, 'prev'))
+        if data.has_next:
+            links.append((request.path, data.page + 1, data.per_page, 'next'))
+
+        links.append((request.path, data.pages, data.per_page, 'last'))
+
+        # FIXME links must contain filters & sort
+        # TODO include query_params
+
+        headers = {
+            'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links)),
+            'X-Total-Count': data.total
+        }
+
+        return self.format(data.items), 200, headers
+
+
+class RelationInstances(PaginationMixin, ToMany):
+    pass
+
+
+class Instances(PaginationMixin, Schema, ResourceBound):
     """
     This is what implements all of the pagination, filter, and sorting logic.
 
     Works like a field, but reads 'where' and 'sort' query string parameters as well as link headers.
     """
+    query_params = ('where', 'sort')
 
     def __init__(self, reference, default_sort=None, filters=None):
         self.allowed_filters = filters
@@ -281,25 +315,3 @@ class Instances(Schema, ResourceBound):
 
     def format(self, items):
         return [self.resource.schema.format(item) for item in items]
-
-    def format_response(self, items_or_pagination):
-        if isinstance(items_or_pagination, list):
-            return self.format(items_or_pagination)
-
-        links = [(request.path, items_or_pagination.page, items_or_pagination.per_page, 'self')]
-
-        if items_or_pagination.has_prev:
-            links.append((request.path, 1, items_or_pagination.per_page, 'first'))
-            links.append((request.path, items_or_pagination.page - 1, items_or_pagination.per_page, 'prev'))
-        if items_or_pagination.has_next:
-            links.append((request.path, items_or_pagination.page + 1, items_or_pagination.per_page, 'next'))
-
-        links.append((request.path, items_or_pagination.pages, items_or_pagination.per_page, 'last'))
-
-        # FIXME links must contain filters & sort
-        headers = {
-            'Link': ','.join(('<{0}?page={1}&per_page={2}>; rel="{3}"'.format(*link) for link in links)),
-            'X-Total-Count': items_or_pagination.total
-        }
-
-        return self.format(items_or_pagination.items), 200, headers

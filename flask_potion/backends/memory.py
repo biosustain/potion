@@ -10,9 +10,15 @@ class MemoryRelation(Relation):
     def instances(self, item, page=None, per_page=None):
         collection = item.get(self.attribute, set())
 
-        # TODO pagination, sort, etc.
-        # FIXME need to handle removed items
-        return [self.target_resource.manager.read(id) for id in collection]
+        items = []
+        for id in collection:
+            try:
+                items.append(self.target_resource.manager.read(id))
+            except ItemNotFound:
+                collection.remove(id)
+                pass
+
+        return Pagination.from_list(items, page, per_page)
 
     def add(self, item, target_item):
         item[self.attribute] = collection = item.get(self.attribute, set())

@@ -31,9 +31,12 @@ class SQLAlchemyRelation(Relation):
         query = getattr(item, self.attribute)
 
         if isinstance(query, InstrumentedList):
-            return query # Pagination.from_list(query, page, per_page)
+            if page and per_page:
+                return Pagination.from_list(query, page, per_page)
+            return query
 
-        # TODO pagination
+        if page and per_page:
+            return query.paginate(page=page, per_page=per_page)
         return query.all()
 
     def add(self, item, target_item):

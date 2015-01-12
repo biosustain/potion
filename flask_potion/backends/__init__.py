@@ -5,7 +5,8 @@ from flask_potion import fields
 
 
 class Relation(object):
-    def __init__(self, resource, attribute, target_resource=None):
+    def __init__(self, manager, resource, attribute, target_resource=None):
+        self.manager = manager
         self.resource = resource
         self.attribute = attribute
         self.target_resource = target_resource
@@ -46,7 +47,7 @@ class Manager(object):
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
 
     def relation_factory(self, attribute, target_resource=None):
-        return self.relation_type(self.resource, attribute, target_resource)
+        return self.relation_type(self, self.resource, attribute, target_resource)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         pass

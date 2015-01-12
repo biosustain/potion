@@ -1,10 +1,10 @@
 from collections import OrderedDict
-import six
+from flask import json
 from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
 from .reference import ResourceBound
 from .utils import unpack
-from .exceptions import ValidationError as PotionValidationError, PotionException
+from .exceptions import ValidationError as PotionValidationError
 
 
 class Schema(object):
@@ -97,7 +97,7 @@ class FieldSet(Schema, ResourceBound):
         return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items())
 
     def convert(self, instance, pre_resolved_properties=None, patch_instance=False, strict=False):
-        converted = dict(pre_resolved_properties) if pre_resolved_properties else {}
+        result = dict(pre_resolved_properties) if pre_resolved_properties else {}
         object_ = super(FieldSet, self).convert(instance)
         print(object_, 'validated')
 
@@ -106,7 +106,7 @@ class FieldSet(Schema, ResourceBound):
                 continue
 
             # ignore fields that have been pre-resolved
-            if key in converted:
+            if key in result:
                 continue
 
             value = None
@@ -125,25 +125,36 @@ class FieldSet(Schema, ResourceBound):
                 elif key not in self.required and not strict:
                     value = None
 
-            converted[field.attribute or key] = value
-        return converted
+            result[field.attribute or key] = value
+        return result
 
     def parse_request(self, request):
         data = request.json
 
+        print('REQUEST DATA', data, request.method)
+
         # FIXME raise error if request body is not JSON
-
-        if not data and request.method in ('GET', 'HEAD'):
-            data = {}
-
-            # for name, field in self.fields.items():
-            #     # FIXME type conversion!
-            #     data[name] = request.args.get(name, type=field.python_type)
 
         if not self.fields:
             return {}
 
-        print('PArsing', request.method)
+        if not data and request.method in ('GET', 'HEAD'):
+            data = {}
+
+            for name, field in self.fields.items():
+                try:
+                    value = request.args[name]
+                    # FIXME type conversion!
+                    try:
+                        data[name] = json.loads(value)
+                        print('JSON', data[name])
+                    except TypeError:
+                        data[name] = value
+                        print('PLAIN', data[name])
+                except KeyError:
+                    pass
+
+        print('PArsing', data, request.method)
 
         return self.convert(data, patch_instance=request.method == 'PATCH')
 

@@ -232,6 +232,7 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         self.test_relationship_post()
 
         response = self.client.get('/user/1/children')
+        self.pp(response.json)
         self.assert200(response)
         self.assertJSONEqual([{"$ref": "/user/2"}], response.json)
 
@@ -244,3 +245,26 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         response = self.client.get('/user/1/children')
         self.assert200(response)
         self.assertJSONEqual([], response.json)
+
+    def test_relationship_pagination(self):
+        response = self.client.post('/user', data={"name": "Foo"})
+        self.assert200(response)
+
+        for i in range(2, 50):
+            response = self.client.post('/user', data={"name": str(i)})
+            self.assert200(response)
+            response = self.client.post('/user/1/children', data={"$ref": "/user/{}".format(response.json['$id'])})
+            self.assert200(response)
+
+        response = self.client.get('/user/1/children')
+        self.assert200(response)
+        self.assertJSONEqual([{"$ref": "/user/{}".format(i)} for i in range(2, 22)], response.json)
+
+        response = self.client.get('/user/1/children?page=3')
+        self.assert200(response)
+        self.assertJSONEqual([{"$ref": "/user/{}".format(i)} for i in range(42, 50)], response.json)
+
+        self.assertEqual('</user/1/children?page=3&per_page=20>; rel="self",'
+                         '</user/1/children?page=1&per_page=20>; rel="first",'
+                         '</user/1/children?page=2&per_page=20>; rel="prev",'
+                         '</user/1/children?page=3&per_page=20>; rel="last"', response.headers['Link'])
