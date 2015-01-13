@@ -32,7 +32,6 @@ class ItemNotFound(PotionException):
         self.id = id
         self.natural_key = natural_key
 
-
     def as_dict(self):
         dct = super(ItemNotFound, self).as_dict()
 
@@ -48,6 +47,7 @@ class ItemNotFound(PotionException):
         response = jsonify(self.as_dict())
         response.status_code = self.status_code
         return response
+
 
 class ValidationError(PotionException):
     http_exception = BadRequest
@@ -82,9 +82,19 @@ class DuplicateKey(PotionException):
     http_exception = Conflict
 
     def __init__(self, **kwargs):
-        Conflict.__init__(self)
         self.data = kwargs
 
+
+class BackendConflict(PotionException):
+    http_exception = Conflict
+
+    def __init__(self, **kwargs):
+        self.data = kwargs
+
+    def as_dict(self):
+        dct = super(BackendConflict, self).as_dict()
+        dct.update(self.data)
+        return dct
 
 class PageNotFound(PotionException):
     http_exception = NotFound

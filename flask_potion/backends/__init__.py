@@ -5,7 +5,7 @@ from flask_potion import fields
 
 
 class Relation(object):
-    def __init__(self, manager, resource, attribute, target_resource=None):
+    def __init__(self, manager, resource, attribute, target_resource):
         self.manager = manager
         self.resource = resource
         self.attribute = attribute

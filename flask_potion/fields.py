@@ -547,15 +547,15 @@ class ItemType(Raw):
 
 
 class ItemUri(Raw):
-    def __init__(self, resource):
+    def __init__(self, resource, attribute=None):
         self.resource = resource
         super(ItemUri, self).__init__(lambda: {
             "type": "string",
             "pattern": "^{}\/[^/]+$".format(re.escape(resource.route_prefix))
-        }, io="r")
+        }, io="r", attribute=attribute)
 
     def format(self, value):
-        return '{}/{}'.format(self.resource.route_prefix, get_value(self.resource.meta.id_attribute, value, None))
+        return '{}/{}'.format(self.resource.route_prefix, value)
 
 
 class sa:

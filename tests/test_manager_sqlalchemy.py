@@ -17,7 +17,7 @@ class SQLAlchemyTestCase(BaseTestCase):
 
         class Type(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
-            name = sa.Column(sa.String(60), nullable=False)
+            name = sa.Column(sa.String(60), nullable=False, unique=True)
 
         class Machine(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
@@ -66,6 +66,13 @@ class SQLAlchemyTestCase(BaseTestCase):
     def test_create_json_string(self):
         response = self.client.post('/machine', data='invalid', force_json=True)
         self.assert400(response)
+
+    def test_conflict(self):
+        response = self.client.post('/type', data={"name": "foo", "machines": []}) # FIXME "machines": [] should not be necessary
+        self.assert200(response)
+
+        response = self.client.post('/type', data={"name": "foo", "machines": []}) # FIXME "machines": [] should not be necessary
+        self.assertStatus(response, 409)
 
     def test_create(self):
         response = self.client.post('/type', data={"name": "x-ray", "machines": []}) # FIXME "machines": [] should not be necessary

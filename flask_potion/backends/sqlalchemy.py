@@ -8,7 +8,7 @@ from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 from .. import fields
-from ..exceptions import DuplicateKey, ItemNotFound
+from ..exceptions import DuplicateKey, ItemNotFound, BackendConflict
 from . import Relation, Manager, Pagination
 from ..signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
@@ -154,7 +154,7 @@ class SQLAlchemyManager(Manager):
     def paginated_instances(self, page, per_page, where=None, sort=None):
         return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)
 
-    def instances(self, where=None, sort=None, page=None, per_page=None):
+    def instances(self, where=None, sort=None):
         query = self._query()
 
         if where:
@@ -185,7 +185,10 @@ class SQLAlchemyManager(Manager):
             if hasattr(e.orig, 'pgcode'):
                 if e.orig.pgcode == "23505":  # duplicate key
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
-            raise
+
+            if current_app.debug:
+                raise BackendConflict(debug_info=dict(statement=e.statement, params=e.params))
+            raise BackendConflict()
 
         after_create.send(self.resource, item=item)
         return item

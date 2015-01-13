@@ -18,8 +18,6 @@ class Api(object):
         self.decorators = decorators or []
         self.max_per_page = max_per_page
         self.default_per_page = default_per_page
-
-        self.decorators = []
         self.endpoints = set()
         self.resources = {}
         self.views = []

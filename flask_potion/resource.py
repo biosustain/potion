@@ -147,7 +147,11 @@ class ModelResourceMeta(ResourceMeta):
 
             if 'model' in changes or 'model' in meta and 'manager' in changes:
                 fs = class_.schema
-                fs.set('$id', meta.id_field_class(io="r", attribute=meta.id_attribute))
+
+                if issubclass(meta.id_field_class, fields.ItemUri):
+                    fs.set('$uri', meta.id_field_class(class_, attribute=meta.id_attribute))
+                else:
+                    fs.set('$id', meta.id_field_class(io="r", attribute=meta.id_attribute))
                 class_.manager = meta.manager(class_, meta.model)
 
                 if meta.include_type:
@@ -179,7 +183,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         print('X', self.manager, properties)
         item = self.manager.create(properties)
         print('CREATED', item)
-        return item
+        return item # TODO consider 201 Created
 
     create.request_schema = create.response_schema = DeferredSchema(fields.Inline, 'self')
 
