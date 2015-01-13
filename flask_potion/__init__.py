@@ -6,10 +6,18 @@ from six import wraps
 from werkzeug.wrappers import BaseResponse
 from .exceptions import PotionException
 from .utils import unpack
+from .resource import Resource, ModelResource
+from . import signals, fields
 
 __version_info__ = (1, 0, 0)
 __version__ = '.'.join(map(str, __version_info__))
-
+__all__ = (
+    'Api',
+    'Resource',
+    'ModelResource',
+    'signals',
+    'fields'
+)
 
 class Api(object):
     def __init__(self, app=None, decorators=None, prefix=None, default_per_page=20, max_per_page=100):

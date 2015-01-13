@@ -1,7 +1,7 @@
 import datetime
 from math import ceil
 import six
-from flask_potion import fields
+from .. import fields
 
 
 class Relation(object):

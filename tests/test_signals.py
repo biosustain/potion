@@ -98,6 +98,7 @@ class SQLAlchemySignalTestCase(BaseTestCase):
         else:
             for signal, receiver in receivers.items():
                 signal.disconnect(receiver)
+
             self.assertEqual(events, expected_events)
 
 

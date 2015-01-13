@@ -1,8 +1,7 @@
 from __future__ import division
-from math import ceil
 from ..exceptions import ItemNotFound
 from . import Relation, Manager, Pagination
-from flask.ext.potion.signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
+from ..signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
     after_remove_from_relation
 from ..utils import get_value
 

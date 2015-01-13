@@ -1,5 +1,5 @@
 from operator import and_
-from flask import current_app, abort
+from flask import current_app
 from flask_sqlalchemy import get_state
 from sqlalchemy import types as sa_types, func
 from sqlalchemy.dialects import postgres
@@ -19,8 +19,8 @@ SA_COMPARATOR_EXPRESSIONS = {
     '$in': lambda column, value: column.in_(value) if len(value) else False,
     '$lt': lambda column, value: column < value,
     '$gt': lambda column, value: column > value,
-    '$le': lambda column, value: column <= value,
-    '$ge': lambda column, value: column >= value,
+    '$lte': lambda column, value: column <= value,
+    '$gte': lambda column, value: column >= value,
     '$text': lambda column, value: column.op('@@')(func.plainto_tsquery(value)),
     '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
     '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%'))
@@ -143,7 +143,7 @@ class SQLAlchemyManager(Manager):
         return and_(*expressions)
 
     def _order_by(self, sort):
-        for attribute, reverse in sort.items():
+        for attribute, reverse in sort:
             column = getattr(self.model, attribute)
 
             if reverse:

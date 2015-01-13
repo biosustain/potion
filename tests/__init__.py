@@ -23,6 +23,23 @@ class BaseTestCase(TestCase):
     def assertJSONEqual(self, first, second, msg=None):
         self.assertEqual(json.loads(json.dumps(first)), json.loads(json.dumps(second)), msg)
 
+    def _without(self, dct, without):
+        return {k: v for k, v in dct.items() if k not in without}
+
+    def assertEqualWithout(self, first, second, without, msg=None):
+        if isinstance(first, list) and isinstance(second, list):
+            self.assertEqual(
+                [self._without(v, without) for v in first],
+                [self._without(v, without) for v in second],
+                msg=msg
+            )
+        elif isinstance(first, dict) and self.assertEqual(second, dict):
+            self.assertEqual(self._without(first, without),
+                             self._without(second, without),
+                             msg=msg)
+        else:
+            self.assertEqual(first, second)
+
     def create_app(self):
         app = Flask(__name__)
         app.secret_key = 'XXX'

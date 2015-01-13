@@ -192,7 +192,8 @@ class Instances(PaginationMixin, Schema, ResourceBound):
             "type": "object",
             "properties": {c.name: c.schema(field) for c in comparators if c.name != EQUALITY_COMPARATOR},
             "minProperties": 1,
-            "maxProperties": 1
+            "maxProperties": 1,
+            "additionalProperties": False
         }
 
         if COMPARATORS[EQUALITY_COMPARATOR] in comparators:
@@ -274,7 +275,8 @@ class Instances(PaginationMixin, Schema, ResourceBound):
                         comparator = c
                         value = condition[c.name]
                         break
-
+                if comparator is None:
+                    print(self.schema())
                 assert comparator is not None
             elif isinstance(condition, list):
                 comparator = COMPARATORS['$in']
