@@ -16,7 +16,7 @@ __all__ = (
     'Resource',
     'ModelResource',
     'signals',
-    'fields'
+    'fields',
 )
 
 class Api(object):
@@ -47,13 +47,13 @@ class Api(object):
 
         @app.errorhandler(PotionException)
         def handle_invalid_usage(error):
-            print('FAIL', error)
             return error.make_response()
 
-
-        @app.errorhandler(ValidationError)
-        def handle_invalid_usage(error):
-            print("FAIL FAIL FAIL ")
+        @app.before_first_request
+        def handle_before_first_request():
+            # TODO resolve all RouteSet dependencies
+            # TODO attempt to generate entire schema (i.e sanity-check everything)
+            pass
 
     def output(self, view):
         # FIXME from Flask-RESTful
@@ -84,10 +84,6 @@ class Api(object):
 
         return wrapper
 
-    def _before_first_request(self):
-        # TODO resolve all RouteSet dependencies
-        # TODO attempt to generate entire schema (i.e sanity-check everything)
-        pass
 
     def _complete_rule(self, rule):
         return ''.join((self.prefix, rule))

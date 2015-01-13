@@ -49,23 +49,17 @@ class ApiTestCase(BaseTestCase):
                              "title": {
                                  "type": "string"
                              },
-                             "$id": {
-                                 "type": "integer",
-                                 "minimum": 1,
+                             "$uri": {
+                                 "type": "string",
+                                 'pattern': '^\\/book\\/[^/]+$',
                                  "readOnly": True
                              },
-                             '$type': {
-                                 'enum': ['book'],
-                                 'readOnly': True,
-                                 'type': 'string'
-                             },  # or "$uri"
                          }, response.json['properties'])
 
         response = self.client.post("/book", data={"title": "Foo"})
 
         self.assertEqual({
-                             "$id": 1,
-                             "$type": "book",
+                             "$uri": "/book/1",
                              "title": "Foo"
                          }, response.json)
 
@@ -77,8 +71,7 @@ class ApiTestCase(BaseTestCase):
         response = self.client.patch("/book/1", data={"title": "Bar"})
 
         self.assertEqual({
-                             "$id": 1,
-                             "$type": "book",
+                             "$uri": "/book/1",
                              "title": "Bar"
                          }, response.json)
 
@@ -88,35 +81,30 @@ class ApiTestCase(BaseTestCase):
 
         self.assertEqual([
                              {
-                                 "$id": 1,
-                                 "$type": "book",
+                                "$uri": "/book/1",
                                  "title": "Bar"
                              },
                              {
-                                 "$id": 2,
-                                 "$type": "book",
+                                "$uri": "/book/2",
                                  "title": "Bat"
                              },
                              {
-                                 "$id": 3,
-                                 "$type": "book",
+                                "$uri": "/book/3",
                                  "title": "Foo"
                              }
                          ], response.json)
 
-        response = self.client.get('/book?where={"title": {"$startswith": "B"}}&sort={"$id": true}')
+        response = self.client.get('/book?where={"title": {"$startswith": "B"}}')
 
         self.pp(response.json)
         self.assertEqual([
                              {
-                                 "$id": 2,
-                                 "$type": "book",
-                                 "title": "Bat"
+                                 "$uri": "/book/1",
+                                 "title": "Bar"
                              },
                              {
-                                 "$id": 1,
-                                 "$type": "book",
-                                 "title": "Bar"
+                                 "$uri": "/book/2",
+                                 "title": "Bat"
                              }
                          ], response.json)
 

@@ -214,8 +214,8 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
     class Meta:
         id_attribute = 'id'
         id_converter = 'int'
-        id_field_class = fields.PositiveInteger  # Must inherit from Integer or String
-        include_type = True
+        id_field_class = fields.ItemUri  # Must inherit from Integer, String or ItemUri
+        include_type = False
         manager = SQLAlchemyManager
         include_fields = None
         exclude_fields = None

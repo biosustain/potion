@@ -1,6 +1,7 @@
 from functools import partial
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
+from flask_potion import fields
 from flask_potion import signals
 from flask_potion.routes import Relation
 from flask_potion.resource import ModelResource
@@ -110,7 +111,7 @@ class SQLAlchemySignalTestCase(BaseTestCase):
         ]):
             response = self.client.post('/user', data={"name": "Foo"})
             self.assert200(response)
-            self.assertJSONEqual({'$id': 1, '$type': 'user', "name": "Foo", "gender": None}, response.json)
+            self.assertJSONEqual({'$uri': '/user/1', "name": "Foo", "gender": None}, response.json)
 
 
     def test_update_signal(self):
@@ -125,7 +126,7 @@ class SQLAlchemySignalTestCase(BaseTestCase):
         ]):
             response = self.client.patch('/user/1', data={"name": "Bar", "gender": "M"})
             self.assert200(response)
-            self.assertJSONEqual({'$id': 1, '$type': 'user', "name": "Bar", "gender": "M"}, response.json)
+            self.assertJSONEqual({'$uri': '/user/1', "name": "Bar", "gender": "M"}, response.json)
 
     def test_delete_signal(self):
         response = self.client.post('/user', data={"name": "Foo"})

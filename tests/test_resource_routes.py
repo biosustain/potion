@@ -24,6 +24,8 @@ class RelationTestCase(BaseTestCase):
             class Meta:
                 model = 'box'
                 manager = MemoryManager
+                id_field_class = fields.Integer
+                include_type = True
 
             @ItemRoute.GET()
             def verbose_description(self, box):
@@ -69,6 +71,8 @@ class RelationTestCase(BaseTestCase):
             class Meta:
                 model = 'recipe'
                 manager = MemoryManager
+                id_field_class = fields.Integer
+                include_type = True
 
             ingredients = ItemAttributeRoute(
                 fields.Array(
@@ -117,6 +121,8 @@ class RelationTestCase(BaseTestCase):
                 name = 'person'
                 model = name
                 manager = MemoryManager
+                id_field_class = fields.Integer
+                include_type = True
 
         self.api.add_resource(Person)
 
@@ -128,6 +134,8 @@ class RelationTestCase(BaseTestCase):
                 name = 'group'
                 model = name
                 manager = MemoryManager
+                id_field_class = fields.Integer
+                include_type = True
 
             members = Relation('person')
 
@@ -208,6 +216,8 @@ class RelationTestCase(BaseTestCase):
                 name = "ingredient"
                 model = name
                 manager = MemoryManager
+                id_field_class = fields.Integer
+                include_type = True
 
             class Schema:
                 name = fields.String()
@@ -228,6 +238,8 @@ class RelationTestCase(BaseTestCase):
                 name = "drink"
                 model = name
                 manager = MemoryManager
+                id_field_class = fields.Integer
+                include_type = True
 
             class Schema:
                 name = fields.String()

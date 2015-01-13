@@ -33,6 +33,8 @@ class SQLAlchemyTestCase(BaseTestCase):
         class MachineResource(ModelResource):
             class Meta:
                 model = Machine
+                id_field_class = fields.Integer
+                include_type = True
 
             class Schema:
                 type = fields.ToOne('type')
@@ -40,6 +42,8 @@ class SQLAlchemyTestCase(BaseTestCase):
         class TypeResource(ModelResource):
             class Meta:
                 model = Type
+                id_field_class = fields.Integer
+                include_type = True
 
             class Schema:
                 machines = fields.ToMany(MachineResource)
@@ -210,12 +214,16 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         class UserResource(ModelResource):
             class Meta:
                 model = User
+                id_field_class = fields.Integer
+                include_type = True
 
             children = Relation('self')
 
         class GroupResource(ModelResource):
             class Meta:
                 model = Group
+                id_field_class = fields.Integer
+                include_type = True
 
             members = Relation(UserResource)
 

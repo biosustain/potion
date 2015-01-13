@@ -124,7 +124,7 @@ class PrincipalTestCase(BaseTestCase):
         self.mock_user = {'id': 1, 'roles': ['author']}
         response = self.client.post('/book', data={'title': 'Foo'})
         self.assert200(response)
-        self.assertEqual({'title': 'Foo', '$id': 1, '$type': 'book'}, response.json)
+        self.assertEqual({'title': 'Foo', '$uri': '/book/1'}, response.json)
 
         self.assert200(self.client.patch('/book/1', data={'title': 'Foo I'}))
 
@@ -153,7 +153,7 @@ class PrincipalTestCase(BaseTestCase):
         self.mock_user = {'id': 1, 'roles': ['author']}
         response = self.client.post('/book', data={'title': 'Foo'})
         self.assert200(response)
-        self.assertEqual({'title': 'Foo', '$id': 1, '$type': 'book'}, response.json)
+        self.assertEqual({'title': 'Foo', '$uri': '/book/1'}, response.json)
         self.assert200(self.client.get('/book'))
         self.mock_user = {'id': 1}
         self.assert403(self.client.get('/book'))
@@ -264,7 +264,7 @@ class PrincipalTestCase(BaseTestCase):
                 'owner': owner
             })
 
-            self.assertEqual({'$id': i + 1, '$type': 'book_store', 'name': store['name'], 'owner': owner}, response.json)
+            self.assertEqual({'$uri': '/book_store/{}'.format(i + 1), 'name': store['name'], 'owner': owner}, response.json)
 
         response = self.client.patch('/book_store/1', data={'name': 'books & moore'})
         self.assert200(response)
@@ -279,8 +279,7 @@ class PrincipalTestCase(BaseTestCase):
         self.assert200(response)
 
         self.assertEqual({
-                             '$id': 1,
-                             '$type': 'book_store',
+                             '$uri': '/book_store/1',
                              'name': 'Books & Moore',
                              'owner': {'$ref': '/user/2'}
                          }, response.json)
@@ -317,7 +316,7 @@ class PrincipalTestCase(BaseTestCase):
 
         response = self.client.patch('/book_store/2', data={'name': 'Foo'})
         self.assert200(response)
-        self.assertEqual({'$id': 2, '$type': 'book_store', 'name': 'Foo'}, response.json)
+        self.assertEqual({'$uri': '/book_store/2', 'name': 'Foo'}, response.json)
 
         # TODO DELETE
 
@@ -344,8 +343,6 @@ class PrincipalTestCase(BaseTestCase):
         class BookResource(PrincipalResource):
             class Meta:
                 model = self.BOOK
-                id_field_class = fields.ItemUri
-                include_type = False
                 permissions = {
                     'read': ['owns-copy', 'admin'],
                     'create': 'admin',
@@ -448,7 +445,7 @@ class PrincipalTestCase(BaseTestCase):
 
         response = self.client.post('/book', data={'title': 'Spy: The Prequel'})
         self.assert200(response)
-        self.assertJSONEqual({'$id': 4, '$type': 'book', 'author': None, 'title': 'Spy: The Prequel'}, response.json)
+        self.assertJSONEqual({'$uri': '/book/4', 'author': None, 'title': 'Spy: The Prequel'}, response.json)
 
         self.mock_user = {'id': 1, 'roles': ['admin']}
         self.client.post('/user/3/books', data={'$ref': '/book/2'})

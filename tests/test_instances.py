@@ -32,8 +32,7 @@ class RelationTestCase(BaseTestCase):
         })  # No. Bad
 
         self.assert200(response)
-        self.assertJSONEqual({'$id': 1,
-                              '$type': 'person',
+        self.assertJSONEqual({'$uri': '/person/1',
                               'mother': None,
                               'name': 'Anna'}, response.json)
 
@@ -59,16 +58,16 @@ class RelationTestCase(BaseTestCase):
 
         response = self.client.get('/person?where={"mother": null}')
         self.assertJSONEqual([
-            {'$id': 1, '$type': 'person', 'mother': None, 'name': 'Anna'}
+            {'$uri': '/person/1', 'mother': None, 'name': 'Anna'}
         ], response.json)
 
         response = self.client.get('/person?where={"mother": {"$ref": "/person/1"}}')
         self.assertJSONEqual([
-            {'$id': 2, '$type': 'person', 'mother': {'$ref': '/person/1'}, 'name': 'Betty'},
-            {'$id': 3, '$type': 'person', 'mother': {'$ref': '/person/1'}, 'name': 'Bob'}
+            {'$uri': '/person/2', 'mother': {'$ref': '/person/1'}, 'name': 'Betty'},
+            {'$uri': '/person/3', 'mother': {'$ref': '/person/1'}, 'name': 'Bob'}
         ], response.json)
 
         response = self.client.get('/person?where={"mother": {"$ref": "/person/2"}, "name": {"$startswith": "C"}}')
         self.assertJSONEqual([
-            {'$id': 5, '$type': 'person', 'mother': {'$ref': '/person/2'}, 'name': 'Clare'}
+            {'$uri': '/person/5', 'mother': {'$ref': '/person/2'}, 'name': 'Clare'}
         ], response.json)
