@@ -1,7 +1,7 @@
 # Potion
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/biosustain/potion/master/docs/_static/Logo.png" height="150">
+    <img src="https://raw.githubusercontent.com/biosustain/potion/master/docs/_static/Potion.png" height="150">
 </p>
 
 
