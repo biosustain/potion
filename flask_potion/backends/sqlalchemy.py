@@ -2,7 +2,7 @@ from operator import and_
 from flask import current_app
 from flask_sqlalchemy import get_state
 from sqlalchemy import types as sa_types, func
-from sqlalchemy.dialects import postgres
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.collections import InstrumentedList
@@ -66,16 +66,16 @@ class SQLAlchemyManager(Manager):
                 args = ()
                 kwargs = {}
 
-                if isinstance(column.type, postgres.ARRAY):
+                if isinstance(column.type, postgresql.ARRAY):
                     field_class = fields.Array
                     args = (fields.String,)
                 elif isinstance(column.type, sa_types.String) and column.type.length:
                     field_class = fields.String
                     kwargs = {'max_length': column.type.length}
-                elif isinstance(column.type, postgres.HSTORE):
+                elif isinstance(column.type, postgresql.HSTORE):
                     field_class = fields.Object
                     args = (fields.String,)
-                elif hasattr(postgres, 'JSON') and isinstance(column.type, postgres.JSON):
+                elif hasattr(postgresql, 'JSON') and isinstance(column.type, postgresql.JSON):
                     field_class = fields.Raw
                     kwargs = {"schema": {}}
                 else:
