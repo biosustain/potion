@@ -94,13 +94,13 @@ class ResourceTestCase(BaseTestCase):
                 name = 'foo'
                 id_converter = 'int'
 
-        Api().add_resource(FooResource)
+        Api(prefix="/v1").add_resource(FooResource)
         self.assertEqual('/foo/<int:id>', FooResource.read.rule_factory(FooResource))
 
         data, code, headers = FooResource().described_by()
         self.assertJSONEqual({
                                  "rel": "self",
-                                 "href": "{id}",
+                                 "href": "/v1/foo/{id}",
                                  "method": "GET",
                                  "targetSchema": {
                                      "type": "object",

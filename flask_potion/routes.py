@@ -185,7 +185,7 @@ class Route(object):
         elif callable(rule):
             rule = rule(resource)
 
-        if relative:
+        if relative or resource.route_prefix is None:
             return rule[1:]
 
         return ''.join((resource.route_prefix, rule))
