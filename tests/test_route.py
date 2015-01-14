@@ -95,7 +95,8 @@ class ResourceTestCase(BaseTestCase):
                 id_converter = 'int'
 
         Api(prefix="/v1").add_resource(FooResource)
-        self.assertEqual('/foo/<int:id>', FooResource.read.rule_factory(FooResource))
+        self.assertEqual('/v1/foo/<int:id>', FooResource.read.rule_factory(FooResource))
+        self.assertEqual('<int:id>', FooResource.read.rule_factory(FooResource, True))
 
         data, code, headers = FooResource().described_by()
         self.assertJSONEqual({

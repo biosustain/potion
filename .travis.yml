@@ -1,0 +1,11 @@
+language: python
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+install:
+  - "pip install ."
+  - pip install coveralls
+script: coverage run --source=flask_potion setup.py test
+after_success:
+    - coveralls
