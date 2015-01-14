@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime
 import re
 import time
@@ -344,6 +345,27 @@ class String(Raw):
 
         super(String, self).__init__(schema, **kwargs)
 
+try:
+    from datetime import timezone
+except ImportError:
+    from datetime import tzinfo, timedelta
+
+    class timezone(tzinfo):
+        def __init__(self, utcoffset, name=None):
+            self._utcoffset = utcoffset
+            self._name = name
+
+        def utcoffset(self, dt):
+            return self._utcoffset
+
+        def tzname(self, dt):
+            return self._name
+
+        def dst(self, dt):
+            return timedelta(0)
+
+    timezone.utc = timezone(timedelta(0), 'UTC')
+
 
 class Date(Raw):
     """
@@ -362,12 +384,12 @@ class Date(Raw):
                                        "additionalProperties": False
                                    }, **kwargs)
 
-    def format(self, value):
-        return {"$date": int(time.mktime(value.timetuple()) * 1000)}
+    def formatter(self, value):
+        return {"$date": int(calendar.timegm(value.utctimetuple()) * 1000)}
 
     def converter(self, value):
-        # TODO support both $dateObj and string formats
-        return datetime.fromtimestamp(value["$date"] / 1000)
+        # TODO support both $dateObj and ISO string formats
+        return datetime.fromtimestamp(value["$date"] / 1000, timezone.utc)
 
 
 class DateString(Raw):

@@ -123,8 +123,29 @@ class FieldsTestCase(TestCase):
         with self.assertRaises(ValidationError):
             fields.Date().convert({"$nope": True})
 
-        self.assertEqual(datetime(2009, 2, 14, 0, 16, 40), fields.Date().convert({"$date": 1234567000000}))
-        self.assertEqual({"$date": 1329174000000}, fields.Date().format(datetime(2012, 2, 14, 0, 0, 0)))
+        try:
+            from datetime import timezone
+        except ImportError:
+            from datetime import tzinfo, timedelta
+
+            class timezone(tzinfo):
+                def __init__(self, utcoffset, name=None):
+                    self._utcoffset = utcoffset
+                    self._name = name
+
+                def utcoffset(self, dt):
+                    return self._utcoffset
+
+                def tzname(self, dt):
+                    return self._name
+
+                def dst(self, dt):
+                    return timedelta(0)
+
+            timezone.utc = timezone(timedelta(0), 'UTC')
+
+        self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc), fields.Date().convert({"$date": 1234567000000}))
+        self.assertEqual({"$date": 1329177600000}, fields.Date().format(datetime(2012, 2, 14, 0, 0, 0, 0, timezone.utc)))
 
     def test_string_schema(self):
         self.assertEqual({
