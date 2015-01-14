@@ -1,43 +1,12 @@
 from __future__ import division
 from ..exceptions import ItemNotFound
-from . import Relation, Manager, Pagination
+from . import Manager, Pagination
 from ..signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
     after_remove_from_relation
 from ..utils import get_value
 
 
-class MemoryRelation(Relation):
-
-    def instances(self, item, page=None, per_page=None):
-        collection = item.get(self.attribute, set())
-
-        items = []
-        for id in collection:
-            try:
-                items.append(self.target_resource.manager.read(id))
-            except ItemNotFound:
-                collection.remove(id)
-                pass
-
-        return Pagination.from_list(items, page, per_page)
-
-    def add(self, item, target_item):
-        before_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-        item[self.attribute] = collection = item.get(self.attribute, set())
-        item_id = target_item[self.target_resource.manager.id_attribute]
-        collection.add(item_id)
-        after_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-
-    def remove(self, item, target_item):
-        before_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-        item[self.attribute] = collection = item.get(self.attribute, set())
-        item_id = target_item[self.target_resource.manager.id_attribute]
-        collection.remove(item_id)
-        after_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-
-
 class MemoryManager(Manager):
-    relation_type = MemoryRelation
     supported_comparators = ('$eq', '$ne', '$lt', '$gt', '$le', '$ge', '$in', '$startswith', '$endswith')
 
     def __init__(self, resource, model):
@@ -66,6 +35,34 @@ class MemoryManager(Manager):
 
     def _paginate(self, items, page, per_page):
         return Pagination.from_list(list(items), page, per_page)
+
+    def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
+        collection = item.get(attribute, set())
+
+        items = []
+        for id in collection:
+            try:
+                items.append(target_resource.manager.read(id))
+            except ItemNotFound:
+                collection.remove(id)
+                pass
+
+        return Pagination.from_list(items, page, per_page)
+
+    def relation_add(self, item, attribute, target_resource, target_item):
+        before_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        item[attribute] = collection = item.get(attribute, set())
+        item_id = target_item[target_resource.manager.id_attribute]
+        collection.add(item_id)
+        after_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+
+
+    def relation_remove(self, item, attribute, target_resource, target_item):
+        before_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        item[attribute] = collection = item.get(attribute, set())
+        item_id = target_item[target_resource.manager.id_attribute]
+        collection.remove(item_id)
+        after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         return self._paginate(self.instances(where=where, sort=sort), page, per_page)

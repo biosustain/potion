@@ -328,8 +328,11 @@ class Relation(RouteSet, ResourceBound):
         if "r" in io:
             @relations_route.GET
             def relation_instances(resource, item, page, per_page):
-                relation = self.resource.manager.relation_factory(self.attribute, self.target)
-                return relation.instances(item, page=page, per_page=per_page)
+                return resource.manager.relation_instances(item,
+                                                           self.attribute,
+                                                           self.target,
+                                                           page,
+                                                           per_page)
 
             relations_route.request_schema = FieldSet({
                 "page": fields.Integer(minimum=1, default=1),
@@ -343,10 +346,8 @@ class Relation(RouteSet, ResourceBound):
         if "w" in io:
             @relations_route.POST
             def relation_add(resource, item, target_item):
-                print('$$$$$$$', resource, item, target_item)
-                relation = self.resource.manager.relation_factory(self.attribute, self.target)
-                relation.add(item, target_item)
-                self.resource.manager.commit()
+                resource.manager.relation_add(item, self.attribute, self.target, target_item)
+                resource.manager.commit()
                 return target_item
 
             relation_add.request_schema = fields.ToOne(self.target)
@@ -354,14 +355,11 @@ class Relation(RouteSet, ResourceBound):
 
             @relation_route.DELETE
             def relation_remove(resource, item, target_id):
-                child = self.target.manager.read(target_id)
-                relation = self.resource.manager.relation_factory(self.attribute, self.target)
-                relation.remove(item, child)
-                self.resource.manager.commit()
+                target_item = self.target.manager.read(target_id)
+                resource.manager.relation_remove(item, self.attribute, self.target, target_item)
+                resource.manager.commit()
                 return None, 204
             yield relation_route
-
-        # TODO dependencies?
 
         if io:
             yield relations_route

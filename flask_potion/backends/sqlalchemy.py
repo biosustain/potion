@@ -9,7 +9,7 @@ from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 from .. import fields
 from ..exceptions import DuplicateKey, ItemNotFound, BackendConflict
-from . import Relation, Manager, Pagination
+from . import Manager, Pagination
 from ..signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 
@@ -27,32 +27,7 @@ SA_COMPARATOR_EXPRESSIONS = {
 }
 
 
-class SQLAlchemyRelation(Relation):
-    def instances(self, item, page=None, per_page=None):
-        query = getattr(item, self.attribute)
-
-        if isinstance(query, InstrumentedList):
-            if page and per_page:
-                return Pagination.from_list(query, page, per_page)
-            return query
-
-        if page and per_page:
-            return query.paginate(page=page, per_page=per_page)
-        return query.all()
-
-    def add(self, item, target_item):
-        before_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-        getattr(item, self.attribute).append(target_item)
-        after_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-
-    def remove(self, item, target_item):
-        before_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-        getattr(item, self.attribute).remove(target_item)
-        after_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-
-
 class SQLAlchemyManager(Manager):
-    relation_type = SQLAlchemyRelation
     supported_comparators = tuple(SA_COMPARATOR_EXPRESSIONS.keys())
 
     def __init__(self, resource, model):
@@ -150,6 +125,28 @@ class SQLAlchemyManager(Manager):
                 yield column.desc()
             else:
                 yield column.asc()
+
+    def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
+        query = getattr(item, attribute)
+
+        if isinstance(query, InstrumentedList):
+            if page and per_page:
+                return Pagination.from_list(query, page, per_page)
+            return query
+
+        if page and per_page:
+            return query.paginate(page=page, per_page=per_page)
+        return query.all()
+
+    def relation_add(self, item, attribute, target_resource, target_item):
+        before_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        getattr(item, attribute).append(target_item)
+        after_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+
+    def relation_remove(self, item, attribute, target_resource, target_item):
+        before_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        getattr(item, attribute).remove(target_item)
+        after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)

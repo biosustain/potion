@@ -4,25 +4,7 @@ import six
 from .. import fields
 
 
-class Relation(object):
-    def __init__(self, manager, resource, attribute, target_resource):
-        self.manager = manager
-        self.resource = resource
-        self.attribute = attribute
-        self.target_resource = target_resource
-
-    def instances(self, item, page=None, per_page=None):
-        raise NotImplementedError()
-
-    def add(self, item, target_item):
-        raise NotImplementedError()
-
-    def remove(self, item, target_item):
-        raise NotImplementedError()
-
-
 class Manager(object):
-    relation_type = Relation
     supported_comparators = ()
 
     def __init__(self, resource, model):
@@ -46,8 +28,14 @@ class Manager(object):
         except KeyError:
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
 
-    def relation_factory(self, attribute, target_resource=None):
-        return self.relation_type(self, self.resource, attribute, target_resource)
+    def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
+        raise NotImplementedError()
+
+    def relation_add(self, item, attribute, target_resource, target_item):
+        raise NotImplementedError()
+
+    def relation_remove(self, item, attribute, target_resource, target_item):
+        raise NotImplementedError()
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         pass

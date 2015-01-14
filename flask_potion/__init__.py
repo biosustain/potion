@@ -49,19 +49,7 @@ class Api(object):
         def handle_invalid_usage(error):
             return error.make_response()
 
-        @app.before_first_request
-        def handle_before_first_request():
-            # TODO resolve all RouteSet dependencies
-            # TODO attempt to generate entire schema (i.e sanity-check everything)
-            pass
-
     def output(self, view):
-        # FIXME from Flask-RESTful
-        """Wraps a resource (as a flask view function), for cases where the
-        resource does not directly return a response object
-
-        :param view: The resource as a flask view function
-        """
         @wraps(view)
         def wrapper(*args, **kwargs):
             resp = view(*args, **kwargs)
@@ -69,8 +57,7 @@ class Api(object):
                 return resp
 
             data, code, headers = unpack(resp)
-            print(data, code, headers)
-            # TODO since these settings are the same every time, move them outside the function
+
             settings = {}
             if current_app.debug:
                 settings.setdefault('indent', 4)
@@ -83,7 +70,6 @@ class Api(object):
             return resp
 
         return wrapper
-
 
     def _complete_rule(self, rule):
         return ''.join((self.prefix, rule))

@@ -8,7 +8,7 @@ from ...backends import Pagination
 from ...exceptions import ItemNotFound
 from .permission import HybridPermission
 from .needs import HybridItemNeed, HybridUserNeed
-from ..sqlalchemy import SQLAlchemyManager, SQLAlchemyRelation
+from ..sqlalchemy import SQLAlchemyManager
 from flask_principal import Permission, RoleNeed
 
 PERMISSION_DEFAULTS = (
@@ -21,58 +21,7 @@ PERMISSION_DEFAULTS = (
 DEFAULT_METHODS = ('read', 'create', 'update', 'delete')
 
 
-
-    #
-    # @classmethod
-    # def get_relationship(cls, item, relationship):
-    #     query = super(PrincipalsManager, cls).get_relationship(item, relationship)
-    #     child_resource = cls.routes[relationship].resource
-    #
-    #     if issubclass(child_resource, PrincipalResource):
-    #         read_permission = child_resource._permissions['read']
-    #         query = read_permission.apply_filters(query)
-    #
-    #     # TODO abort with 403, but only if permissions for this resource are role-based.
-    #     if query is None:
-    #         return []
-    #     return query
-
-class PrincipalsRelation(SQLAlchemyRelation):
-
-    def __init__(self, manager, resource, attribute, target_resource):
-        super(PrincipalsRelation, self).__init__(manager, resource, attribute, target_resource)
-        self.target_manager = self.target_resource.manager
-
-    def instances(self, item, page=None, per_page=None):
-        query = getattr(item, self.attribute)
-
-        if isinstance(query, InstrumentedList):
-            if page and per_page:
-                return Pagination.from_list(query, page, per_page)
-            return query
-
-        if isinstance(self.target_manager, PrincipalsManager):
-            read_permission = self.target_resource.manager._permissions['read']
-            query = read_permission.apply_filters(query)
-
-        if page and per_page:
-            return query.paginate(page=page, per_page=per_page)
-        return query.all()
-    #
-    # def add(self, item, target_item):
-    #     before_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-    #     getattr(item, self.attribute).append(target_item)
-    #     after_add_to_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-    #
-    # def remove(self, item, target_item):
-    #     before_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-    #     getattr(item, self.attribute).remove(target_item)
-    #     after_remove_from_relation.send(self.resource, item=item, attribute=self.attribute, child=target_item)
-
-
-
 class PrincipalsManager(SQLAlchemyManager):
-    relation_type = PrincipalsRelation
 
     def __init__(self, resource, model):
         super(PrincipalsManager, self).__init__(resource, model)
@@ -186,6 +135,22 @@ class PrincipalsManager(SQLAlchemyManager):
         """
         permission = self._permissions['delete']
         return permission.can(item)
+
+    def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
+        query = getattr(item, attribute)
+
+        if isinstance(query, InstrumentedList):
+            if page and per_page:
+                return Pagination.from_list(query, page, per_page)
+            return query
+
+        if isinstance(target_resource.manager, PrincipalsManager):
+            read_permission = target_resource.manager._permissions['read']
+            query = read_permission.apply_filters(query)
+
+        if page and per_page:
+            return query.paginate(page=page, per_page=per_page)
+        return query.all()
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         instances = self.instances(where=where, sort=sort)
