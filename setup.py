@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='Flask-Potion',
     version='0.1.0',
-    packages=['flask_potion'],
+    packages=find_packages(exclude=['*tests*']),
     url='http://potion.readthedocs.org/en/latest/',
     license='MIT',
     author='Lars Schöning',
@@ -14,14 +14,14 @@ setup(
     test_suite='nose.collector',
     tests_require=[
         'Flask-Testing>=0.4.1',
-        'Flask-Principal',
+        'Flask-Principal>=0.4.0',
         'nose>=1.1.2',
     ],
     install_requires=[
         'Flask>=0.10',
         'Flask-SQLAlchemy>=2.0',
         'jsonschema>=2.4.0',
-        'iso8601>=0.1.8',
+        'aniso8601>=0.84',
         'blinker>=1.3',
         'six>=1.8.0'
     ],
