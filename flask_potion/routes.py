@@ -88,9 +88,10 @@ class Link(object):
         request_schema = DeferredSchema.resolve(self.request_schema, resource)
         response_schema = DeferredSchema.resolve(self.response_schema, resource)
 
+        # NOTE "href" for rel="instances" MUST NOT be relative; others MAY BE relative
         schema = OrderedDict([
             ("rel", self.relation),
-            ("href", url_rule_to_uri_pattern(self.route.rule_factory(resource, relative=True))),
+            ("href", url_rule_to_uri_pattern(self.route.rule_factory(resource, relative=False))),
             ("method", self.method)
         ])
 
@@ -201,13 +202,8 @@ class Route(object):
             elif isinstance(request_schema, Schema):
                 args += (request_schema.parse_request(request),)
 
-            print('$$$$%', instance, args, kwargs, request_schema)
-
             response = view_func(instance, *args, **kwargs)
-
             # TODO add 'described_by' header if response schema is a ToOne/ToMany/Instances field.
-            print('response', self, response, self.format_response, response_schema)
-
             if response_schema is None or not self.format_response:
                 return response
             else:
