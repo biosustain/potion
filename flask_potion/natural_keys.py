@@ -45,7 +45,6 @@ class RefResolver(Resolver):
         try:
             endpoint, args = route_from(value["$ref"], 'GET')
         except Exception as e:
-            print(e)
             raise e
         # XXX verify endpoint is correct (it should be)
         # assert resource.endpoint == endpoint

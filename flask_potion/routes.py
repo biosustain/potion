@@ -104,7 +104,6 @@ class Link(object):
 
 def _method_decorator(method):
     def wrapper(self, *args, **kwargs):
-        print(self, args, kwargs)
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
             return self._set_method_link(method, args[0], **kwargs)
         else:
@@ -231,7 +230,6 @@ class Route(object):
 def _route_decorator(method):
     @classmethod
     def decorator(cls, *args, **kwargs):
-        print(cls, args, kwargs)
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
             return cls.for_method(method, args[0])
         else:

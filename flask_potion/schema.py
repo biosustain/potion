@@ -28,7 +28,6 @@ class Schema(object):
 
     @cached_property
     def _validator(self):
-        print(self.request)
         Draft4Validator.check_schema(self.request)
         return Draft4Validator(self.request, format_checker=FormatChecker())
 
@@ -99,7 +98,6 @@ class FieldSet(Schema, ResourceBound):
     def convert(self, instance, pre_resolved_properties=None, patch_instance=False, strict=False):
         result = dict(pre_resolved_properties) if pre_resolved_properties else {}
         object_ = super(FieldSet, self).convert(instance)
-        print(object_, 'validated')
 
         for key, field in self.fields.items():
             if 'w' not in field.io:
@@ -131,8 +129,6 @@ class FieldSet(Schema, ResourceBound):
     def parse_request(self, request):
         data = request.json
 
-        print('REQUEST DATA', data, request.method)
-
         # FIXME raise error if request body is not JSON
 
         if not self.fields:
@@ -147,14 +143,10 @@ class FieldSet(Schema, ResourceBound):
                     # FIXME type conversion!
                     try:
                         data[name] = json.loads(value)
-                        print('JSON', data[name])
                     except TypeError:
                         data[name] = value
-                        print('PLAIN', data[name])
                 except KeyError:
                     pass
-
-        print('PArsing', data, request.method)
 
         return self.convert(data, patch_instance=request.method == 'PATCH')
 

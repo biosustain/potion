@@ -180,10 +180,8 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
 
     @instances.POST(rel="create")
     def create(self, properties):  # XXX need some way for field bindings to be dynamic/work dynamically.
-        print('X', self.manager, properties)
         item = self.manager.create(properties)
-        print('CREATED', item)
-        return item # TODO consider 201 Created
+        return item  # TODO consider 201 Created
 
     create.request_schema = create.response_schema = DeferredSchema(fields.Inline, 'self')
 

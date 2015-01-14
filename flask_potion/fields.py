@@ -124,19 +124,21 @@ class Any(Raw):
     def __init__(self, **kwargs):
         super(Any, self).__init__({"type": ["null", "string", "number", "boolean", "object", "array"]}, **kwargs)
 
-
-# FIXME this code is similar to Flask-RESTful code. Need to add license
 def _field_from_object(parent, cls_or_instance):
+    # --- start of Flask-RESTful code ---
+    # Copyright (c) 2013, Twilio, Inc.
+    # All rights reserved.
+    # This code is part of or substantially similar to code in Flask-RESTful and is governed by its
+    # license. Please see the LICENSE file in the root of this package.
     if isinstance(cls_or_instance, type):
         container = cls_or_instance()
     else:
         container = cls_or_instance
-
     if not isinstance(container, Schema):
         raise RuntimeError('{} expected Raw or Schema, but got {}'.format(parent, container.__class__.__name__))
     if not isinstance(container, Raw):
         container = Raw(container)
-
+    # --- end of Flask-RESTful code ---
     return container
 
 
@@ -492,11 +494,9 @@ class ToOne(Raw, ResourceBound):
 
     @cached_property
     def target(self):
-        print(self.reference, self.resource)
         return self.reference.resolve(self.resource)
 
     def formatter(self, item):
-        print('format', item)
         return self._formatter.format(self.target, item)
 
     def converter(self, value):

@@ -28,7 +28,11 @@ def route_from(url, method=None):
     return url_adapter.match(parsed_url.path, method)
 
 
-# FIXME this code is from Flask-RESTful. Need to add license
+# --- start of Flask-RESTful code ---
+# Copyright (c) 2013, Twilio, Inc.
+# All rights reserved.
+# This code is part of Flask-RESTful and is governed by its
+# license. Please see the LICENSE file in the root of this package.
 def unpack(value):
     """Return a three tuple of data, code, and headers"""
     if not isinstance(value, tuple):
@@ -49,11 +53,6 @@ def unpack(value):
     return value, 200, {}
 
 
-class AttributeDict(dict):
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
-
-
 def get_value(key, obj, default):
     if hasattr(obj, '__getitem__'):
         try:
@@ -61,22 +60,9 @@ def get_value(key, obj, default):
         except (IndexError, KeyError):
             pass
     return getattr(obj, key, default)
+# --- end of Flask-RESTful code ---
 
 
-def doublewrap(f):
-    '''
-    a decorator decorator, allowing the decorator to be used as:
-    @decorator(with, arguments, and=kwargs)
-    or
-    @decorator
-    '''
-    @wraps(f)
-    def new_dec(*args, **kwargs):
-        if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-            # actual decorated function
-            return f(args[0])
-        else:
-            # decorator arguments
-            return lambda realf: f(realf, *args, **kwargs)
-
-    return new_dec
+class AttributeDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
