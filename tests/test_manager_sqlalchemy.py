@@ -2,7 +2,7 @@ import unittest
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
 from flask_potion.routes import Relation
-from flask_potion.backends.sqlalchemy import SQLAlchemyManager
+from flask_potion.backends.alchemy import SQLAlchemyManager
 from flask_potion import Api, fields
 from flask_potion.resource import ModelResource
 from tests import BaseTestCase

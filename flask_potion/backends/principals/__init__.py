@@ -8,7 +8,7 @@ from ...backends import Pagination
 from ...exceptions import ItemNotFound
 from .permission import HybridPermission
 from .needs import HybridItemNeed, HybridUserNeed
-from ..sqlalchemy import SQLAlchemyManager
+from ..alchemy import SQLAlchemyManager
 from flask_principal import Permission, RoleNeed
 
 PERMISSION_DEFAULTS = (

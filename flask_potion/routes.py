@@ -3,9 +3,10 @@ import re
 from types import MethodType
 
 from flask import request
+import sys
 from werkzeug.utils import cached_property
-from .fields import _field_from_object
-from . import fields
+from flask_potion.fields import _field_from_object
+from flask_potion import fields
 from .utils import get_value
 from .instances import Instances, RelationInstances
 from .reference import ResourceBound, ResourceReference
@@ -234,7 +235,8 @@ def _route_decorator(method):
             return cls.for_method(method, args[0])
         else:
             return lambda f: cls.for_method(method, f, *args, **kwargs)
-    decorator.__name__ = method
+    if sys.version_info.major > 2:
+        decorator.__name__ = method
     return decorator
 
 for method in HTTP_METHODS:
@@ -257,7 +259,8 @@ class ItemRoute(Route):
 
     def _view_factory(self, link, name, resource):
         original_view = super(ItemRoute, self)._view_factory(link, name, resource)
-        def view(*args, id, **kwargs):
+        def view(*args, **kwargs):
+            id = kwargs.pop('id')  # Py2.7 -- could use (*args, id, **kwargs) otherwise
             item = resource.manager.read(id)
             return original_view(item, *args, **kwargs)
         return view

@@ -3,11 +3,11 @@ import inspect
 from operator import attrgetter
 import itertools
 import six
-from . import fields
+from flask_potion import fields
 from .reference import ResourceBound
 from .instances import Instances
 from .utils import AttributeDict
-from .backends.sqlalchemy import SQLAlchemyManager
+from .backends.alchemy import SQLAlchemyManager
 from .routes import Route, DeferredSchema, RouteSet
 from .schema import FieldSet
 

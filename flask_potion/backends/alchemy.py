@@ -1,7 +1,7 @@
 from operator import and_
 from flask import current_app
 from flask_sqlalchemy import get_state
-from sqlalchemy import types as sa_types, func
+from sqlalchemy import String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
@@ -69,7 +69,7 @@ class SQLAlchemyManager(Manager):
                 if isinstance(column.type, postgresql.ARRAY):
                     field_class = fields.Array
                     args = (fields.String,)
-                elif isinstance(column.type, sa_types.String) and column.type.length:
+                elif isinstance(column.type, String) and column.type.length:
                     field_class = fields.String
                     kwargs = {'max_length': column.type.length}
                 elif isinstance(column.type, postgresql.HSTORE):

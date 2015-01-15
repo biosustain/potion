@@ -275,7 +275,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
                         comparator = c
                         value = condition[c.name]
                         break
-                
+
                 assert comparator is not None
             elif isinstance(condition, list):
                 comparator = COMPARATORS['$in']
