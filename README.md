@@ -2,9 +2,9 @@
 
 
 [![Build Status](https://travis-ci.org/biosustain/potion.svg?branch=master)](https://travis-ci.org/biosustain/potion)
-[![Coverage Status](https://coveralls.io/repos/biosustain/potion/badge.png?branch=master)](https://coveralls.io/r/biosustain/potion?branch=master)
-[![PyPI version](https://badge.fury.io/py/Flask-Potion.png)](http://badge.fury.io/py/Flask-Potion)
-[![Requirements Status](https://requires.io/github/biosustain/potion/requirements.png?branch=master)](https://requires.io/github/biosustain/potion/requirements/?branch=master)
+[![Coverage Status](https://coveralls.io/repos/biosustain/potion/badge.svg?branch=master)](https://coveralls.io/r/biosustain/potion?branch=master)
+[![PyPI version](https://badge.fury.io/py/Flask-Potion.svg)](http://badge.fury.io/py/Flask-Potion)
+[![Requirements Status](https://requires.io/github/biosustain/potion/requirements.svg?branch=master)](https://requires.io/github/biosustain/potion/requirements/?branch=master)
 
 <p align="center">
     <img src="https://raw.githubusercontent.com/biosustain/potion/master/docs/_static/Potion.png" height="150">
