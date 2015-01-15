@@ -1,3 +1,4 @@
+from __future__ import division
 import datetime
 from math import ceil
 import six
