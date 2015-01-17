@@ -1,4 +1,4 @@
-# Potion
+# Flask-Potion
 
 
 [![Build Status](https://travis-ci.org/biosustain/potion.svg?branch=master)](https://travis-ci.org/biosustain/potion)
