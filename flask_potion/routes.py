@@ -287,14 +287,14 @@ class ItemAttributeRoute(RouteSet):
 
         if "r" in io:
             @route.GET(response_schema=field,
-                       rel=lambda route: to_camel_case('read_{}'.format(route.attribute)))
+                       rel=to_camel_case('read_{}'.format(route.attribute)))
             def read_attribute(resource, item):
                 return get_value(attribute, item, field.default)
 
         if "w" in io:
             @route.POST(schema=field,
                         response_schema=field,
-                        rel=lambda route: to_camel_case('update_{}'.format(route.attribute)))
+                        rel=to_camel_case('update_{}'.format(route.attribute)))
             def update_attribute(resource, item, value):
                 attribute = field.attribute or route.attribute
                 item = resource.manager.update(item, {attribute: value})
