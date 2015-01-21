@@ -57,7 +57,7 @@ def get_value(key, obj, default):
     if hasattr(obj, '__getitem__'):
         try:
             return obj[key]
-        except (IndexError, KeyError):
+        except (IndexError, TypeError, KeyError):
             pass
     return getattr(obj, key, default)
 # --- end of Flask-RESTful code ---
