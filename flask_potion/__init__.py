@@ -37,7 +37,7 @@ class Api(object):
         self.app = app
         app.potion = self
 
-        self._complete_view('/schema',
+        self._complete_view(''.join((self.prefix, '/schema')),
                             view_func=self.output(self._schema_view),
                             endpoint='schema',
                             methods=['GET'])
@@ -71,11 +71,8 @@ class Api(object):
 
         return wrapper
 
-    def _complete_rule(self, rule):
-        return ''.join((self.prefix, rule))
-
     def _complete_view(self, rule, **kwargs):
-        self.app.add_url_rule(self._complete_rule(rule), **kwargs)
+        self.app.add_url_rule(rule, **kwargs)
 
     def _schema_view(self):
         definitions = OrderedDict([])
@@ -90,7 +87,7 @@ class Api(object):
 
         for name, resource in sorted(self.resources.items(), key=operator.itemgetter(0)):
             resource_schema_rule = resource.routes['schema'].rule_factory(resource)
-            properties[name] = {"$ref": self._complete_rule('{}#'.format(resource_schema_rule))}
+            properties[name] = {"$ref": '{}#'.format(resource_schema_rule)}
 
         return schema, 200, {'Content-Type': 'application/schema+json'}
 

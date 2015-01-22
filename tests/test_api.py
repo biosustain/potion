@@ -5,17 +5,14 @@ from tests import BaseTestCase
 
 
 class ApiTestCase(BaseTestCase):
-    def setUp(self):
-        super(ApiTestCase, self).setUp()
-        self.api = Api(self.app)
-
     def test_api_register_resource(self):
         class BookResource(ModelResource):
             class Meta:
                 name = "book"
                 manager = MemoryManager
 
-        self.api.add_resource(BookResource)
+        api = Api(self.app)
+        api.add_resource(BookResource)
 
         response = self.client.get("/schema")
 
@@ -30,6 +27,34 @@ class ApiTestCase(BaseTestCase):
         response = self.client.get("/book/schema")
         self.assert200(response)
 
+    def test_api_prefix(self):
+        api = Api(self.app, prefix='/api/v1')
+
+        class BookResource(ModelResource):
+            class Meta:
+                name = "book"
+                manager = MemoryManager
+
+        api.add_resource(BookResource)
+
+        api.add_resource(BookResource)
+
+        response = self.client.get("/schema")
+        self.assert404(response)
+
+        response = self.client.get("/api/v1/schema")
+
+        self.assertEqual({
+                             "$schema": "http://json-schema.org/draft-04/hyper-schema#",
+                             "definitions": {},
+                             "properties": {
+                                 "book": {"$ref": "/api/v1/book/schema#"}
+                             }
+                         }, response.json)
+
+        response = self.client.get("/api/v1/book/schema")
+        self.assert200(response)
+
     def test_api_crud_resource(self):
         class BookResource(ModelResource):
             class Schema:
@@ -40,7 +65,8 @@ class ApiTestCase(BaseTestCase):
                 model = "book"
                 manager = MemoryManager
 
-        self.api.add_resource(BookResource)
+        api = Api(self.app)
+        api.add_resource(BookResource)
 
         response = self.client.get("/book/schema")
 
