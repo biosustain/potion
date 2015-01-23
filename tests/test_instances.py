@@ -12,7 +12,34 @@ class RelationTestCase(BaseTestCase):
         self.api = Api(self.app)
 
     def test_pagination(self):
-        pass
+        class Person(ModelResource):
+            class Schema:
+                name = fields.String()
+
+            class Meta:
+                name = "person"
+                model = name
+                manager = MemoryManager
+
+        self.api.add_resource(Person)
+
+        for i in range(1, 51):
+            response = self.client.post('/person', data={"name": str(i)})
+            self.assert200(response)
+
+        response = self.client.get('/person')
+        self.assert200(response)
+        self.assertJSONEqual([{"$uri": "/person/{}".format(i), "name": str(i)} for i in range(1, 21)], response.json)
+
+        response = self.client.get('/person?page=3')
+        self.assert200(response)
+
+        self.assertEqual('50', response.headers.get('X-Total-Count'))
+        self.assertEqual('</person?page=3&per_page=20>; rel="self",'
+                         '</person?page=1&per_page=20>; rel="first",'
+                         '</person?page=2&per_page=20>; rel="prev",'
+                         '</person?page=3&per_page=20>; rel="last"', response.headers['Link'])
+        self.assertJSONEqual([{"$uri": "/person/{}".format(i), "name": str(i)} for i in range(41, 51)], response.json)
 
     def test_where_to_one(self):
         class Person(ModelResource):
