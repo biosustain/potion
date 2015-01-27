@@ -21,10 +21,14 @@ class ResourceReference(object):
         if inspect.isclass(name) and issubclass(name, ModelResource):
             return name
 
-        # FIXME XXX need a better back-reference to the Potion instance
-        if hasattr(current_app, 'potion'):
-            if name in current_app.potion.resources:
-                return current_app.potion.resources[name]
+        potion = None
+        if binding and binding.api:
+            potion = binding.api
+        elif hasattr(current_app, 'potion'):  # FIXME soft failure if no app context
+            potion = current_app.potion
+        if potion:
+            if name in potion.resources:
+                return potion.resources[name]
 
         try:
             if isinstance(name, six.string_types):
