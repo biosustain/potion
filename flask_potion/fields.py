@@ -184,6 +184,13 @@ class Array(Raw):
 
         super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)), **kwargs)
 
+    def format(self, value):
+        if value is not None:
+            return self.formatter(value)
+        if not self.nullable:
+            return []
+        return value
+
     def formatter(self, value):
         return [self.container.format(v) for v in value]
 
@@ -385,6 +392,15 @@ class Date(Raw):
                                    }, **kwargs)
 
     def formatter(self, value):
+        return {"$date": int(calendar.timegm(value.timetuple()) * 1000)}
+
+    def converter(self, value):
+        # TODO support both $dateObj and ISO string formats
+        return datetime.fromtimestamp(value["$date"] / 1000, timezone.utc).date()
+
+
+class DateTime(Date):
+    def formatter(self, value):
         return {"$date": int(calendar.timegm(value.utctimetuple()) * 1000)}
 
     def converter(self, value):
@@ -401,7 +417,7 @@ class DateString(Raw):
         # TODO is a 'format' required for "date"
         super(DateString, self).__init__({"type": "string", "format": "date"}, **kwargs)
 
-    def format(self, value):
+    def formatter(self, value):
         return value.strftime('%Y-%m-%d')
 
     def converter(self, value):
@@ -416,7 +432,7 @@ class DateTimeString(Raw):
     def __init__(self, **kwargs):
         super(DateTimeString, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
 
-    def format(self, value):
+    def formatter(self, value):
         return value.isoformat()
 
     def converter(self, value):

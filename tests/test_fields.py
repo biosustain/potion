@@ -1,6 +1,6 @@
 from unittest import TestCase
 import unittest
-from datetime import datetime
+from datetime import datetime, date
 from werkzeug.exceptions import BadRequest
 from flask_potion.exceptions import ValidationError
 from flask_potion import fields
@@ -123,6 +123,13 @@ class FieldsTestCase(TestCase):
         with self.assertRaises(ValidationError):
             fields.Date().convert({"$nope": True})
 
+        self.assertEqual(date(2009, 2, 13), fields.Date().convert({"$date": 1234567000000}))
+        self.assertEqual({"$date": 1329177600000}, fields.Date().format(date(2012, 2, 14)))
+
+    def test_date_time_convert(self):
+        with self.assertRaises(ValidationError):
+            fields.DateTime().convert({"$nope": True})
+
         try:
             from datetime import timezone
         except ImportError:
@@ -144,8 +151,8 @@ class FieldsTestCase(TestCase):
 
             timezone.utc = timezone(timedelta(0), 'UTC')
 
-        self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc), fields.Date().convert({"$date": 1234567000000}))
-        self.assertEqual({"$date": 1329177600000}, fields.Date().format(datetime(2012, 2, 14, 0, 0, 0, 0, timezone.utc)))
+        self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc), fields.DateTime().convert({"$date": 1234567000000}))
+        self.assertEqual({"$date": 1329177600000}, fields.DateTime().format(datetime(2012, 2, 14, 0, 0, 0, 0, timezone.utc)))
 
     def test_string_schema(self):
         self.assertEqual({

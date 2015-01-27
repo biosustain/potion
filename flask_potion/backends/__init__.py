@@ -23,8 +23,8 @@ class Manager(object):
                 bool: fields.Boolean,
                 list: fields.Array,
                 dict: fields.Object,
-                datetime.date: fields.DateString,
-                datetime.datetime: fields.DateTimeString
+                datetime.date: fields.Date,
+                datetime.datetime: fields.DateTime
             }[python_type]
         except KeyError:
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))

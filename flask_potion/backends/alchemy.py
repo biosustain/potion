@@ -75,7 +75,7 @@ class SQLAlchemyManager(Manager):
                 elif isinstance(column.type, postgresql.HSTORE):
                     field_class = fields.Object
                     args = (fields.String,)
-                elif hasattr(postgresql, 'JSON') and isinstance(column.type, postgresql.JSON):
+                elif hasattr(postgresql, 'JSON') and isinstance(column.type, (postgresql.JSON, postgresql.JSONB)):
                     field_class = fields.Raw
                     kwargs = {"schema": {}}
                 else:
