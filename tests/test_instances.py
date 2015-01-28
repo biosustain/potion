@@ -23,6 +23,13 @@ class RelationTestCase(BaseTestCase):
 
         self.api.add_resource(Person)
 
+        response = self.client.get('/person')
+        self.assert200(response)
+
+        self.assertEqual('0', response.headers.get('X-Total-Count'))
+        self.assertEqual('</person?page=1&per_page=20>; rel="self",'
+                         '</person?page=1&per_page=20>; rel="last"', response.headers['Link'])
+
         for i in range(1, 51):
             response = self.client.post('/person', data={"name": str(i)})
             self.assert200(response)
@@ -40,6 +47,9 @@ class RelationTestCase(BaseTestCase):
                          '</person?page=2&per_page=20>; rel="prev",'
                          '</person?page=3&per_page=20>; rel="last"', response.headers['Link'])
         self.assertJSONEqual([{"$uri": "/person/{}".format(i), "name": str(i)} for i in range(41, 51)], response.json)
+
+
+
 
     def test_where_to_one(self):
         class Person(ModelResource):
