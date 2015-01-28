@@ -110,7 +110,8 @@ class PaginationMixin(object):
         if data.has_next:
             links.append((request.path, data.page + 1, data.per_page, 'next'))
 
-        links.append((request.path, data.pages, data.per_page, 'last'))
+        # HACK max(data.pages, 1): Flask-SQLAlchemy returns pages=0 when no results are returned
+        links.append((request.path, max(data.pages, 1), data.per_page, 'last'))
 
         # FIXME links must contain filters & sort
         # TODO include query_params
