@@ -1,7 +1,7 @@
 from importlib import import_module
 import inspect
 import six
-from flask import current_app
+from flask import current_app, _app_ctx_stack
 
 
 class ResourceReference(object):
@@ -24,7 +24,7 @@ class ResourceReference(object):
         potion = None
         if binding and binding.api:
             potion = binding.api
-        elif hasattr(current_app, 'potion'):  # FIXME soft failure if no app context
+        elif _app_ctx_stack.top is not None and hasattr(current_app, 'potion'):
             potion = current_app.potion
         if potion:
             if name in potion.resources:
