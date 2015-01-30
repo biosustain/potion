@@ -183,7 +183,7 @@ class ResourceTestCase(BaseTestCase):
             def read(self, id):
                 return {"name": "Foo", "age": 123}
 
-            read.response_schema = DeferredSchema(fields.Inline, "self")
+            read.response_schema = fields.Inline("self")
 
             class Schema:
                 name = fields.String()

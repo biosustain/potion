@@ -48,7 +48,7 @@ class DeferredSchema(object):
         if isinstance(schema, cls):
             return schema(resource)
         if isinstance(schema, ResourceBound):
-            schema.bind(resource)
+            return schema.bind(resource)
         return schema
 
 

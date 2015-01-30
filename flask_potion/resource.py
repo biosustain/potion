@@ -175,7 +175,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         return self.manager.paginated_instances(**kwargs)
 
     # TODO custom schema (Instances/Instances) that contains the necessary schema.
-    instances.request_schema = instances.response_schema = DeferredSchema(Instances, 'self') # TODO NOTE Instances('self') for filter, etc. schema
+    instances.request_schema = instances.response_schema = Instances() # TODO NOTE Instances('self') for filter, etc. schema
 
 
     @instances.POST(rel="create")
@@ -183,14 +183,14 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         item = self.manager.create(properties)
         return item  # TODO consider 201 Created
 
-    create.request_schema = create.response_schema = DeferredSchema(fields.Inline, 'self')
+    create.request_schema = create.response_schema = fields.Inline('self')
 
     @Route.GET(lambda r: '/<{}:id>'.format(r.meta.id_converter), rel="self", attribute="instance")
     def read(self, id):
         return self.manager.read(id)
 
     read.request_schema = None
-    read.response_schema = DeferredSchema(fields.Inline, 'self')
+    read.response_schema = fields.Inline('self')
 
     @read.PATCH(rel="update")
     def update(self, properties, id):
@@ -198,7 +198,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         updated_item = self.manager.update(item, properties)
         return updated_item
 
-    update.request_schema = DeferredSchema(fields.Inline, 'self', patch_instance=True)
+    update.request_schema = fields.Inline('self', patch_instance=True)
     update.response_schema = update.request_schema
 
     @update.DELETE(rel="destroy")

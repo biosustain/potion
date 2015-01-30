@@ -136,50 +136,58 @@ class Instances(PaginationMixin, Schema, ResourceBound):
     """
     query_params = ('where', 'sort')
 
-    def __init__(self, reference, default_sort=None, filters=None):
-        self.allowed_filters = filters
-        self.filters = {}
-        self.sort_fields = []
-
-    def bind(self, resource):
-        super(Instances, self).bind(resource)
-
-        fs = resource.schema
-        filters = self.allowed_filters
+    def __init__(self, default_sort=None, filters=None):
 
         # TODO only allow filters supported by the manager
-
         if filters in (ALL, None):
             filters = ALL
         elif isinstance(filters, (list, tuple)):
             filters = {field: ALL for field in filters}
         elif isinstance(filters, dict):
-            pass
+            filters = dict(filters)
 
-        for name, field in fs.fields.items():
-            try:
-                available_comparators = COMPARATORS_BY_TYPE[field.__class__]
-            except KeyError:
-                continue
+        self.allowed_filters = filters
+        self.filters = {}
+        self.sort_fields = []
 
-            if filters == ALL:
-                self.filters[name] = field, available_comparators
-            elif name in filters:
-                if filters[name] == ALL:
-                    comparators = available_comparators
-                else:
-                    comparators = [c for c in filters[name] if c in available_comparators]
+    def bind(self, resource):
+        if self.resource is None:
+            fs = resource.schema
+            filters = self.allowed_filters
 
-                self.filters[name] = field, comparators
+            for name, field in fs.fields.items():
+                try:
+                    available_comparators = COMPARATORS_BY_TYPE[field.__class__]
+                except KeyError:
+                    continue
 
-        if filters in (ALL, None):
-            sort = fs.fields
-        elif isinstance(filters, (list, tuple, dict)):
-            sort = {name: fs.fields[name] for name in filters}
-        else:
-            raise RuntimeError("Meta.allowed_filters is not configured properly")
+                if filters == ALL:
+                    self.filters[name] = field, available_comparators
+                elif name in filters:
+                    if filters[name] == ALL:
+                        comparators = available_comparators
+                    else:
+                        comparators = [c for c in filters[name] if c in available_comparators]
 
-        self.sort_fields = {name: field for name, field in sort.items() if self._is_sortable(field)}
+                    self.filters[name] = field, comparators
+
+            if filters in (ALL, None):
+                sort = fs.fields
+            elif isinstance(filters, (list, tuple, dict)):
+                sort = {name: fs.fields[name] for name in filters}
+            else:
+                raise RuntimeError("Meta.allowed_filters is not configured properly")
+
+            self.sort_fields = {name: field for name, field in sort.items() if self._is_sortable(field)}
+            self.resource = resource
+        elif self.resource != resource:
+            return self.rebind(resource)
+        return self
+
+    def rebind(self, resource):
+        return self.__class__(
+            filters=self.allowed_filters
+        ).bind(resource)
 
     @classmethod
     def _is_sortable(cls, field):

@@ -108,6 +108,7 @@ class SQLAlchemyTestCase(BaseTestCase):
 
         for i in range(1, 10):
             response = self.client.post('/type', data={"name": "Type-{}".format(i), "machines": []})
+            self.pp(response.json)
             self.assert200(response)
             self.assertJSONEqual(type_(i), response.json)
 

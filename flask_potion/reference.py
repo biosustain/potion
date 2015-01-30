@@ -48,4 +48,13 @@ class ResourceBound(object):
     resource = None
 
     def bind(self, resource):
-        self.resource = resource
+        if self.resource is None:
+            self.resource = resource
+        elif self.resource != resource:
+            print(self.resource, resource)
+            return self.rebind(resource)
+        return self
+
+    def rebind(self, resource):
+        raise NotImplementedError('{} is already bound to {}'
+                                  ' and does not support rebinding to {}'.format(repr(self), self.resource, resource))

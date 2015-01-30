@@ -168,7 +168,7 @@ class Custom(Raw):
         return self._converter(value)
 
 
-class Array(Raw):
+class Array(Raw, ResourceBound):
     """
     A field for an array of a given field type.
 
@@ -184,6 +184,11 @@ class Array(Raw):
 
         super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)),
                                     default=kwargs.pop('default', ()), **kwargs)
+
+    def bind(self, resource):
+        if isinstance(self.container, ResourceBound):
+            self.container = self.container.bind(resource)
+        return self
 
     def format(self, value):
         if value is not None:
@@ -510,13 +515,13 @@ class Number(Raw):
 
 
 class ToOne(Raw, ResourceBound):
-    def __init__(self, resource, formatter=natural_keys.RefResolver(), **kwargs):
-        self.reference = ResourceReference(resource)
-        self._formatter = formatter
+    def __init__(self, resource, key_formatter=natural_keys.RefResolver(), **kwargs):
+        self.target_reference = ResourceReference(resource)
+        self.key_formatter = key_formatter
 
         def schema():
             target = self.target
-            default_schema = formatter.schema(target)
+            default_schema = key_formatter.schema(target)
             response_schema = default_schema
 
             # TODO support $id rather than $refObj
@@ -531,15 +536,30 @@ class ToOne(Raw, ResourceBound):
 
         super(ToOne, self).__init__(schema, **kwargs)
 
+    def rebind(self, resource):
+        if self.target_reference.value == 'self':
+            return self.__class__(
+                'self',
+                key_formatter=self.key_formatter,
+                default=self.default,
+                attribute=self.attribute,
+                nullable=self.nullable,
+                title=self.title,
+                description=self.description,
+                io=self.io
+            ).bind(resource)
+        else:
+            return self
+
     @cached_property
     def target(self):
-        return self.reference.resolve(self.resource)
+        return self.target_reference.resolve(self.resource)
 
     def formatter(self, item):
-        return self._formatter.format(self.target, item)
+        return self.key_formatter.format(self.target, item)
 
     def converter(self, value):
-        return self._formatter.resolve(self.target, value)
+        return self.key_formatter.resolve(self.target, value)
 
 
 class ToMany(Array):
@@ -550,9 +570,8 @@ class ToMany(Array):
 class Inline(Raw, ResourceBound):
 
     def __init__(self, resource, patch_instance=False, **kwargs):
-        self.reference = ResourceReference(resource)
+        self.target_reference = ResourceReference(resource)
         self.patch_instance = patch_instance
-        self.target = None
 
         def schema():
             if self.resource == self.target:
@@ -562,9 +581,24 @@ class Inline(Raw, ResourceBound):
 
         super(Inline, self).__init__(schema, **kwargs)
 
-    def bind(self, resource):
-        super(Inline, self).bind(resource)
-        self.target = self.reference.resolve(resource)
+    def rebind(self, resource):
+        if self.target_reference.value == 'self':
+            return self.__class__(
+                'self',
+                patch_instance=self.patch_instance,
+                default=self.default,
+                attribute=self.attribute,
+                nullable=self.nullable,
+                title=self.title,
+                description=self.description,
+                io=self.io
+            ).bind(resource)
+        else:
+            return self
+
+    @cached_property
+    def target(self):
+        return self.target_reference.resolve(self.resource)
 
     def format(self, item):
         return self.target.schema.format(item)

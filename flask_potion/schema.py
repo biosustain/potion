@@ -64,14 +64,16 @@ class FieldSet(Schema, ResourceBound):
 
     def bind(self, resource):
         ResourceBound.bind(self, resource)
-        for key, field in self.fields.items():
-            if isinstance(field, ResourceBound):
-                field.bind(resource)
+        self.fields = {
+            key: field.bind(resource) if isinstance(field, ResourceBound) else field
+            for key, field in self.fields.items()
+        }
+        return self
 
     def set(self, key, field):
-        self.fields[key] = field
         if self.resource and isinstance(field, ResourceBound):
-            field.bind(self.resource)
+            field = field.bind(self.resource)
+        self.fields[key] = field
 
     def schema(self):
         response_schema = {

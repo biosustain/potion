@@ -69,7 +69,7 @@ class ValidationError(PotionException):
         dct['errors'] = [
             {
                 'validationOf': {error.validator: error.validator_value},
-                "path": self._complete_path(error)
+                "path": self._complete_path(error),
                 # 'message': error.message
             }
             for error in self.errors
