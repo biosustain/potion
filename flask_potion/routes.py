@@ -426,36 +426,36 @@ class ItemMapAttribute(RouteSet):
 
         yield object
 
-
-class ItemSetAttributeRoute(ItemRoute):
-    """
-    GET /item/:id/values
-    POST /item/:id/value/:value_id
-    DELETE /item/:id/value/:value_id
-
-    The URL of each item must stay consistent when the order of the list changes.
-
-    Direct addressing is only supported when an `id_attribute` is given. This must be an attribute
-    that is unique and cannot be changed. Without it, only read-only mode can be supported.
-
-    Depending on the type of collection, sorting and filtering may or may not be supported.
-
-    """
-
-    def __init__(self, cls_or_instance, id_attribute=None, id_field=None, io="r"):
-        if "w" in io:
-            raise NotImplementedError("ItemListAttributeRoute only supports read-only mode for now.")
-
-        pass
-
-    @ItemRoute.GET()
-    def read_items(self):
-        pass
-
-    @ItemRoute.GET()
-    def read_item(self, item, position):
-        pass
-
-    @read_item.POST()
-    def add_item(self, item):
-        pass
+#
+# class ItemSetAttributeRoute(RouteSet):
+#     """
+#     GET /item/:id/values
+#     POST /item/:id/value/:value_id
+#     DELETE /item/:id/value/:value_id
+#
+#     The URL of each item must stay consistent when the order of the list changes.
+#
+#     Direct addressing is only supported when an `id_attribute` is given. This must be an attribute
+#     that is unique and cannot be changed. Without it, only read-only mode can be supported.
+#
+#     Depending on the type of collection, sorting and filtering may or may not be supported.
+#
+#     """
+#
+#     def __init__(self, cls_or_instance, id_attribute=None, id_field=None, io="r"):
+#         if "w" in io:
+#             raise NotImplementedError("ItemListAttributeRoute only supports read-only mode for now.")
+#
+#         pass
+#
+#     # @ItemRoute.GET()
+#     # def read_items(self):
+#     #     pass
+#     #
+#     # @ItemRoute.GET()
+#     # def read_item(self, item, position):
+#     #     pass
+#     #
+#     # @read_item.POST()
+#     # def add_item(self, item):
+#     #     pass
