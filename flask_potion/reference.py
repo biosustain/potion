@@ -51,7 +51,6 @@ class ResourceBound(object):
         if self.resource is None:
             self.resource = resource
         elif self.resource != resource:
-            print(self.resource, resource)
             return self.rebind(resource)
         return self
 
