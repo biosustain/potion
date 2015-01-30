@@ -1,6 +1,7 @@
 from unittest import TestCase
+from flask_potion import fields, Resource
 from flask_potion.exceptions import ValidationError
-from flask_potion.schema import Schema
+from flask_potion.schema import Schema, FieldSet
 
 
 class SchemaTestCase(TestCase):
@@ -87,9 +88,16 @@ class SchemaTestCase(TestCase):
     def test_fieldset_schema(self):
         pass
 
+    def test_fieldset_rebind(self):
+        class FooResource(Resource):
+            pass
+        class BarResource(Resource):
+            pass
+
+        FieldSet({"foo": fields.String()}).bind(FooResource).bind(BarResource)
+
     def test_fieldset_parse_request(self):
         pass
-
 
     def test_fieldset_format_response(self):
         pass

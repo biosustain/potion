@@ -60,7 +60,7 @@ class FieldSet(Schema, ResourceBound):
 
     def __init__(self, fields, required_fields=None):
         self.fields = fields
-        self.required = required_fields or ()
+        self.required_fields = required_fields or ()
 
     def bind(self, resource):
         if self.resource is None:
@@ -98,8 +98,8 @@ class FieldSet(Schema, ResourceBound):
                 (key, field.request) for key, field in self.fields.items() if 'w' in field.io))
         }
 
-        if self.required:
-            request_schema['required'] = list(self.required)
+        if self.required_fields:
+            request_schema['required'] = list(self.required_fields)
 
         return response_schema, request_schema
 
@@ -131,7 +131,7 @@ class FieldSet(Schema, ResourceBound):
                     value = field.default
                 elif field.nullable:
                     value = None
-                elif key not in self.required and not strict:
+                elif key not in self.required_fields and not strict:
                     value = None
 
             result[field.attribute or key] = value
