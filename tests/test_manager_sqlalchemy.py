@@ -226,7 +226,7 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
                 id_field_class = fields.Integer
                 include_type = True
 
-            members = Relation(UserResource)
+            members = Relation('user')
 
         self.api.add_resource(UserResource)
         self.api.add_resource(GroupResource)

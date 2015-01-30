@@ -19,17 +19,10 @@ class ResourceMeta(type):
         class_.meta = meta = AttributeDict(getattr(class_, 'meta', {}) or {})
 
         for base in bases:
-            for n, m in inspect.getmembers(base, lambda m: isinstance(m, (Route, RouteSet))):
+            for n, m in inspect.getmembers(base, lambda m: isinstance(m, Route)):
                 if m.attribute is None:
                     m.attribute = n
-
-                if isinstance(m, RouteSet):
-                    for i, r in enumerate(m.routes()):
-                        if r.attribute is None:
-                            r.attribute = '{}_{}'.format(m.attribute, i)
-                        routes[r.attribute] = r
-                else:
-                    routes[m.attribute] = m
+                routes[m.attribute] = m
 
             if hasattr(base, 'Meta'):
                 meta.update(base.Meta.__dict__)
@@ -85,13 +78,6 @@ class ResourceMeta(type):
             if isinstance(m, ResourceBound):
                 m.bind(class_)
 
-            if isinstance(m, RouteSet):
-                if m.attribute is None:
-                    m.attribute = n
-                for i, r in enumerate(m.routes()):
-                    if r.attribute is None:
-                        r.attribute = '{}_{}'.format(m.attribute, i)
-                    routes['{}_{}'.format(m.attribute, r.attribute)] = r
         return class_
 
 

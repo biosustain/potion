@@ -399,7 +399,6 @@ class PrincipalTestCase(BaseTestCase):
                     'owns-copy': 'owns-copy'
                 }
 
-        self.api.add_resource(BookResource)
 
         class UserResource(PrincipalResource):
             books = Relation(BookResource)
@@ -411,6 +410,7 @@ class PrincipalTestCase(BaseTestCase):
                 }
 
         self.api.add_resource(UserResource)
+        self.api.add_resource(BookResource)
 
         self.mock_user = {'id': 1, 'roles': ['admin']}
 

@@ -1,10 +1,12 @@
 from collections import OrderedDict
+import inspect
 import operator
 from flask import current_app, make_response, json, jsonify
 from jsonschema import ValidationError
 from six import wraps
 from werkzeug.wrappers import BaseResponse
 from .exceptions import PotionException
+from .routes import RouteSet
 from .utils import unpack
 from .resource import Resource, ModelResource
 from . import signals, fields
@@ -114,5 +116,15 @@ class Api(object):
 
         for route in resource.routes.values():
             self.add_route(route, resource)
+
+        for name, rset in inspect.getmembers(resource, lambda m: isinstance(m, RouteSet)):
+            if rset.attribute is None:
+                rset.attribute = name
+
+            for i, route in enumerate(rset.routes()):
+                if route.attribute is None:
+                    route.attribute = '{}_{}'.format(rset.attribute, i)
+                resource.routes['{}_{}'.format(rset.attribute, route.attribute)] = route
+                self.add_route(route, resource)
 
         self.resources[resource.meta.name] = resource

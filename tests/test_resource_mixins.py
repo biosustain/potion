@@ -19,11 +19,24 @@ class MixinTestCase(BaseTestCase):
             def success(self):
                 return 'success'
 
+        class BazMixin(object):
+            pass
+
         class FooResource(FooMixin, Resource):
             class Schema:
                 field_a = fields.String()
                 field_b = fields.String()
 
+        class BarResource(Resource):
+            pass
+
+        class BazResource(FooMixin, BazMixin, BarResource):
+            class Schema:
+                field_d = fields.String()
+
+        class BatResource(FooMixin, BarResource):
+            class Schema:
+                field_e = fields.String()
 
         self.assertEqual({'schema', 'success'}, set(FooResource.routes.keys()))
 
@@ -41,3 +54,6 @@ class MixinTestCase(BaseTestCase):
                                  "type": "integer"
                              }
                          }, data["properties"])
+
+        data, code, headers = BazResource().described_by()
+        data, code, headers = BatResource().described_by()
