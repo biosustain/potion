@@ -72,14 +72,14 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assert400(response)
 
     def test_conflict(self):
-        response = self.client.post('/type', data={"name": "foo", "machines": []}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "foo"}) # FIXME "machines": [] should not be necessary
         self.assert200(response)
 
-        response = self.client.post('/type', data={"name": "foo", "machines": []}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "foo"}) # FIXME "machines": [] should not be necessary
         self.assertStatus(response, 409)
 
     def test_create(self):
-        response = self.client.post('/type', data={"name": "x-ray", "machines": []}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "x-ray"}) # FIXME "machines": [] should not be necessary
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'type', 'machines': [], "name": "x-ray"}, response.json)
 
@@ -247,7 +247,6 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         self.test_relationship_post()
 
         response = self.client.get('/user/1/children')
-        self.pp(response.json)
         self.assert200(response)
         self.assertJSONEqual([{"$ref": "/user/2"}], response.json)
 

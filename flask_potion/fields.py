@@ -182,7 +182,8 @@ class Array(Raw):
         schema_properties += [(k, v) for k, v in [('minItems', min_items), ('maxItems', max_items)] if v is not None]
         schema = lambda s: dict([('items', s)] + schema_properties)
 
-        super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)), **kwargs)
+        super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)),
+                                    default=kwargs.pop('default', ()), **kwargs)
 
     def format(self, value):
         if value is not None:

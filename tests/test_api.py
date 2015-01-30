@@ -122,7 +122,6 @@ class ApiTestCase(BaseTestCase):
 
         response = self.client.get('/book?where={"title": {"$startswith": "B"}}')
 
-        self.pp(response.json)
         self.assertEqual([
                              {
                                  "$uri": "/book/1",

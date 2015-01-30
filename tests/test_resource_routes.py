@@ -41,10 +41,6 @@ class RelationTestCase(BaseTestCase):
 
         self.api.add_resource(Box)
 
-        print(Box.routes)
-        print(Box.routes['open'].rule_factory(Box))
-        print(Box.routes['open'].rule_factory(Box, True))
-
         response = self.client.post('/box', data={"description": "mysterious"})
 
         self.assert200(response)
