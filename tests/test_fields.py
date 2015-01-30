@@ -1,3 +1,4 @@
+from operator import itemgetter
 from unittest import TestCase
 import unittest
 from datetime import datetime, date
@@ -218,3 +219,27 @@ class FieldsTestCase(TestCase):
         with self.assertRaises(ValidationError):
             o.convert({"Wrong": 1})
 
+    def test_attribute_mapped(self):
+        o = fields.AttributeMapped(fields.Object({
+            "foo": fields.Integer()
+        }), mapping_attribute="key", pattern="[A-Z][0-9]+")
+
+        self.assertEqual([{'foo': 1, 'key': 'A3'}, {'foo': 1, 'key': 'B12'}],
+                         sorted(o.convert({"A3": {"foo": 1}, "B12": {"foo": 1}}), key=itemgetter("key")))
+
+        self.assertEqual({"A3": {"foo": 1}, "B12": {"foo": 2}},
+                         o.format([{'foo': 1, 'key': 'A3'}, {'foo': 2, 'key': 'B12'}]))
+
+        self.assertEqual({
+                             "type": "object",
+                             "additionalProperties": False,
+                             "patternProperties": {
+                                 "[A-Z][0-9]+": {
+                                    "additionalProperties": False,
+                                     "properties": {
+                                         "foo": {"type": "integer"}
+                                     },
+                                     "type": "object"
+                                 }
+                             }
+                         }, o.response)

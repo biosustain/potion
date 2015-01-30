@@ -233,6 +233,10 @@ class Object(Raw):
                 self.pattern_properties = {pattern: field}
             else:
                 self.additional_properties = field
+        elif isinstance(additional_properties, (type, Raw)):
+            self.additional_properties = _field_from_object(self, additional_properties)
+        elif isinstance(pattern_properties, (type, Raw)):
+            self.pattern_properties = _field_from_object(self, pattern_properties)
 
         def schema():
             request = {"type": "object"}
@@ -324,17 +328,28 @@ class AttributeMapped(Object):
     def __init__(self, cls_or_instance, mapping_attribute=None, **kwargs):
         self.mapping_attribute = mapping_attribute
         # TODO reject additional_properties, properties, pattern_properties, pattern
-        super(AttributeMapped, self).__init__(additional_properties=cls_or_instance, **kwargs)
+        super(AttributeMapped, self).__init__(cls_or_instance, **kwargs)
 
     def _set_mapping_attribute(self, obj, value):
-        setattr(obj, self.mapping_attribute, value)
+        if isinstance(obj, dict):
+            obj[self.mapping_attribute] = value
+        else:
+            setattr(obj, self.mapping_attribute, value)
         return obj
 
     def format(self, value):
-        return {get_value(self.mapping_attribute, v, None): self.additional_properties.format(v) for v in value}
+        if self.pattern_properties:
+            pattern, field = next(iter(self.pattern_properties.items()))
+            return {get_value(self.mapping_attribute, v, None): field.format(v) for v in value}
+        elif self.additional_properties:
+            return {get_value(self.mapping_attribute, v, None): self.additional_properties.format(v) for v in value}
 
     def converter(self, value):
-        return [self._set_mapping_attribute(self.additional_properties.convert(v), k) for k, v in value.items()]
+        if self.pattern_properties:
+            pattern, field = next(iter(self.pattern_properties.items()))
+            return [self._set_mapping_attribute(field.convert(v), k) for k, v in value.items()]
+        elif self.additional_properties:
+            return [self._set_mapping_attribute(self.additional_properties.convert(v), k) for k, v in value.items()]
 
 
 class String(Raw):
