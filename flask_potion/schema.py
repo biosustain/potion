@@ -63,12 +63,21 @@ class FieldSet(Schema, ResourceBound):
         self.required = required_fields or ()
 
     def bind(self, resource):
-        ResourceBound.bind(self, resource)
-        self.fields = {
-            key: field.bind(resource) if isinstance(field, ResourceBound) else field
-            for key, field in self.fields.items()
-        }
+        if self.resource is None:
+            self.resource = resource
+            self.fields = {
+                key: field.bind(resource) if isinstance(field, ResourceBound) else field
+                for key, field in self.fields.items()
+            }
+        elif self.resource != resource:
+            return self.rebind(resource)
         return self
+
+    def rebind(self, resource):
+        return FieldSet(
+            dict(self.fields),
+            tuple(self.required_fields)
+        ).bind(resource)
 
     def set(self, key, field):
         if self.resource and isinstance(field, ResourceBound):
