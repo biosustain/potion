@@ -253,9 +253,10 @@ class ItemRoute(Route):
         elif callable(rule):
             rule = rule(resource)
 
-        if relative:
-            return ''.join((id_matcher, '/', rule[1:]))
-        return ''.join(('/', resource.meta.name, '/', id_matcher, rule))
+        if relative or resource.route_prefix is None:
+            return rule[1:]
+
+        return ''.join((resource.route_prefix, '/', id_matcher, rule))
 
     def _view_factory(self, link, name, resource):
         original_view = super(ItemRoute, self)._view_factory(link, name, resource)

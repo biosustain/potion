@@ -111,10 +111,12 @@ class Api(object):
         resource.api = self
         resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
 
+        # prevent resources from being added twice
         if resource in self.resources.values():
             return
 
         for route in resource.routes.values():
+            print(route, resource, resource.route_prefix)
             self.add_route(route, resource)
 
         for name, rset in inspect.getmembers(resource, lambda m: isinstance(m, RouteSet)):

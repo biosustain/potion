@@ -1,3 +1,4 @@
+from flask_potion.routes import Route, ItemRoute
 from flask_potion import Api, fields
 from flask_potion.backends.memory import MemoryManager
 from flask_potion.resource import ModelResource
@@ -35,7 +36,13 @@ class ApiTestCase(BaseTestCase):
                 name = "book"
                 manager = MemoryManager
 
-        api.add_resource(BookResource)
+            @Route.GET
+            def genres(self):
+                return ['fiction', 'non-fiction']
+
+            @ItemRoute.GET
+            def rating(self):
+                return 4.5
 
         api.add_resource(BookResource)
 
@@ -54,6 +61,13 @@ class ApiTestCase(BaseTestCase):
 
         response = self.client.get("/api/v1/book/schema")
         self.assert200(response)
+        self.assertEqual({
+                    "/api/v1/book",
+                    "/api/v1/book/schema",
+                    "/api/v1/book/genres",
+                    "/api/v1/book/{id}",
+                    "/api/v1/book/{id}/rating"
+                 }, {l['href'] for l in response.json['links']})
 
     def test_api_crud_resource(self):
         class BookResource(ModelResource):
