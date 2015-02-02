@@ -116,7 +116,6 @@ class Api(object):
             return
 
         for route in resource.routes.values():
-            print(route, resource, resource.route_prefix)
             self.add_route(route, resource)
 
         for name, rset in inspect.getmembers(resource, lambda m: isinstance(m, RouteSet)):
