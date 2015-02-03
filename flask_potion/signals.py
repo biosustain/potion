@@ -1,4 +1,4 @@
-from blinker import Namespace
+from flask.signals import Namespace
 
 _potion = Namespace()
 
