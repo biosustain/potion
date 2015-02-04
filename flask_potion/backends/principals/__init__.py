@@ -3,12 +3,12 @@ from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import Forbidden
 from werkzeug.utils import cached_property
-from ...fields import ToOne
-from ...backends import Pagination
-from ...exceptions import ItemNotFound
-from .permission import HybridPermission
-from .needs import HybridItemNeed, HybridUserNeed
-from ..alchemy import SQLAlchemyManager
+from flask_potion.fields import ToOne
+from flask_potion.backends import Pagination
+from flask_potion.exceptions import ItemNotFound
+from flask_potion.backends.principals.permission import HybridPermission
+from flask_potion.backends.principals.needs import HybridItemNeed, HybridUserNeed
+from flask_potion.backends.alchemy import SQLAlchemyManager
 from flask_principal import Permission, RoleNeed
 
 PERMISSION_DEFAULTS = (
@@ -170,7 +170,7 @@ class PrincipalsManager(SQLAlchemyManager):
 
         return query
 
-    def instances(self, where=None, sort=None, page=None, per_page=None):
+    def instances(self, where=None, sort=None):
         """
         Applies permissions to query and returns query.
 

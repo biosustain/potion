@@ -7,10 +7,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
-from .. import fields
-from ..exceptions import DuplicateKey, ItemNotFound, BackendConflict
-from . import Manager, Pagination
-from ..signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
+from flask_potion import fields
+from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
+from flask_potion.backends import Manager, Pagination
+from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 
 SA_COMPARATOR_EXPRESSIONS = {

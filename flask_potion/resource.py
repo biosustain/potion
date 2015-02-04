@@ -4,12 +4,12 @@ from operator import attrgetter
 import itertools
 import six
 from flask_potion import fields
-from .reference import ResourceBound
-from .instances import Instances
-from .utils import AttributeDict
-from .backends.alchemy import SQLAlchemyManager
-from .routes import Route, DeferredSchema, RouteSet
-from .schema import FieldSet
+from flask_potion.reference import ResourceBound
+from flask_potion.instances import Instances
+from flask_potion.utils import AttributeDict
+from flask_potion.backends.alchemy import SQLAlchemyManager
+from flask_potion.routes import Route, DeferredSchema, RouteSet
+from flask_potion.schema import FieldSet
 
 
 class ResourceMeta(type):
