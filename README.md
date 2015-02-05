@@ -52,7 +52,7 @@ and referencing features of Potion.
 
 ## Inspiration & Alternatives
 
-The predecessor to Potion was to built on Flask-RESTful. There are still some similarities, particularly when it comes
+The predecessor to Potion was built on Flask-RESTful. There are still some similarities, particularly when it comes
 to fields. Python-Eve and Flask-Classy are the other two major inspirations.
 Eve is a good alternative for those seeking to work with MongoDB, which is not yet supported by Potion.
 
