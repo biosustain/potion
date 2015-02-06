@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
+from flask.ext.potion.utils import get_value
 from flask_potion import fields
 from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
 from flask_potion.backends import Manager, Pagination
@@ -199,9 +200,13 @@ class SQLAlchemyManager(Manager):
 
     def update(self, item, changes, commit=True):
         session = self._get_session()
+        actual_changes = {
+            key: value for key, value in changes.items()
+            if get_value(key, item, None) != value
+        }
 
         try:
-            before_update.send(self.resource, item=item, changes=changes)
+            before_update.send(self.resource, item=item, changes=actual_changes)
 
             for key, value in changes.items():
                 setattr(item, key, value)
@@ -217,7 +222,7 @@ class SQLAlchemyManager(Manager):
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
             raise
 
-        after_update.send(self.resource, item=item, changes=changes)
+        after_update.send(self.resource, item=item, changes=actual_changes)
         return item
 
     def delete(self, item):
