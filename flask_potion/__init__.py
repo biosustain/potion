@@ -1,8 +1,7 @@
 from collections import OrderedDict
 import inspect
 import operator
-from flask import current_app, make_response, json, jsonify
-from jsonschema import ValidationError
+from flask import current_app, make_response, json
 from six import wraps
 from werkzeug.wrappers import BaseResponse
 from .exceptions import PotionException
@@ -16,17 +15,26 @@ __all__ = (
     'Api',
     'Resource',
     'ModelResource',
-    'signals',
     'fields',
+    'routes',
+    'schema',
+    'signals'
 )
 
 class Api(object):
-    def __init__(self, app=None, decorators=None, prefix=None, default_per_page=20, max_per_page=100):
+    """
+    This is the Potion extension.
+
+    You need to register :class:`Api` with a :class:`Flask` application either upon initializing :class:`Api` or later using :meth:`init_app()`.
+
+    :param app: a :class:`Flask` instance
+    :param list decorators: an optional list of decorator functions
+    :param prefix: an optional API prefix. Must start with "/"
+    """
+    def __init__(self, app=None, decorators=None, prefix=None):
         self.app = None
         self.prefix = prefix or ''
         self.decorators = decorators or []
-        self.max_per_page = max_per_page
-        self.default_per_page = default_per_page
         self.endpoints = set()
         self.resources = {}
         self.views = []
@@ -34,9 +42,17 @@ class Api(object):
         if app is not None:
             self.init_app(app)
 
+
     def init_app(self, app):
+        """
+
+        :param app: a :class:`Flask` instance
+        """
         self.app = app
         app.potion = self
+
+        self.max_per_page = app.config.get('POTION_MAX_PER_PAGE', 100)
+        self.default_per_page = app.config.get('POTION_DEFAULT_PER_PAGE', 20)
 
         self._complete_view(''.join((self.prefix, '/schema')),
                             view_func=self.output(self._schema_view),
@@ -66,8 +82,8 @@ class Api(object):
 
             data = json.dumps(data, **settings)
             resp = make_response(data, code)
-            resp.headers['Content-Type'] = 'application/json'
             resp.headers.extend(headers or {})
+            resp.headers['Content-Type'] = 'application/json'
             return resp
 
         return wrapper
@@ -107,6 +123,12 @@ class Api(object):
             self.views.append((rule, view, endpoint, methods))
 
     def add_resource(self, resource):
+        """
+        Add a :class:`Resource` class to the API and generate endpoints for all its routes.
+
+        :param Resource resource: resource
+        :return:
+        """
         resource.api = self
         resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
 

@@ -3,13 +3,13 @@ import inspect
 from operator import attrgetter
 import itertools
 import six
-from flask_potion import fields
-from flask_potion.reference import ResourceBound
-from flask_potion.instances import Instances
-from flask_potion.utils import AttributeDict
-from flask_potion.backends.alchemy import SQLAlchemyManager
-from flask_potion.routes import Route, DeferredSchema, RouteSet
-from flask_potion.schema import FieldSet
+from . import fields
+from .reference import ResourceBound
+from .instances import Instances
+from .utils import AttributeDict
+from .backends.alchemy import SQLAlchemyManager
+from .routes import Route, DeferredSchema, RouteSet
+from .schema import FieldSet
 
 
 class ResourceMeta(type):
@@ -82,6 +82,35 @@ class ResourceMeta(type):
 
 
 class Resource(six.with_metaclass(ResourceMeta, object)):
+    """
+    A plain resource with nothing but a schema.
+
+
+    .. attribute:: api
+
+        Back reference to the :class:`Api` this resource is registered on.
+
+    .. attribute:: meta
+
+        A :class:`AttributeDict` of configuration attributes collected from the :class:`Meta` attributes of the base classes.
+
+    .. attribute:: routes
+
+        A dictionary of routes registered with this resource. Keyed by ``Route.attribute``.
+
+    .. attribute:: schema
+
+        A :class:`FieldSet` containing fields collected from the :class:`Schema` attributes of the base classes.
+
+    .. attribute:: route_prefix
+
+        The prefix URI to any route in this resource; includes the API prefix.
+
+    .. method:: described_by
+
+        A :class:`Route` at ``/schema`` that contains the JSON Hyper-Schema for this resource.
+
+    """
     api = None
     meta = None
     routes = None
@@ -147,17 +176,52 @@ class ModelResourceMeta(ResourceMeta):
 
 
 class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
-    manager = None
+    """
 
-    @Route.GET('', rel="instances")
-    def instances(self, **kwargs):
-        """
+    .. method:: create
+
+        A link --- part of a :class:`Route` at the root of the resource --- for creating new items.
+
+        :param properties:
+        :return: created item
+
+    .. method:: instances
+
+        A link --- part of a :class:`Route` at the root of the resource --- for reading item instances.
+
         :param where:
         :param sort:
         :param int page:
         :param int per_page:
-        :return:
-        """
+        :return: list of items
+
+    .. method:: read
+
+        A link --- part of a :class:`Route` at ``/<{Resource.meta.id_converter}:id>`` --- for reading a specific item.
+
+        :param id: item id
+        :return: item
+
+    .. method:: update
+
+        A link --- part of a :class:`Route` at ``/<{Resource.meta.id_converter}:id>`` --- for updating a specific item.
+
+        :param id: item id
+        :param properties: changes
+        :return: item
+
+    .. method:: destroy
+
+        A link --- part of a :class:`Route` at ``/<{Resource.meta.id_converter}:id>`` --- for deleting a specific item.
+
+        :param id: item id
+        :return: ``(None, 204)``
+
+    """
+    manager = None
+
+    @Route.GET('', rel="instances")
+    def instances(self, **kwargs):
         return self.manager.paginated_instances(**kwargs)
 
     # TODO custom schema (Instances/Instances) that contains the necessary schema.

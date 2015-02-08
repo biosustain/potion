@@ -7,15 +7,19 @@ import aniso8601
 from flask import url_for, current_app
 import six
 from werkzeug.utils import cached_property
-
-from . import natural_keys
-from .utils import get_value
-from .reference import ResourceReference, ResourceBound
-from .schema import Schema
-
+from flask_potion.utils import get_value
+from flask_potion.reference import ResourceReference, ResourceBound
+from flask_potion.schema import Schema
+from flask_potion import natural_keys
 
 class Raw(Schema):
     """
+    This is the base class for all field types, can be given any JSON-schema.
+
+    >>> f = fields.Raw({"type": "string"}, io="r")
+    >>> f.response
+    {'readOnly': True, 'type': 'string'}
+
     :param io: one of "r", "w" or "rw" (default); used to control presence in fieldsets/parent schemas
     :param schema: JSON-schema for field, or :class:`callable` resolving to a JSON-schema when called
     :param default: optional default value, must be JSON-convertible
@@ -122,6 +126,9 @@ class Raw(Schema):
 
 
 class Any(Raw):
+    """
+    A field type that allows any value.
+    """
     def __init__(self, **kwargs):
         super(Any, self).__init__({"type": ["null", "string", "number", "boolean", "object", "array"]}, **kwargs)
 
@@ -145,7 +152,8 @@ def _field_from_object(parent, cls_or_instance):
 
 class Custom(Raw):
     """
-    Arbitrary schema field type with optional formatter/converter transformers.
+    A field type that cann be passed any schema and optional formatter/converter transformers. It is a very thin
+    wrapper over :class:`Raw`.
 
     :param dict schema: JSON-schema
     :param callable converter: convert function
@@ -316,9 +324,7 @@ class AttributeMapped(Object):
     Maps property keys from a JSON object to a list of items using `mapping_attribute`. The mapping attribute is the
     name of the attribute where the value of the property key is set on the property values.
 
-    .. seealso::
-
-        :class:`InlineModel` field is typically used with this field in a common SQLAlchemy pattern.
+    :class:`sa.InlineModel` is typically used with this field in a common SQLAlchemy pattern.
 
     :param Raw cls_or_instance: field class or instance
     :param str pattern: an optional regular expression that all property keys must match
@@ -397,7 +403,14 @@ except ImportError:
 
 class Date(Raw):
     """
-    A field for EJSON-style date-times in the format ``{"$date": MILLISECONDS_SINCE_EPOCH}``
+    A field for EJSON-style dates in the format:
+
+    ::
+
+        {"$date": MILLISECONDS_SINCE_EPOCH}
+
+    Converts to :class:`datetime.date` with UTC timezone.
+
     """
 
     def __init__(self, **kwargs):
@@ -421,6 +434,17 @@ class Date(Raw):
 
 
 class DateTime(Date):
+    """
+    A field for EJSON-style date-times in the format:
+
+    ::
+
+        {"$date": MILLISECONDS_SINCE_EPOCH}
+
+    Converts to :class:`datetime.datetime` with UTC timezone.
+
+    """
+
     def formatter(self, value):
         return {"$date": int(calendar.timegm(value.utctimetuple()) * 1000)}
 
@@ -431,7 +455,7 @@ class DateTime(Date):
 
 class DateString(Raw):
     """
-    Only accept ISO8601-formatted date strings.
+    A field for ISO8601-formatted date strings.
     """
 
     def __init__(self, **kwargs):
@@ -447,7 +471,7 @@ class DateString(Raw):
 
 class DateTimeString(Raw):
     """
-    Only accept ISO8601-formatted date-time strings.
+    A field for ISO8601-formatted date-time strings.
     """
 
     def __init__(self, **kwargs):
@@ -530,13 +554,25 @@ class Number(Raw):
 
 
 class ToOne(Raw, ResourceBound):
-    def __init__(self, resource, key_formatter=natural_keys.RefResolver(), **kwargs):
+    """
+    Represents references between resources as `json-ref` objects.
+
+    Resource references can be one of the following:
+
+    - :class:`Resource` class
+    - a string with a resource name
+    - a string with a module name and class name of a resource
+    - ``"self"`` --- which resolves to the resource this field is bound to
+
+    :param resource: a resource reference
+    """
+    def __init__(self, resource, **kwargs):
         self.target_reference = ResourceReference(resource)
-        self.key_formatter = key_formatter
+        self.key_formatter = natural_keys.RefResolver()
 
         def schema():
             target = self.target
-            default_schema = key_formatter.schema(target)
+            default_schema = self.key_formatter.schema(target)
             response_schema = default_schema
 
             # TODO support $id rather than $refObj
@@ -583,6 +619,12 @@ class ToMany(Array):
 
 
 class Inline(Raw, ResourceBound):
+    """
+    Formats and converts items in a :class:`ModelResource` using the resource's ``schema``.
+
+    :param resource: a resource reference as in :class:`ToOne`
+    :param bool patch_instance: whether to allow partial objects
+    """
 
     def __init__(self, resource, patch_instance=False, **kwargs):
         self.target_reference = ResourceReference(resource)
@@ -623,6 +665,9 @@ class Inline(Raw, ResourceBound):
 
 
 class ItemType(Raw):
+    """
+    A string field that formats the name of a resource; read-only.
+    """
     def __init__(self, resource):
         self.resource = resource
         super(ItemType, self).__init__(lambda: {
@@ -635,6 +680,9 @@ class ItemType(Raw):
 
 
 class ItemUri(Raw):
+    """
+    A string field that formats the url of a resource item; read-only.
+    """
     def __init__(self, resource, attribute=None):
         self.resource = resource
         super(ItemUri, self).__init__(lambda: {
@@ -648,6 +696,10 @@ class ItemUri(Raw):
 
 class sa:
     class InlineModel(Object):
+        """
+        :param dict properties:
+        :param model:
+        """
         def __init__(self, properties, model, **kwargs):
             super(sa.InlineModel, self).__init__(properties, **kwargs)
             self.model = model

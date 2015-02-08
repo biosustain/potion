@@ -6,7 +6,7 @@ from .needs import HybridNeed
 
 class HybridPermission(Permission):
     """
-    Hybrid Permission object that evaluates both regular and hybrid needs
+    Hybrid :class:`flask_principal.Permission` that evaluates both regular and hybrid needs.
     """
     def __init__(self, *needs):
         super(HybridPermission, self).__init__(*needs)
@@ -20,9 +20,10 @@ class HybridPermission(Permission):
                 self.standard_needs.add(need)
 
     def allows(self, identity):
-        """Whether the identity can access this permission.
+        """
+        Determines whether a given identity meets this permission.
 
-        :param identity: The identity
+        :param flask_principal.Identity identity: An identity with a set of provided *needs*
         """
         if self.standard_needs and not self.standard_needs.intersection(identity.provides):
             return False
@@ -38,7 +39,14 @@ class HybridPermission(Permission):
 
     def can(self, item=None):
         """
-        Evaluate either only the standard needs, or if ``item`` is given also evaluate the hybrid needs on the item.
+        Depending on whether or not ``item`` is given, this function either:
+
+        - evaluates all regular needs needs
+        - also evaluates the hybrid needs against the item
+
+        If any of the needs are met, the function returns ``True``.
+
+        :param item: SQLAlchemy model instance
         """
         if not item:
             return self.require().can()
@@ -56,9 +64,9 @@ class HybridPermission(Permission):
         """
         Evaluates all *needs* including :class:`HybridNeed` types and filters the query as appropriate.
 
-        Multiple hybrid needs are combined using `or`. That is, only one has to match.
+        Multiple hybrid needs are combined using `or` --- that is only one has to match.
 
-        :returns: `None` if no hybrid needs are present; *query* object otherwise.
+        :returns: ``None`` if no hybrid needs are present; *query* object otherwise.
         """
         hybrid_relationship_need = None
 

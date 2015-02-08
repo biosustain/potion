@@ -1,13 +1,15 @@
 from functools import wraps
 import unittest
+
 from flask import current_app, request
 from flask_principal import Identity, identity_changed, identity_loaded, RoleNeed, UserNeed, Principal, ItemNeed
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
 from werkzeug.exceptions import Unauthorized
+
 from flask_potion.routes import Relation
 from flask_potion import Api, fields
-from flask_potion.backends.principals import PrincipalsManager
+from flask_potion.contrib.principals import PrincipalManager
 from flask_potion.resource import ModelResource
 from tests import ApiClient, BaseTestCase
 
@@ -28,7 +30,7 @@ class AuthorizedApiClient(ApiClient):
 
 class PrincipalResource(ModelResource):
     class Meta:
-        manager = PrincipalsManager
+        manager = PrincipalManager
 
 
 class PrincipalTestCase(BaseTestCase):

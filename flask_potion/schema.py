@@ -2,14 +2,34 @@ from collections import OrderedDict
 from flask import json
 from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
-from .reference import ResourceBound
-from .utils import unpack
-from .exceptions import ValidationError as PotionValidationError
+from flask_potion.reference import ResourceBound
+from flask_potion.utils import unpack
+from flask_potion.exceptions import ValidationError as PotionValidationError
 
 
 class Schema(object):
+    """
+    The base class for all types with a schema in Potion. Has :attr:`response` and a :attr:`request` attributes
+    for the schema to be used, respectively, for serializing and de-serializing.
+
+    Any class inheriting from schema needs to implement :meth:`schema`.
+
+    ..  attribute:: response
+
+        JSON-schema used to represent data returned by the server.
+
+    .. attribute:: request
+
+        JSON-schema used for validation of data sent to the server.
+
+    """
 
     def schema(self):
+        """
+        Abstract method returning the JSON schema used by both :attr:`response` and :attr:`request`.
+
+        :return: a JSON-schema or a  tuple of JSON-schemas in the format ``(response_schema, request_schema)``
+        """
         raise NotImplementedError()
 
     @cached_property
@@ -32,9 +52,21 @@ class Schema(object):
         return Draft4Validator(self.request, format_checker=FormatChecker())
 
     def format(self, value):
+        """
+        Formats a python object for JSON serialization. Noop by default.
+
+        :param object value:
+        :return:
+        """
         return value
 
     def convert(self, instance):
+        """
+        Validates a deserialized JSON object against :attr:`request` and converts it into a python object.
+
+        :param instance: JSON import
+        :raises PotionValidationError: if validation failed
+        """
         try:
             self._validator.validate(instance)
         except ValidationError as ve:
@@ -43,6 +75,12 @@ class Schema(object):
         return instance
 
     def parse_request(self, request):
+        """
+        Parses a Flask request object, validates it the against :attr:`request` and returns the converted request data.
+
+        :param request: Flask request object
+        :return:
+        """
         data = request.json
 
         if not data and request.method in ('GET', 'HEAD'):
@@ -51,12 +89,27 @@ class Schema(object):
         return self.convert(data)
 
     def format_response(self, response):
+        """
+        Takes a response value, which can be a ``data`` object or a tuple ``(data, code)`` or ``(data, code, headers)``
+        and formats it using :meth:`format`.
+
+        :param response: A response tuple.
+        :return: A tuple in the form ``(data, code, headers)``
+        """
         data, code, headers = unpack(response)
         # TODO omit formatting on certain codes.
         return self.format(data), code, headers
 
 
 class FieldSet(Schema, ResourceBound):
+    """
+    A schema representation of a dictionary of :class:`fields.Raw` objects.
+
+    Uses the fields' ``io`` attributes to determine whether they are read-only, write-only, or read-write.
+
+    :param dict fields: a dictionary of :class:`fields.Raw` objects
+    :param required_fields: a list or tuple of field names that are required during parsing
+    """
 
     def __init__(self, fields, required_fields=None):
         self.fields = fields
@@ -107,6 +160,13 @@ class FieldSet(Schema, ResourceBound):
         return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items())
 
     def convert(self, instance, pre_resolved_properties=None, patch_instance=False, strict=False):
+        """
+        :param instance: JSON-object
+        :param pre_resolved_properties: optional dictionary of properties that are already known
+        :param bool patch_instance: when ``True`` does not check for required fields
+        :param bool strict:
+        :return:
+        """
         result = dict(pre_resolved_properties) if pre_resolved_properties else {}
         object_ = super(FieldSet, self).convert(instance)
 

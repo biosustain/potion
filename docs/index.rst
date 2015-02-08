@@ -12,7 +12,7 @@ Potion features include validation, model resources and routes, relations, objec
 pagination, signals, and automatic API schema generation.
 
 Potion is designed to handle SQLAlchemy models, but it is also possible to integrate other data stores,
-or even use parts of Potion without any data store at all.
+or even to use parts of Potion without any data store at all.
 
 
 User's guide
@@ -20,3 +20,16 @@ User's guide
 
 .. toctree::
    :maxdepth: 2
+
+   installation
+   quickstart
+   fields
+   filters
+   api
+   routes
+   resources
+   signals
+
+   permissions
+   recipes
+

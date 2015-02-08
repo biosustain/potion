@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+import codecs
 from setuptools import setup, find_packages
 
 setup(
@@ -10,7 +11,8 @@ setup(
     license='MIT',
     author='Lars Schöning',
     author_email='lays@biosustain.dtu.dk',
-    description='REST API framework for Flask and SQLAlchemy',
+    description='Powerful REST API framework for Flask and SQLAlchemy',
+    long_descriptipn=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
     tests_require=[
         'Flask-Testing>=0.4.1',

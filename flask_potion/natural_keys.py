@@ -1,9 +1,6 @@
 import re
-from flask import url_for
-from werkzeug.utils import cached_property
-from .exceptions import ItemNotFound
-from .schema import Schema
-from .utils import route_from, get_value
+from flask_potion.exceptions import ItemNotFound
+from flask_potion.utils import route_from, get_value
 import six
 
 class Resolver(object):

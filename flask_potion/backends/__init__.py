@@ -2,10 +2,19 @@ from __future__ import division
 import datetime
 from math import ceil
 import six
-from .. import fields
+from flask_potion import fields
 
 
 class Manager(object):
+    """
+
+    .. attribute:: supported_comparators
+
+        A tuple of names filter comparators supported by this manager.
+
+    :param flask_potion.resource.Resource resource: resource class
+    :param model: model read from ``Meta.model`` or ``None``
+    """
     supported_comparators = ()
 
     def __init__(self, resource, model):
@@ -30,43 +39,119 @@ class Manager(object):
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
 
     def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
+        """
+
+        :param item:
+        :param attribute:
+        :param target_resource:
+        :param page:
+        :param per_page:
+        :return:
+        """
         raise NotImplementedError()
 
     def relation_add(self, item, attribute, target_resource, target_item):
+        """
+
+        :param item:
+        :param attribute:
+        :param target_resource:
+        :param target_item:
+        :return:
+        """
         raise NotImplementedError()
 
     def relation_remove(self, item, attribute, target_resource, target_item):
+        """
+
+        :param item:
+        :param attribute:
+        :param target_resource:
+        :param target_item:
+        :return:
+        """
         raise NotImplementedError()
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
+        """
+
+        :param page:
+        :param per_page:
+        :param where:
+        :param sort:
+        :return: a :class:`Pagination` object or similar
+        """
         pass
 
     def instances(self, where=None, sort=None):
+        """
+
+        :param where:
+        :param sort:
+        :return:
+        """
         pass
 
     def create(self, properties, commit=True):
+        """
+
+        :param properties:
+        :param commit:
+        :return:
+        """
         pass
 
     def read(self, id):
+        """
+
+        :param id:
+        :return:
+        """
         pass
 
     def update(self, item, changes, commit=True):
+        """
+
+        :param item:
+        :param changes:
+        :param commit:
+        :return:
+        """
         pass
 
     def delete(self, item):
+        """
+
+        :param item:
+        :return:
+        """
         pass
 
     def delete_by_id(self, id):
+        """
+
+        :param id:
+        :return:
+        """
         return self.delete(self.read(id))
 
     def commit(self):
         pass
 
     def begin(self):
+
         pass
 
 
 class Pagination(object):
+    """
+    A pagination class for list-like instances.
+
+    :param items:
+    :param page:
+    :param per_page:
+    :param total:
+    """
 
     def __init__(self, items, page, per_page, total):
         self.items = items

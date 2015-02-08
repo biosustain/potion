@@ -5,8 +5,8 @@ from types import MethodType
 from flask import request
 import sys
 from werkzeug.utils import cached_property
-from flask_potion.fields import _field_from_object
-from flask_potion import fields
+from .fields import _field_from_object
+from . import fields
 from .utils import get_value
 from .instances import Instances, RelationInstances
 from .reference import ResourceBound, ResourceReference

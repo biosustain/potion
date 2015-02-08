@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.abspath('../flask_potion'))
 # If your documentation needs a minimal Sphinx version, state it here.
 #needs_sphinx = '1.0'
 
+
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
@@ -32,10 +33,10 @@ extensions = [
 ]
 
 intersphinx_mapping = {
-    'restful': ('http://flask-restful.readthedocs.org/en/latest/', None),
     'sqlalchemy': ('http://docs.sqlalchemy.org/en/latest/', None),
     'werkzeug': ('http://werkzeug.pocoo.org/docs/', None),
-    'blinker': ('http://pythonhosted.org/blinker/', None)
+    'blinker': ('http://pythonhosted.org/blinker/', None),
+    'principal': ('https://pythonhosted.org/Flask-Principal/', None),
 }
 
 autodoc_member_order = 'bysource'
@@ -54,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Flask-Potion'
-copyright = u'2014, Lars Schöning'
+copyright = u'2015, Lars Schöning'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

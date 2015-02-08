@@ -29,6 +29,12 @@ SA_COMPARATOR_EXPRESSIONS = {
 
 
 class SQLAlchemyManager(Manager):
+    """
+    A manager for SQLAlchemy models.
+
+    Expects that :class:`Meta.model` contains an SQLALchemy declarative model.
+
+    """
     supported_comparators = tuple(SA_COMPARATOR_EXPRESSIONS.keys())
 
     def __init__(self, resource, model):
@@ -233,7 +239,3 @@ class SQLAlchemyManager(Manager):
         session.commit()
 
         after_delete.send(self.resource, item=item)
-
-
-class PrincipalsManager(SQLAlchemyManager):
-    pass

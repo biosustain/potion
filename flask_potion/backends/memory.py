@@ -1,12 +1,19 @@
 from __future__ import division
-from ..exceptions import ItemNotFound
+from flask_potion.exceptions import ItemNotFound
 from . import Manager, Pagination
-from ..signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
+from flask_potion.signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
     after_remove_from_relation
-from ..utils import get_value
+from flask_potion.utils import get_value
 
 
 class MemoryManager(Manager):
+    """
+    An in-memory, pure-python :class:`Manager` implementation.
+
+    .. warning::
+
+        This manager is intended for debugging only.
+    """
     supported_comparators = ('$eq', '$ne', '$lt', '$gt', '$le', '$ge', '$in', '$startswith', '$endswith')
 
     def __init__(self, resource, model):

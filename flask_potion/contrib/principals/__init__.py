@@ -3,13 +3,15 @@ from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import Forbidden
 from werkzeug.utils import cached_property
+from flask_principal import Permission, RoleNeed
+from flask_potion.resource import ModelResource
 from flask_potion.fields import ToOne
 from flask_potion.backends import Pagination
 from flask_potion.exceptions import ItemNotFound
-from flask_potion.backends.principals.permission import HybridPermission
-from flask_potion.backends.principals.needs import HybridItemNeed, HybridUserNeed
 from flask_potion.backends.alchemy import SQLAlchemyManager
-from flask_principal import Permission, RoleNeed
+from .permission import HybridPermission
+from .needs import HybridItemNeed, HybridUserNeed
+
 
 PERMISSION_DEFAULTS = (
     ('read', 'yes'),
@@ -21,10 +23,10 @@ PERMISSION_DEFAULTS = (
 DEFAULT_METHODS = ('read', 'create', 'update', 'delete')
 
 
-class PrincipalsManager(SQLAlchemyManager):
+class PrincipalManager(SQLAlchemyManager):
 
     def __init__(self, resource, model):
-        super(PrincipalsManager, self).__init__(resource, model)
+        super(PrincipalManager, self).__init__(resource, model)
 
         raw_needs = dict(PERMISSION_DEFAULTS)
         raw_needs.update(resource.meta.get('permissions', {}))
@@ -104,9 +106,9 @@ class PrincipalsManager(SQLAlchemyManager):
         Returns a dictionary of evaluated permissions for an item.
 
         :param item:
-        :return: Dictionary in the form ``{method: bool, ..}``
+        :return: Dictionary in the form ``{operation: bool, ..}``
         """
-        return {method: permission.can(item) for method, permission in self._permissions.items()}
+        return {operation: permission.can(item) for operation, permission in self._permissions.items()}
 
     def can_create_item(self, item):
         """
@@ -144,7 +146,7 @@ class PrincipalsManager(SQLAlchemyManager):
                 return Pagination.from_list(query, page, per_page)
             return query
 
-        if isinstance(target_resource.manager, PrincipalsManager):
+        if isinstance(target_resource.manager, PrincipalManager):
             read_permission = target_resource.manager._permissions['read']
             query = read_permission.apply_filters(query)
 
@@ -200,14 +202,19 @@ class PrincipalsManager(SQLAlchemyManager):
     def create(self, properties, commit=True):
         if not self.can_create_item(properties):
             raise Forbidden()
-        return super(PrincipalsManager, self).create(properties, commit)
+        return super(PrincipalManager, self).create(properties, commit)
 
     def update(self, item, changes, *args, **kwargs):
         if not self.can_update_item(item, changes):
             raise Forbidden()
-        return super(PrincipalsManager, self).update(item, changes, *args, **kwargs)
+        return super(PrincipalManager, self).update(item, changes, *args, **kwargs)
 
     def delete(self, item):
         if not self.can_delete_item(item):
             raise Forbidden()
-        return super(PrincipalsManager, self).delete(item)
+        return super(PrincipalManager, self).delete(item)
+
+
+class PrincipalResource(ModelResource):
+    class Meta:
+        manager = PrincipalManager

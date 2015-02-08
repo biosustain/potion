@@ -1,5 +1,5 @@
 from collections import namedtuple
-from . import fields, ValidationError
+from flask_potion import fields
 import collections
 
 from flask import json, request
