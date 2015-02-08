@@ -47,7 +47,7 @@ Features
 
 - Powerful API framework both for data-store-linked and plain resources
 - JSON-based and fully self-documenting with JSON Hyper-Schema
-- Flask-SQLAlchemy integration
+- *Flask-SQLAlchemy* integration
 - Filtering, sorting, pagination, validation, built right in
 - Smart system for handling relations between resources
 - Easy-to-use, yet highly flexible, optional permissions system
