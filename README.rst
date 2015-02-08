@@ -52,9 +52,8 @@ Features
 - Smart system for handling relations between resources
 - Easy-to-use, yet highly flexible optional permissions system
 - Signals for pre- and post-processing of requests
-- Very customizable --- everything is just a resource, route, or schema
+- Very customizable — everything is just a resource, route, or schema
 - *Natural keys for extra simple relation querying (planned)*
-- Designed & written with Python 3 in mind
 
 
 Long-term goals
