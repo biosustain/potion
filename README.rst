@@ -50,7 +50,7 @@ Features
 - Flask-SQLAlchemy integration
 - Filtering, sorting, pagination, validation, built right in
 - Smart system for handling relations between resources
-- Easy-to-use, yet highly flexible optional permissions system
+- Easy-to-use, yet highly flexible, optional permissions system
 - Signals for pre- and post-processing of requests
 - Very customizable — everything is just a resource, route, or schema
 - *Natural keys for extra simple relation querying (planned)*
@@ -60,7 +60,7 @@ Long-term goals
 ===============
 
 The web nowadays is increasingly push rather than pull, so Potion is gradually building up to providing a scalable WebSocket 
-service (using ``asyncio`` and a message queue). This service will mirror the RESTful API so that every GET request can be done *'live'*. (In the meantime, you can use the ``signals`` module to roll your own solution).
+service (using ``asyncio`` and a message queue). This service will mirror the RESTful API so that every GET request can be done *"live"*. (In the meantime, you can use the ``signals`` module to roll your own solution).
 
 Potion is written in a way that makes it very easy to cache resources. A natural goal is to eventually ship a baked-in server-side caching solution with Potion.
 
