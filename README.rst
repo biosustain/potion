@@ -4,10 +4,10 @@ Flask-Potion
 
 
 .. image:: https://img.shields.io/travis/biosustain/potion/master.svg?style=flat-square
-    :target: https://travis-ci.org/biosustain/potion.svg?branch=master
+    :target: https://travis-ci.org/biosustain/potion
 
 .. image:: https://img.shields.io/coveralls/biosustain/potion/master.svg?style=flat-square
-    :target: https://coveralls.io/repos/biosustain/potion/badge.svg?branch=master
+    :target: https://coveralls.io/r/biosustain/potion
 
 .. image:: https://img.shields.io/pypi/v/Flask-Potion.svg?style=flat-square
     :target: https://pypi.python.org/pypi/Flask-Potion
