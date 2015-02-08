@@ -37,7 +37,7 @@ or even to use parts of Potion without any data store at all.
 User's Guide
 ^^^^^^^^^^^^
 
-The user guide and documentation is published here:
+The user's guide and documentation is published here:
 
    `http://potion.readthedocs.org/ <http://potion.readthedocs.org/en/latest/>`_
 
