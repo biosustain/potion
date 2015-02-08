@@ -298,7 +298,7 @@ implement all sorts of complex permissions setups.
 :class:`PrincipalManager` class
 ===============================
 
-.. autoclass:: PrincipalManager
+.. autoclass:: contrib.principals.PrincipalManager
     :members:
 
 

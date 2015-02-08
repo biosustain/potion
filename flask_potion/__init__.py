@@ -18,7 +18,8 @@ __all__ = (
     'fields',
     'routes',
     'schema',
-    'signals'
+    'signals',
+    'contrib'
 )
 
 class Api(object):
