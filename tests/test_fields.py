@@ -243,3 +243,25 @@ class FieldsTestCase(TestCase):
                                  }
                              }
                          }, o.response)
+
+    def test_attribute_mapped_no_pattern(self):
+        o = fields.AttributeMapped(fields.Object({
+            "foo": fields.Integer()
+        }), mapping_attribute="key")
+
+        self.assertEqual([{'foo': 1, 'key': 'A3'}, {'foo': 1, 'key': 'B12'}],
+                         sorted(o.convert({"A3": {"foo": 1}, "B12": {"foo": 1}}), key=itemgetter("key")))
+
+        self.assertEqual({"A3": {"foo": 1}, "B12": {"foo": 2}},
+                         o.format([{'foo': 1, 'key': 'A3'}, {'foo': 2, 'key': 'B12'}]))
+
+        self.assertEqual({
+                             "type": "object",
+                             "additionalProperties": {
+                                 "additionalProperties": False,
+                                 "properties": {
+                                     "foo": {"type": "integer"}
+                                 },
+                                 "type": "object"
+                             }
+                         }, o.response)
