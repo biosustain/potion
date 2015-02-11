@@ -196,6 +196,12 @@ class FieldsTestCase(TestCase):
         with self.assertRaises(ValidationError):
             o.convert(None)
 
+    # TODO object nullable field
+
+    def test_object_format_any(self):
+        o = fields.Object(fields.Any)
+        self.assertEqual({"x": 123}, o.format({"x": 123}))
+
     @unittest.SkipTest
     def test_object_convert_properties(self):
         pass
@@ -265,3 +271,14 @@ class FieldsTestCase(TestCase):
                                  "type": "object"
                              }
                          }, o.response)
+
+    def test_any(self):
+        self.assertEqual(3, fields.Any().format(3))
+        self.assertEqual('Hi', fields.Any().format('Hi'))
+        self.assertEqual(None, fields.Any().format(None))
+        self.assertEqual({}, fields.Any().format({}))
+        self.assertEqual(1.23, fields.Any().format(1.23))
+        self.assertEqual(3, fields.Any().convert(3))
+        self.assertEqual('Hi', fields.Any().convert('Hi'))
+        self.assertEqual(None, fields.Any().convert(None))
+        self.assertEqual(1.23, fields.Any().convert(1.23))

@@ -271,9 +271,11 @@ class Object(Raw):
 
     @cached_property
     def _property_attributes(self):
+        if not self.properties:
+            return ()
         return [field.attribute or key for key, field in self.properties.items()]
 
-    def format(self, value):
+    def formatter(self, value):
         output = {}
 
         if self.properties:
@@ -285,15 +287,13 @@ class Object(Raw):
             pattern, field = next(iter(self.pattern_properties.items()))
 
             if not self.additional_properties:
-                output.update({key: field.format(get_value(key, value, field.default))
-                               for key, value in value.items() if key not in self._property_attributes})
+                output.update({k: field.format(v) for k, v in value.items() if k not in self._property_attributes})
             else:
                 raise NotImplementedError()
                 # TODO match regular expression
         elif self.additional_properties:
             field = self.additional_properties
-            output.update({key: field.format(get_value(key, value, field.default))
-                           for key, value in value.items() if key not in self._property_attributes})
+            output.update({k: field.format(v) for k, v in value.items() if k not in self._property_attributes})
 
         return output
 
@@ -343,7 +343,7 @@ class AttributeMapped(Object):
             setattr(obj, self.mapping_attribute, value)
         return obj
 
-    def format(self, value):
+    def formatter(self, value):
         if self.pattern_properties:
             pattern, field = next(iter(self.pattern_properties.items()))
             return {get_value(self.mapping_attribute, v, None): field.format(v) for v in value}
