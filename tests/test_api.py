@@ -152,7 +152,22 @@ class ApiTestCase(BaseTestCase):
 
         response = self.client.patch("/book/1", data={"title": None})
         self.assert400(response)
+        self.assertEqual({
+                             'status': 400,
+                             'message': 'Bad Request',
+                             'errors': [
+                                 {
+                                     'path': ['title'],
+                                     'validationOf': {'type': 'string'},
+                                     'message': "None is not of type 'string'"
+                                 }
+                             ],
+                         }, response.json)
 
+        self.app.debug = False
+
+        response = self.client.patch("/book/1", data={"title": None})
+        self.assert400(response)
         self.assertEqual({
                              'status': 400,
                              'message': 'Bad Request',

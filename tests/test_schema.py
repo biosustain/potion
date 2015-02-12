@@ -1,4 +1,5 @@
 from unittest import TestCase
+from flask import Flask
 from flask_potion import fields, Resource
 from flask_potion.exceptions import ValidationError
 from flask_potion.schema import Schema, FieldSet
@@ -60,23 +61,24 @@ class SchemaTestCase(TestCase):
             }
         }))
 
-        with self.assertRaises(ValidationError) as cx:
-            foo.convert({
-                "name": "Foo",
-                "properties": {
-                    "age": 12
-                }})
+        with Flask(__name__).app_context():
+            with self.assertRaises(ValidationError) as cx:
+                foo.convert({
+                    "name": "Foo",
+                    "properties": {
+                        "age": 12
+                    }})
 
-        self.assertEqual({
-                             'errors': [
-                                 {
-                                     'path': ('properties', 'age'),
-                                     'validationOf': {'type': 'string'}
-                                 }
-                             ],
-                             'message': 'Bad Request',
-                             'status': 400
-                         }, cx.exception.as_dict())
+            self.assertEqual({
+                                 'errors': [
+                                     {
+                                         'path': ('properties', 'age'),
+                                         'validationOf': {'type': 'string'}
+                                     }
+                                 ],
+                                 'message': 'Bad Request',
+                                 'status': 400
+                             }, cx.exception.as_dict())
 
 
     def test_schema_class_parse_request(self):

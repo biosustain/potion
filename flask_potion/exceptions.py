@@ -1,4 +1,4 @@
-from flask import jsonify
+from flask import jsonify, current_app
 from werkzeug.exceptions import Conflict, BadRequest, NotFound, InternalServerError
 from werkzeug.http import HTTP_STATUS_CODES
 
@@ -63,18 +63,20 @@ class ValidationError(PotionException):
             return (self.root, ) + path
         return path
 
+    def _format_errors(self):
+        for error in self.errors:
+            error_data = {
+                'validationOf': {error.validator: error.validator_value},
+                "path": self._complete_path(error)
+            }
+
+            if current_app.debug:
+                error_data['message'] = error.message
+            yield error_data
+
     def as_dict(self):
         dct = super(ValidationError, self).as_dict()
-
-        dct['errors'] = [
-            {
-                'validationOf': {error.validator: error.validator_value},
-                "path": self._complete_path(error),
-                # 'message': error.message
-            }
-            for error in self.errors
-        ]
-
+        dct['errors'] = list(self._format_errors())
         return dct
 
 

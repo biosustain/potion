@@ -158,7 +158,8 @@ class SQLAlchemyTestCase(BaseTestCase):
                                  'errors': [
                                      {
                                          'path': ['type'],
-                                         'validationOf': {'type': 'object'}
+                                         'validationOf': {'type': 'object'},
+                                         'message': "None is not of type 'object'",
                                      }
                                  ],
                                  'message': 'Bad Request',
