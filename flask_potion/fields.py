@@ -181,13 +181,14 @@ class Array(Raw, ResourceBound):
     A field for an array of a given field type.
 
     :param Raw cls_or_instance: field class or instance
+    :param bool unique: if ``True``, all values in the list must be unique
     """
 
-    def __init__(self, cls_or_instance, min_items=None, max_items=None, **kwargs):
+    def __init__(self, cls_or_instance, min_items=None, max_items=None, unique=None, **kwargs):
         self.container = container = _field_from_object(self, cls_or_instance)
 
         schema_properties = [('type', 'array')]
-        schema_properties += [(k, v) for k, v in [('minItems', min_items), ('maxItems', max_items)] if v is not None]
+        schema_properties += [(k, v) for k, v in [('minItems', min_items), ('maxItems', max_items), ('uniqueItems', unique)] if v is not None]
         schema = lambda s: dict([('items', s)] + schema_properties)
 
         super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)),
