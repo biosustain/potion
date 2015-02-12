@@ -2,14 +2,14 @@
 .. _permissions:
 
 ===================================
-Permissions with *Flask-Principals*
+Permissions with *Flask-Principal*
 ===================================
 
 .. module:: contrib.principals
 
 Flask-Potion includes a manager with an permission system. The permissions system is
 built on `Flask-Principal <https://pythonhosted.org/Flask-Principal/>`_
-and enabled replacing :class:`ModelResource` with :class:`PrincipalsResource`. Permissions are defined as
+and enabled replacing :class:`ModelResource` with :class:`PrincipalResource`. Permissions are defined as
 a dictionary in ``Meta.permissions``.
 
 
@@ -128,7 +128,7 @@ We're going to use *Flask-Login* to authenticate requests using *Basic Authentic
         return None
 
 
-This is where *Flask-Principals* comes in. With every request it adds the *needs* the identity should provide.
+This is where *Flask-Principal* comes in. With every request it adds the *needs* the identity should provide.
 Authenticated users are given a *user need* and maybe some *role needs*. If this example had some top-level object based permissions
 (think groups, projects, teams, etc.) they would also be added here.
 
@@ -298,15 +298,15 @@ implement all sorts of complex permissions setups.
 :class:`PrincipalManager` class
 ===============================
 
-.. autoclass:: contrib.principals.PrincipalManager
+.. module:: contrib.principals
+
+.. autoclass:: PrincipalManager
     :members:
 
 
 Efficiency
 ----------
 
-
-.. module:: contrib.principals
 
 Those who have worked with Flask-Principal know that it is on its own not well-suited for object-based permissions where large numbers of objects are involved, because each permission has
 to be loaded into memory as ``ItemNeed`` at the start of the session.
@@ -315,10 +315,14 @@ The permission system built into Potion introduces the :class:`HybridNeed` and :
 They can either be evaluated directly or be applied to SQLAlchemy queries, and are therefore efficient with any number of object-based permissions.
 
 
-.. autoclass:: contrib.principals.needs.HybridNeed
+.. module:: contrib.principals.needs
+
+.. autoclass:: HybridNeed
     :members:
 
-.. autoclass:: contrib.principals.permission.HybridPermission
+.. module:: contrib.principals.permission
+
+.. autoclass:: HybridPermission
     :members:
 
 
