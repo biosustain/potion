@@ -1,5 +1,5 @@
 from flask import jsonify, current_app
-from werkzeug.exceptions import Conflict, BadRequest, NotFound, InternalServerError
+from werkzeug.exceptions import Conflict, BadRequest, NotFound, InternalServerError, UnsupportedMediaType
 from werkzeug.http import HTTP_STATUS_CODES
 
 
@@ -47,6 +47,10 @@ class ItemNotFound(PotionException):
         response = jsonify(self.as_dict())
         response.status_code = self.status_code
         return response
+
+
+class RequestMustBeJSON(PotionException):
+    http_exception = UnsupportedMediaType
 
 
 class ValidationError(PotionException):

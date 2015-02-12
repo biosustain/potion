@@ -4,7 +4,7 @@ from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
 from flask_potion.reference import ResourceBound
 from flask_potion.utils import unpack
-from flask_potion.exceptions import ValidationError as PotionValidationError
+from flask_potion.exceptions import ValidationError as PotionValidationError, RequestMustBeJSON
 
 
 class Schema(object):
@@ -198,6 +198,11 @@ class FieldSet(Schema, ResourceBound):
         return result
 
     def parse_request(self, request):
+        if request.method in ('POST', 'PATCH', 'PUT', 'DELETE'):
+            if request.mimetype != 'application/json':
+                raise RequestMustBeJSON()
+
+        # TODO change to request.get_json() to catch invalid JSON
         data = request.json
 
         # FIXME raise error if request body is not JSON
