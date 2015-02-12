@@ -181,6 +181,8 @@ class Array(Raw, ResourceBound):
     A field for an array of a given field type.
 
     :param Raw cls_or_instance: field class or instance
+    :param int min_items: minimum number of items
+    :param int max_items: maximum number of items
     :param bool unique: if ``True``, all values in the list must be unique
     """
 

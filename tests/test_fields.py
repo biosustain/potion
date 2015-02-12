@@ -99,6 +99,14 @@ class FieldsTestCase(TestCase):
         foo_attribute = fields.Raw({"type": "number"}, attribute="yearsBornAgo")
         self.assertEqual(12.5, foo_attribute.output("age", {"yearsBornAgo": 12.5}))
 
+    def test_array_unique(self):
+        foo = fields.Array(fields.Integer, unique=True)
+
+        self.assertEqual([1,2,3], foo.convert([1,2,3]))
+
+        with self.assertRaises(ValidationError):
+            self.assertEqual([1,2,3], foo.convert([1,1,2,3]))
+
     def test_number_convert(self):
         with self.assertRaises(ValidationError):
             fields.Number().convert("nope")
