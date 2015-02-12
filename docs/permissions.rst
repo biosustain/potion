@@ -298,7 +298,7 @@ implement all sorts of complex permissions setups.
 :class:`PrincipalManager` class
 ===============================
 
-.. module:: contrib.principals
+.. module:: flask_potion.contrib.principals
 
 .. autoclass:: PrincipalManager
     :members:
@@ -315,12 +315,12 @@ The permission system built into Potion introduces the :class:`HybridNeed` and :
 They can either be evaluated directly or be applied to SQLAlchemy queries, and are therefore efficient with any number of object-based permissions.
 
 
-.. module:: contrib.principals.needs
+.. module:: flask_potion.contrib.principals.needs
 
 .. autoclass:: HybridNeed
     :members:
 
-.. module:: contrib.principals.permission
+.. module:: flask_potion.contrib.principals.permission
 
 .. autoclass:: HybridPermission
     :members:
