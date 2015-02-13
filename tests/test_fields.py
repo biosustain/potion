@@ -191,6 +191,17 @@ class FieldsTestCase(TestCase):
         self.assertEqual("123456", fields.String().convert("123456"))
         self.assertEqual(None, fields.String(nullable=True).convert(None))
 
+    def test_string_enum(self):
+        foo = fields.String(enum=['foo', 'bar'])
+        foo_nullable = fields.String(enum=['foo', 'bar'], nullable=True)
+
+        with self.assertRaises(ValidationError):
+            foo.convert("fork")
+
+        self.assertEqual("foo", foo.convert("foo"))
+        self.assertEqual("foo", foo_nullable.convert("foo"))
+        self.assertEqual(None, foo_nullable.convert(None))
+
     def test_object_convert(self):
         o = fields.Object(fields.Integer, nullable=False)
 

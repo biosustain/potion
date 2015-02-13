@@ -50,6 +50,9 @@ class Raw(Schema):
         if "null" in schema.get("type", []):
             self.nullable = True
         elif self.nullable:
+            # enum is independent of type validation:
+            if "enum" in schema and None not in schema["enum"]:
+                schema["enum"].append(None)
             if "anyOf" in schema:
                 if not any("null" in choice.get("type", []) for choice in schema["anyOf"]):
                     schema["anyOf"].append({"type": "null"})
