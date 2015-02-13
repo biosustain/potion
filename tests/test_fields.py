@@ -107,6 +107,12 @@ class FieldsTestCase(TestCase):
         with self.assertRaises(ValidationError):
             self.assertEqual([1,2,3], foo.convert([1,1,2,3]))
 
+    def test_array_default(self):
+        foo = fields.Array(fields.Integer)
+
+        self.assertEqual([], foo.default)
+        self.assertEqual(True, isinstance(foo.default, list))
+
     def test_number_convert(self):
         with self.assertRaises(ValidationError):
             fields.Number().convert("nope")

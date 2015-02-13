@@ -22,7 +22,7 @@ class Raw(Schema):
 
     :param io: one of "r", "w" or "rw" (default); used to control presence in fieldsets/parent schemas
     :param schema: JSON-schema for field, or :class:`callable` resolving to a JSON-schema when called
-    :param default: optional default value, must be JSON-convertible
+    :param default: optional default value, must be JSON-convertible; may be a callable with no arguments
     :param attribute: key on parent object, optional.
     :param nullable: whether the field is nullable.
     :param title: optional title for JSON schema
@@ -31,7 +31,7 @@ class Raw(Schema):
 
     def __init__(self, schema, io="rw", default=None, attribute=None, nullable=False, title=None, description=None):
         self._schema = schema
-        self.default = default
+        self._default = default
         self.attribute = attribute
         self.nullable = nullable
         self.title = title
@@ -74,6 +74,16 @@ class Raw(Schema):
             if value is not None:
                 schema[attr] = value
         return schema
+
+    @property
+    def default(self):
+        if callable(self._default):
+            return self._default()
+        return self._default
+
+    @default.setter
+    def default(self, value):
+        self._default = value
 
     def schema(self):
         """
@@ -194,7 +204,7 @@ class Array(Raw, ResourceBound):
         schema = lambda s: dict([('items', s)] + schema_properties)
 
         super(Array, self).__init__(lambda: (schema(container.response), schema(container.request)),
-                                    default=kwargs.pop('default', ()), **kwargs)
+                                    default=kwargs.pop('default', list), **kwargs)
 
     def bind(self, resource):
         if isinstance(self.container, ResourceBound):
