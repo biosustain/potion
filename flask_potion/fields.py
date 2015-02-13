@@ -385,6 +385,9 @@ class String(Raw):
     def __init__(self, min_length=None, max_length=None, pattern=None, enum=None, format=None, **kwargs):
         schema = {"type": "string"}
 
+        if enum is not None:
+            enum = list(enum)
+
         for v, k in ((min_length, 'minLength'),
                      (max_length, 'maxLength'),
                      (pattern, 'pattern'),
