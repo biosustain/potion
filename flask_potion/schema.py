@@ -121,7 +121,7 @@ class FieldSet(Schema, ResourceBound):
 
     def __init__(self, fields, required_fields=None):
         self.fields = fields
-        self.required = required_fields or []
+        self.required = set(required_fields or ())
 
     def bind(self, resource):
         if self.resource is None:
@@ -158,6 +158,10 @@ class FieldSet(Schema, ResourceBound):
             "properties": OrderedDict((
                 (key, field.request) for key, field in self.fields.items() if 'w' in field.io))
         }
+
+        for key, field in self.fields.items():
+            if 'w' in field.io and not field.nullable and field.default is None:
+                self.required.add(key)
 
         if not patchable and self.required:
             request_schema['required'] = list(self.required)

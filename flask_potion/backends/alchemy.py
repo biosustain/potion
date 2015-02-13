@@ -100,7 +100,7 @@ class SQLAlchemyManager(Manager):
                     io = "w"
 
                 if not (column.nullable or column.default):
-                    fs.required.append(name)
+                    fs.required.add(name)
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
     @staticmethod

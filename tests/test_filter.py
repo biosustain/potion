@@ -30,7 +30,7 @@ class FilterTestCase(BaseTestCase):
 
         class UserResource(ModelResource):
             class Schema:
-                gender = fields.String(enum=['f', 'm'])
+                gender = fields.String(enum=['f', 'm'], nullable=True)
 
             class Meta:
                 model = User

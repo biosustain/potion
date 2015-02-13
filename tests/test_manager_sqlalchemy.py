@@ -72,10 +72,10 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assert400(response)
 
     def test_conflict(self):
-        response = self.client.post('/type', data={"name": "foo"}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "foo"})
         self.assert200(response)
 
-        response = self.client.post('/type', data={"name": "foo"}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "foo"})
         self.assertStatus(response, 409)
 
     def test_create(self):
@@ -97,8 +97,7 @@ class SQLAlchemyTestCase(BaseTestCase):
             "status": 400
         }, response.json)
 
-        response = self.client.post('/type', data={"name": "x-ray"}) # FIXME "machines": [] should not be necessary
-        self.assert200(response)
+        response = self.client.post('/type', data={"name": "x-ray"})
         self.assertJSONEqual({'$id': 1, '$type': 'type', 'machines': [], "name": "x-ray"}, response.json)
 
         response = self.client.post('/machine', data={"name": "Irradiator I", "type": {"$ref": "/type/1"}})
@@ -109,7 +108,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assert200(response)
         self.assertJSONEqual({'$id': 2, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage":  1.23e45, "name": "Sol IV"}, response.json)
 
-        response = self.client.get('/type/1') # FIXME "machines": [] should not be necessary
+        response = self.client.get('/type/1')
         self.assert200(response)
         self.assertJSONEqual({
                                  '$id': 1,
