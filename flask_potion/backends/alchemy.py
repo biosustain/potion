@@ -99,8 +99,8 @@ class SQLAlchemyManager(Manager):
                 elif name in write_only_fields:
                     io = "w"
 
-                # if not (column.nullable or column.default):
-                #     fs.required.append(name)
+                if not (column.nullable or column.default):
+                    fs.required.append(name)
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
     @staticmethod

@@ -101,6 +101,14 @@ class Schema(object):
         return self.format(data), code, headers
 
 
+class SchemaImpl(Schema):
+    def __init__(self, schema):
+        self._schema = schema
+
+    def schema(self):
+        return self._schema
+
+
 class FieldSet(Schema, ResourceBound):
     """
     A schema representation of a dictionary of :class:`fields.Raw` objects.
@@ -113,7 +121,7 @@ class FieldSet(Schema, ResourceBound):
 
     def __init__(self, fields, required_fields=None):
         self.fields = fields
-        self.required_fields = required_fields or ()
+        self.required = required_fields or []
 
     def bind(self, resource):
         if self.resource is None:
@@ -129,7 +137,7 @@ class FieldSet(Schema, ResourceBound):
     def rebind(self, resource):
         return FieldSet(
             dict(self.fields),
-            tuple(self.required_fields)
+            tuple(self.required)
         ).bind(resource)
 
     def set(self, key, field):
@@ -137,7 +145,7 @@ class FieldSet(Schema, ResourceBound):
             field = field.bind(self.resource)
         self.fields[key] = field
 
-    def schema(self):
+    def _schema(self, patchable=False):
         response_schema = {
             "type": "object",
             "properties": OrderedDict((
@@ -151,24 +159,36 @@ class FieldSet(Schema, ResourceBound):
                 (key, field.request) for key, field in self.fields.items() if 'w' in field.io))
         }
 
-        if self.required_fields:
-            request_schema['required'] = list(self.required_fields)
+        if not patchable and self.required:
+            request_schema['required'] = list(self.required)
 
         return response_schema, request_schema
+
+
+    def schema(self):
+        return self._schema()
+
+    @cached_property
+    def patchable(self):
+        return SchemaImpl(self._schema(True))
 
     def format(self, item):
         return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items())
 
-    def convert(self, instance, pre_resolved_properties=None, patch_instance=False, strict=False):
+    def convert(self, instance, pre_resolved_properties=None, patchable=False, strict=False):
         """
         :param instance: JSON-object
         :param pre_resolved_properties: optional dictionary of properties that are already known
-        :param bool patch_instance: when ``True`` does not check for required fields
+        :param bool patchable: when ``True`` does not check for required fields
         :param bool strict:
         :return:
         """
         result = dict(pre_resolved_properties) if pre_resolved_properties else {}
-        object_ = super(FieldSet, self).convert(instance)
+
+        if patchable:
+            object_ = self.patchable.convert(instance)
+        else:
+            object_ = super(FieldSet, self).convert(instance)
 
         for key, field in self.fields.items():
             if 'w' not in field.io:
@@ -184,14 +204,14 @@ class FieldSet(Schema, ResourceBound):
                 value = object_[key]
                 value = field.convert(value, validate=False)
             except KeyError:
-                if patch_instance:
+                if patchable:
                     continue
 
                 if field.default is not None:
                     value = field.default
                 elif field.nullable:
                     value = None
-                elif key not in self.required_fields and not strict:
+                elif key not in self.required and not strict:
                     value = None
 
             result[field.attribute or key] = value
@@ -224,5 +244,5 @@ class FieldSet(Schema, ResourceBound):
                 except KeyError:
                     pass
 
-        return self.convert(data, patch_instance=request.method == 'PATCH')
+        return self.convert(data, patchable=request.method == 'PATCH')
 

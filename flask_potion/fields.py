@@ -639,15 +639,20 @@ class Inline(Raw, ResourceBound):
     :param bool patch_instance: whether to allow partial objects
     """
 
-    def __init__(self, resource, patch_instance=False, **kwargs):
+    def __init__(self, resource, patchable=False, **kwargs):
         self.target_reference = ResourceReference(resource)
-        self.patch_instance = patch_instance
+        self.patchable = patchable
 
         def schema():
-            if self.resource == self.target:
-                return {"$ref": "#"}
-            # FIXME complete with API prefix
-            return {"$ref": self.resource.routes["schema"].rule_factory(self.resource)}
+            def _response_schema():
+                if self.resource == self.target:
+                    return {"$ref": "#"}
+                return {"$ref": self.resource.routes["schema"].rule_factory(self.resource)}
+
+            if not not self.patchable:
+                return _response_schema()
+            else:
+                return _response_schema(), self.target.schema.patchable.request
 
         super(Inline, self).__init__(schema, **kwargs)
 
@@ -655,7 +660,7 @@ class Inline(Raw, ResourceBound):
         if self.target_reference.value == 'self':
             return self.__class__(
                 'self',
-                patch_instance=self.patch_instance,
+                patchable=self.patchable,
                 default=self.default,
                 attribute=self.attribute,
                 nullable=self.nullable,
@@ -674,7 +679,7 @@ class Inline(Raw, ResourceBound):
         return self.target.schema.format(item)
 
     def convert(self, item):
-        return self.target.schema.convert(item, patch_instance=self.patch_instance)
+        return self.target.schema.convert(item, patchable=self.patchable)
 
 
 class ItemType(Raw):

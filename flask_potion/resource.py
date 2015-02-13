@@ -248,7 +248,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         updated_item = self.manager.update(item, properties)
         return updated_item
 
-    update.request_schema = fields.Inline('self', patch_instance=True)
+    update.request_schema = fields.Inline('self', patchable=True)
     update.response_schema = update.request_schema
 
     @update.DELETE(rel="destroy")

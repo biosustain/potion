@@ -79,6 +79,24 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assertStatus(response, 409)
 
     def test_create(self):
+        response = self.client.post('/type', data={})
+        self.assert400(response)
+        self.assertEqual({
+            "errors": [
+                {
+                    "message": "'name' is a required property",
+                    "path": [],
+                    "validationOf": {
+                        "required": [
+                            "name"
+                        ]
+                    }
+                }
+            ],
+            "message": "Bad Request",
+            "status": 400
+        }, response.json)
+
         response = self.client.post('/type', data={"name": "x-ray"}) # FIXME "machines": [] should not be necessary
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'type', 'machines': [], "name": "x-ray"}, response.json)
@@ -133,17 +151,21 @@ class SQLAlchemyTestCase(BaseTestCase):
         pass # TODO
 
     def test_update(self):
-        response = self.client.post('/type', data={"name": "T1", "machines": []}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "T1"})
         self.assert200(response)
 
-        response = self.client.post('/type', data={"name": "T2", "machines": []}) # FIXME "machines": [] should not be necessary
+        response = self.client.post('/type', data={"name": "T2"})
         self.assert200(response)
 
         response = self.client.post('/machine', data={"name": "Robot", "type": {"$ref": "/type/1"}})
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage": None, "name": "Robot"}, response.json)
 
+        response = self.client.patch('/machine/1', data={})
+        self.assert200(response)
+
         response = self.client.patch('/machine/1', data={"wattage": 10000})
+        self.pp(response.json)
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage": 10000, "name": "Robot"}, response.json)
 
