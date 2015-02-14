@@ -314,7 +314,7 @@ As you can see, references in Potion are `JSON Reference <https://tools.ietf.org
 objects. These objects always have the same format — ``{"$ref": 'target-uri'}`` — and can easily be recognized by an API client
 when deserializing JSON. An API client can first check its cache for the target item and, if necessary, query it from the server.
 
-Requests, on the other hand, allow both plain ids and *json-ref* objects — it's all the same to the server.
+Requests allow both plain ids and *json-ref* objects — it's all the same to the server.
 
 There are now two ways available to us for querying the relationship between the resources. The first is the author's
 ``Relation('book')``, which created a new route on the *author* resource with references to the book resource. Let's query Charles' books:
