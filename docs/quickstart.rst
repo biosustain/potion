@@ -373,8 +373,8 @@ be difficult to remember and tedious to work with on the command line — but Po
 Natural Keys
 ^^^^^^^^^^^^
 
-A natural key is a unique identifier that exists in the real world and is often more memorable than
-a surrogate key. Potion ships with support for declaring *natural keys*.
+A *natural key* is a unique identifier that exists in the real world and is often more memorable than
+a surrogate key. Potion ships with support for declaring natural keys.
 
 The *author* model has both a first name and a last name. Together, these two names form a natural key for the *author* resource. We'll update both our database model and our resource to reflect this:
 
