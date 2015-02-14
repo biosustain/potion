@@ -1,4 +1,3 @@
-from functools import wraps
 from flask import _app_ctx_stack, _request_ctx_stack
 from werkzeug.exceptions import NotFound
 from werkzeug.urls import url_parse

@@ -1,10 +1,11 @@
 from collections import namedtuple
-from flask_potion import fields
 import collections
 
 from flask import json, request
 from flask_sqlalchemy import Pagination as SAPagination
 from werkzeug.utils import cached_property
+
+from flask_potion import fields
 from .exceptions import InvalidJSON
 from .backends import Pagination
 from .fields import ToMany
@@ -150,39 +151,34 @@ class Instances(PaginationMixin, Schema, ResourceBound):
         self.filters = {}
         self.sort_fields = []
 
-    def bind(self, resource):
-        if self.resource is None:
-            fs = resource.schema
-            filters = self.allowed_filters
+    def _on_bind(self, resource):
+        fs = resource.schema
+        filters = self.allowed_filters
 
-            for name, field in fs.fields.items():
-                try:
-                    available_comparators = COMPARATORS_BY_TYPE[field.__class__]
-                except KeyError:
-                    continue
+        for name, field in fs.fields.items():
+            try:
+                available_comparators = COMPARATORS_BY_TYPE[field.__class__]
+            except KeyError:
+                continue
 
-                if filters == ALL:
-                    self.filters[name] = field, available_comparators
-                elif name in filters:
-                    if filters[name] == ALL:
-                        comparators = available_comparators
-                    else:
-                        comparators = [c for c in filters[name] if c in available_comparators]
+            if filters == ALL:
+                self.filters[name] = field, available_comparators
+            elif name in filters:
+                if filters[name] == ALL:
+                    comparators = available_comparators
+                else:
+                    comparators = [c for c in filters[name] if c in available_comparators]
 
-                    self.filters[name] = field, comparators
+                self.filters[name] = field, comparators
 
-            if filters in (ALL, None):
-                sort = fs.fields
-            elif isinstance(filters, (list, tuple, dict)):
-                sort = {name: fs.fields[name] for name in filters}
-            else:
-                raise RuntimeError("Meta.allowed_filters is not configured properly")
+        if filters in (ALL, None):
+            sort = fs.fields
+        elif isinstance(filters, (list, tuple, dict)):
+            sort = {name: fs.fields[name] for name in filters}
+        else:
+            raise RuntimeError("Meta.allowed_filters is not configured properly")
 
-            self.sort_fields = {name: field for name, field in sort.items() if self._is_sortable(field)}
-            self.resource = resource
-        elif self.resource != resource:
-            return self.rebind(resource)
-        return self
+        self.sort_fields = {name: field for name, field in sort.items() if self._is_sortable(field)}
 
     def rebind(self, resource):
         return self.__class__(

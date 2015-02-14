@@ -1,13 +1,16 @@
 from collections import OrderedDict
 import inspect
 import operator
+
 from flask import current_app, make_response, json
 from six import wraps
 from werkzeug.wrappers import BaseResponse
+
 from .exceptions import PotionException
 from .routes import RouteSet
 from .utils import unpack
 from .resource import Resource, ModelResource
+
 
 __version_info__ = (1, 0, 0)
 __version__ = '.'.join(map(str, __version_info__))
@@ -19,7 +22,8 @@ __all__ = (
     'routes',
     'schema',
     'signals',
-    'contrib'
+    'contrib',
+    'natural_keys'
 )
 
 class Api(object):

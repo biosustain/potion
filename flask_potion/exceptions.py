@@ -26,11 +26,11 @@ class PotionException(Exception):
 class ItemNotFound(PotionException):
     http_exception = NotFound
 
-    def __init__(self, resource, natural_key=None, id=None):
+    def __init__(self, resource, where=None, id=None):
         super(ItemNotFound, self).__init__()
         self.resource = resource
         self.id = id
-        self.natural_key = natural_key
+        self.where = where
 
     def as_dict(self):
         dct = super(ItemNotFound, self).as_dict()
@@ -39,6 +39,16 @@ class ItemNotFound(PotionException):
             dct['item'] = {
                 "$type": self.resource.meta.name,
                 "$id": self.id
+            }
+        else:
+            dct['item'] = {
+                "$type": self.resource.meta.name,
+                "$where": {
+                    condition.attribute: {
+                        condition.comparator.name: condition.value
+                    } if condition.comparator.name != '$eq' else condition.value
+                    for condition in self.where
+                } if self.where else None
             }
         return dct
 

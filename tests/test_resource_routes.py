@@ -24,7 +24,7 @@ class RelationTestCase(BaseTestCase):
             class Meta:
                 model = 'box'
                 manager = MemoryManager
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
             @ItemRoute.GET()
@@ -117,7 +117,7 @@ class RelationTestCase(BaseTestCase):
                 name = 'person'
                 model = name
                 manager = MemoryManager
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
         self.api.add_resource(Person)
@@ -130,7 +130,7 @@ class RelationTestCase(BaseTestCase):
                 name = 'group'
                 model = name
                 manager = MemoryManager
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
             members = Relation('person')

@@ -1,7 +1,9 @@
 from collections import OrderedDict
+
 from flask import json
 from werkzeug.utils import cached_property
 from jsonschema import Draft4Validator, ValidationError, FormatChecker
+
 from flask_potion.reference import ResourceBound
 from flask_potion.utils import unpack
 from flask_potion.exceptions import ValidationError as PotionValidationError, RequestMustBeJSON

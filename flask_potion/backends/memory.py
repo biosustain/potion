@@ -84,6 +84,12 @@ class MemoryManager(Manager):
 
         return items
 
+    def first(self, where=None, sort=None):
+        try:
+            return next(self.instances(where, sort))
+        except StopIteration:
+            raise ItemNotFound(self.resource, where=where)
+
     def create(self, properties, commit=True):
         item_id = self._new_item_id()
         item = dict({self.id_attribute: item_id})

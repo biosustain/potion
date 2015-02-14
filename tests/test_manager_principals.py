@@ -232,7 +232,6 @@ class PrincipalTestCase(BaseTestCase):
         class UserResource(PrincipalResource):
             class Meta:
                 model = self.USER
-                id_field_class = fields.ItemUri
                 permissions = {
                     'create': 'admin'
                 }

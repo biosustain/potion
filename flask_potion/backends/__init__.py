@@ -1,7 +1,9 @@
 from __future__ import division
 import datetime
 from math import ceil
+
 import six
+from flask_potion.exceptions import ItemNotFound
 from flask_potion import fields
 
 
@@ -91,6 +93,19 @@ class Manager(object):
         :return:
         """
         pass
+
+    def first(self, where=None, sort=None):
+        """
+
+        :param where:
+        :param sort:
+        :return:
+        :raises exceptions.ItemNotFound:
+        """
+        try:
+            return self.instances(where, sort)[0]
+        except IndexError:
+            raise ItemNotFound(self.resource, where=where)
 
     def create(self, properties, commit=True):
         """

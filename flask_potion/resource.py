@@ -2,13 +2,16 @@ from collections import OrderedDict
 import inspect
 from operator import attrgetter
 import itertools
+
 import six
-from . import fields
+
+from .natural_keys import RefKey, IDKey, PropertyKey, PropertiesKey
+from .fields import ItemType, ItemUri, Integer, Inline
 from .reference import ResourceBound
 from .instances import Instances
 from .utils import AttributeDict
 from .backends.alchemy import SQLAlchemyManager
-from .routes import Route, DeferredSchema, RouteSet
+from .routes import Route
 from .schema import FieldSet
 
 
@@ -36,12 +39,6 @@ class ResourceMeta(type):
 
             if not changes.get('name', None):
                 meta['name'] = name.lower()
-
-            # NKs: group by type -- e.g. string, integer, object, array -- while keeping order intact:
-            # if 'natural_keys' in meta:
-            #     meta['natural_keys_by_type'] = natural_keys_by_type = defaultdict(list)
-            #     for nk in meta['natural_keys']:
-            #         natural_keys_by_type[nk.matcher_type(class_)].append(nk)
         else:
             meta['name'] = name.lower()
 
@@ -147,9 +144,6 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
         required_fields = None
         read_only_fields = ()
         write_only_fields = ()
-        # get_item_url_keys = (
-        #     RefResolver(),
-        # )
 
 
 class ModelResourceMeta(ResourceMeta):
@@ -163,15 +157,30 @@ class ModelResourceMeta(ResourceMeta):
             if 'model' in changes or 'model' in meta and 'manager' in changes:
                 fs = class_.schema
 
-                if issubclass(meta.id_field_class, fields.ItemUri):
-                    fs.set('$uri', meta.id_field_class(class_, attribute=meta.id_attribute))
-                else:
+                if meta.include_id:
                     fs.set('$id', meta.id_field_class(io="r", attribute=meta.id_attribute))
+                else:
+                    fs.set('$uri', ItemUri(class_, attribute=meta.id_attribute))
+
                 class_.manager = meta.manager(class_, meta.model)
 
                 if meta.include_type:
-                    fs.set('$type', fields.ItemType(class_))
+                    fs.set('$type', ItemType(class_))
 
+            if 'natural_key' in meta:
+                if isinstance(meta.natural_key, str):
+                    meta['key_converters'] += (PropertyKey(meta.natural_key),)
+                elif isinstance(meta.natural_key, (list, tuple)):
+                    meta['key_converters'] += (PropertiesKey(*meta.natural_key),)
+
+            if 'key_converters' in meta:
+                meta.key_converters = [k.bind(class_) for k in meta['key_converters']]
+                meta.key_converters_by_type = {}
+                for nk in meta.key_converters:
+                    if nk.matcher_type() in meta.key_converters_by_type:
+                        raise RuntimeError(
+                            'Multiple keys of type {} defined for {}'.format(nk.matcher_key(), meta.name))
+                    meta.key_converters_by_type[nk.matcher_type()] = nk
         return class_
 
 
@@ -233,14 +242,14 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         item = self.manager.create(properties)
         return item  # TODO consider 201 Created
 
-    create.request_schema = create.response_schema = fields.Inline('self')
+    create.request_schema = create.response_schema = Inline('self')
 
     @Route.GET(lambda r: '/<{}:id>'.format(r.meta.id_converter), rel="self", attribute="instance")
     def read(self, id):
         return self.manager.read(id)
 
     read.request_schema = None
-    read.response_schema = fields.Inline('self')
+    read.response_schema = Inline('self')
 
     @read.PATCH(rel="update")
     def update(self, properties, id):
@@ -248,7 +257,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         updated_item = self.manager.update(item, properties)
         return updated_item
 
-    update.request_schema = fields.Inline('self', patchable=True)
+    update.request_schema = Inline('self', patchable=True)
     update.response_schema = update.request_schema
 
     @update.DELETE(rel="destroy")
@@ -262,7 +271,8 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
     class Meta:
         id_attribute = 'id'
         id_converter = 'int'
-        id_field_class = fields.ItemUri  # Must inherit from Integer, String or ItemUri
+        id_field_class = Integer  # Must inherit from Integer, String or ItemUri
+        include_id = False
         include_type = False
         manager = SQLAlchemyManager
         include_fields = None
@@ -277,3 +287,8 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         postgres_text_search_fields = ()
         postgres_full_text_index = None  # $fulltext
         cache = False
+        key_converters = (
+            RefKey(),
+            IDKey()
+        )
+        natural_key = None

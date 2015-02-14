@@ -1,16 +1,15 @@
 import calendar
 from datetime import datetime
 import re
-import time
 
 import aniso8601
-from flask import url_for, current_app
+from flask import current_app
 import six
 from werkzeug.utils import cached_property
+
 from flask_potion.utils import get_value
 from flask_potion.reference import ResourceReference, ResourceBound
 from flask_potion.schema import Schema
-from flask_potion import natural_keys
 
 class Raw(Schema):
     """
@@ -53,24 +52,25 @@ class Raw(Schema):
             # enum is independent of type validation:
             if "enum" in schema and None not in schema["enum"]:
                 schema["enum"].append(None)
+
+            if "type" in schema:
+                type_ = schema["type"]
+                if isinstance(type_, (str, dict)):
+                    schema["type"] = [type_, "null"]
+                else:
+                    schema["type"].append("null")
+
             if "anyOf" in schema:
                 if not any("null" in choice.get("type", []) for choice in schema["anyOf"]):
                     schema["anyOf"].append({"type": "null"})
             elif "oneOf" in schema:
                 if not any("null" in choice.get("type", []) for choice in schema["oneOf"]):
                     schema["oneOf"].append({"type": "null"})
-            else:
-                try:
-                    type_ = schema["type"]
-                    if isinstance(type_, (str, dict)):
-                        schema["type"] = [type_, "null"]
-                    else:
-                        schema["type"].append("null")
-                except KeyError:
-                    if len(schema) == 1 and "$ref" in schema:
-                        schema = {"anyOf": [schema, {"type": "null"}]}
-                    else:
-                        current_app.logger.warn('{} is nullable but "null" type cannot be added'.format(self))
+            elif "type" not in schema:
+                if len(schema) == 1 and "$ref" in schema:
+                    schema = {"anyOf": [schema, {"type": "null"}]}
+                else:
+                    current_app.logger.warn('{} is nullable but "null" type cannot be added'.format(self))
 
         for attr in ("default", "title", "description"):
             value = getattr(self, attr)
@@ -587,22 +587,19 @@ class ToOne(Raw, ResourceBound):
     """
     def __init__(self, resource, **kwargs):
         self.target_reference = ResourceReference(resource)
-        self.key_formatter = natural_keys.RefResolver()
 
         def schema():
             target = self.target
-            default_schema = self.key_formatter.schema(target)
-            response_schema = default_schema
-
-            # TODO support $id rather than $refObj
-            # natural_keys = target.meta.natural_keys
-            # if natural_keys:
-            #     request_schema = {
-            #         "anyOf": [default_schema] + [nk.schema(target) for nk in natural_keys]
-            #     }
-            # else:
-            #     request_schema = default_schema
-            return default_schema
+            key_converters = self.target.meta.key_converters
+            response_schema = self.formatter_key.response
+            if len(key_converters) > 1:
+                request_schema = {
+                    # "type": [self.formatter_key.matcher_type()] + [nk.matcher_type() for nk in natural_keys],
+                    "anyOf": [nk.request for nk in key_converters]
+                }
+            else:
+                request_schema = self.formatter_key.request
+            return response_schema, request_schema
 
         super(ToOne, self).__init__(schema, **kwargs)
 
@@ -610,7 +607,6 @@ class ToOne(Raw, ResourceBound):
         if self.target_reference.value == 'self':
             return self.__class__(
                 'self',
-                key_formatter=self.key_formatter,
                 default=self.default,
                 attribute=self.attribute,
                 nullable=self.nullable,
@@ -625,11 +621,21 @@ class ToOne(Raw, ResourceBound):
     def target(self):
         return self.target_reference.resolve(self.resource)
 
+    @cached_property
+    def formatter_key(self):
+        return self.target.meta.key_converters[0]
+
     def formatter(self, item):
-        return self.key_formatter.format(self.target, item)
+        return self.formatter_key.format(item)
 
     def converter(self, value):
-        return self.key_formatter.resolve(self.target, value)
+        for python_type, json_type in (
+                (dict, 'object'),
+                (int, 'integer'),
+                ((list, tuple), 'array'),
+                (six.text_type, 'string')):
+            if isinstance(value, python_type):
+                return self.target.meta.key_converters_by_type[json_type].convert(value)
 
 
 class ToMany(Array):

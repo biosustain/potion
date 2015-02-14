@@ -114,6 +114,6 @@ Schema types
 
 .. autoclass:: Schema
     :members:
-|
+
 .. autoclass:: FieldSet
     :members:

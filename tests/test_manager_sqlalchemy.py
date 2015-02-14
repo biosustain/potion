@@ -33,7 +33,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         class MachineResource(ModelResource):
             class Meta:
                 model = Machine
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
             class Schema:
@@ -42,7 +42,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         class TypeResource(ModelResource):
             class Meta:
                 model = Type
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
             class Schema:
@@ -100,11 +100,11 @@ class SQLAlchemyTestCase(BaseTestCase):
         response = self.client.post('/type', data={"name": "x-ray"})
         self.assertJSONEqual({'$id': 1, '$type': 'type', 'machines': [], "name": "x-ray"}, response.json)
 
-        response = self.client.post('/machine', data={"name": "Irradiator I", "type": {"$ref": "/type/1"}})
+        response = self.client.post('/machine', data={"name": "Irradiator I", "type": 1})
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage": None, "name": "Irradiator I"}, response.json)
 
-        response = self.client.post('/machine', data={"name": "Sol IV", "type": {"$ref": "/type/1"}, "wattage": 1.23e45})
+        response = self.client.post('/machine', data={"name": "Sol IV", "type": 1, "wattage": 1.23e45})
         self.assert200(response)
         self.assertJSONEqual({'$id': 2, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage":  1.23e45, "name": "Sol IV"}, response.json)
 
@@ -156,7 +156,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         response = self.client.post('/type', data={"name": "T2"})
         self.assert200(response)
 
-        response = self.client.post('/machine', data={"name": "Robot", "type": {"$ref": "/type/1"}})
+        response = self.client.post('/machine', data={"name": "Robot", "type": 1})
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage": None, "name": "Robot"}, response.json)
 
@@ -175,12 +175,32 @@ class SQLAlchemyTestCase(BaseTestCase):
 
         response = self.client.patch('/machine/1', data={"type": None})
         self.assert400(response)
+        self.pp(response.json)
         self.assertJSONEqual({
                                  'errors': [
                                      {
-                                         'path': ['type'],
-                                         'validationOf': {'type': 'object'},
-                                         'message': "None is not of type 'object'",
+                                         "message": "None is not valid under any of the given schemas",
+                                         "path": [
+                                             "type"
+                                         ],
+                                         "validationOf": {
+                                             "anyOf": [
+                                                 {
+                                                     "additionalProperties": False,
+                                                     "properties": {
+                                                         "$ref": {
+                                                             "format": "uri",
+                                                             "pattern": "^\\/type\\/[^/]+$",
+                                                             "type": "string"
+                                                         }
+                                                     },
+                                                     "type": "object"
+                                                 },
+                                                 {
+                                                     "type": "integer"
+                                                 }
+                                             ]
+                                         }
                                      }
                                  ],
                                  'message': 'Bad Request',
@@ -237,7 +257,7 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         class UserResource(ModelResource):
             class Meta:
                 model = User
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
             children = Relation('self')
@@ -245,7 +265,7 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         class GroupResource(ModelResource):
             class Meta:
                 model = Group
-                id_field_class = fields.Integer
+                include_id = True
                 include_type = True
 
             members = Relation('user')

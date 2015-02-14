@@ -137,6 +137,8 @@ write_only_fields      ---                              A list of fields that ca
 title                  ---                             JSON-schema title declaration
 description            ---                             JSON-schema description declaration
 manager                :class:`SQLAlchemyManager`      A :class:`Manager` class that takes care of reading from and writing to the data store
+key_converters         ``(RefKey(), IDKey())``         A list of :class:`natural_keys.Key` instances. The first is used for formatting ``fields.ToOne`` references.
+natural_key            ``None``                        A string, or tuple of strings, corresponding to schema field names, for a natural key.
 =====================  ==============================  ==============================================================================
 
 
@@ -283,7 +285,7 @@ We're going to add two authors and books:
 .. code-block:: bash
 
 
-    http :5000/book title="On the Origin of Species" author:='{"$ref": "/author/1"}' year_published:=1859
+    http :5000/book title="On the Origin of Species" author:=1 year_published:=1859
 
 
 .. code-block:: http
@@ -340,7 +342,7 @@ RESTful way for querying a *one-to-many* relation:
 
 .. code-block:: bash
 
-    http GET :5000/book where=='{"author": {"$ref": "/author/1"}}'
+    http GET :5000/book where=='{"author": 1}'
 
 .. code-block:: http
 
@@ -363,18 +365,54 @@ RESTful way for querying a *one-to-many* relation:
         }
     ]
 
+So far, in our queries, we have used item ids to refer to items — ``{"author": 1}``, and so on. The server always returns
+*json-ref* objects for easy parsing (e.g. ``{"$ref": "/author/1"}``), and in fact all queries could also be made with *json-ref* objects.
+
+These *surrogate keys* are can be difficult to remember and tedious to work with on the command line, but Potion has a solution.
+
+Natural Keys
+^^^^^^^^^^^^
+
+Potion ships with support for declaring *natural keys* for queries. A natural key is a unique identifier that exists in the real world and is often more memorable than
+a surrogate key.
+
+For instance, the *author* model has both a first name and a last name. Together, these two names form a natural key for the *author* resource. We'll update both our database model and our resource to reflect this:
+
+.. code-block:: python
+
+    class Author(db.Model):
+        id = db.Column(db.Integer, primary_key=True)
+        first_name = db.Column(db.String(), nullable=False)
+        last_name = db.Column(db.String(), nullable=False)
+
+        __table_args__ = (
+            UniqueConstraint('first_name', 'last_name'),  # unique constraint added here
+        )
+
+
+.. code-block:: python
+
+    class AuthorResource(ModelResource):
+        class Meta:
+            model = Author
+            natural_key = ('first_name', 'last_name')  # natural key declaration added here
+
+
+Now our earlier query can be written like this:
+
+
+.. code-block:: bash
+
+    http GET :5000/book where=='{"author": ["Charles", "Darwin"]}'
+
+Natural keys can be declared as either a single unique field or a tuple of fields that are unique together.
+
 Filtering & Sorting
 -------------------
 
 Instances of a :class:`ModelResource` can be filtered using the *where* query and sorted using *sort*.
 
-We were interested in relations, so we filtered a :class:`fields.ToOne` field when we checked:
-
-::
-
-    http://localhost:5000/book?where={"author": {"$ref": "/author/1"}}
-
-Most other field types can also be filtered and support custom comparators. Here are some examples of *where* queries:
+We were interested in relations, so we filtered a :class:`fields.ToOne` field for equality. Most other field types can also be filtered and support custom comparators. Here are some examples of *where* queries:
 
 .. code-block:: bash
 

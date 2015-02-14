@@ -1,10 +1,11 @@
 from collections import OrderedDict
 import re
 from types import MethodType
+import sys
 
 from flask import request
-import sys
 from werkzeug.utils import cached_property
+
 from .fields import _field_from_object
 from . import fields
 from .utils import get_value

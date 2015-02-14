@@ -4,6 +4,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import Forbidden
 from werkzeug.utils import cached_property
 from flask_principal import Permission, RoleNeed
+
 from flask_potion.resource import ModelResource
 from flask_potion.fields import ToOne
 from flask_potion.backends import Pagination

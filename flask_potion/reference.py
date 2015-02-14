@@ -1,5 +1,6 @@
 from importlib import import_module
 import inspect
+
 import six
 from flask import current_app, _app_ctx_stack
 
@@ -47,9 +48,13 @@ class ResourceReference(object):
 class ResourceBound(object):
     resource = None
 
+    def _on_bind(self, resource):
+        pass
+
     def bind(self, resource):
         if self.resource is None:
             self.resource = resource
+            self._on_bind(resource)
         elif self.resource != resource:
             return self.rebind(resource)
         return self
