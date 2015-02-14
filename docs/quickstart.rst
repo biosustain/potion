@@ -308,11 +308,13 @@ We're going to add two authors and books:
 .. code-block:: bash
 
     http :5000/author first_name=James last_name=Watson > /dev/null
-    http :5000/book title="The Double Helix" author:='{"$ref": "/author/2"}' year_published:=1968 > /dev/null
+    http :5000/book title="The Double Helix" author:=2 year_published:=1968 > /dev/null
 
 As you can see, references in Potion are `JSON Reference <https://tools.ietf.org/html/draft-pbryan-zyp-json-ref-03>`_ draft reference
 objects. These objects always have the same format — ``{"$ref": 'target-uri'}`` — and can easily be recognized by an API client
 when deserializing JSON. An API client can first check its cache for the target item and, if necessary, query it from the server.
+
+Requests, on the other hand, allow both plain ids and *json-ref* objects — it's all the same to the server.
 
 There are now two ways available to us for querying the relationship between the resources. The first is the author's
 ``Relation('book')``, which created a new route on the *author* resource with references to the book resource. Let's query Charles' books:
@@ -365,18 +367,16 @@ RESTful way for querying a *one-to-many* relation:
         }
     ]
 
-So far, in our queries, we have used item ids to refer to items — ``{"author": 1}``, and so on. The server always returns
-*json-ref* objects for easy parsing (e.g. ``{"$ref": "/author/1"}``), and in fact all queries could also be made with *json-ref* objects.
-
-These *surrogate keys* are can be difficult to remember and tedious to work with on the command line, but Potion has a solution.
+So far, in our queries, we have used item ids and *json-ref* objects to refer to items. These *surrogate keys* are can
+be difficult to remember and tedious to work with on the command line, but Potion has a solution:
 
 Natural Keys
 ^^^^^^^^^^^^
 
-Potion ships with support for declaring *natural keys* for queries. A natural key is a unique identifier that exists in the real world and is often more memorable than
-a surrogate key.
+A natural key is a unique identifier that exists in the real world and is often more memorable than
+a surrogate key. Potion ships with support for declaring *natural keys*.
 
-For instance, the *author* model has both a first name and a last name. Together, these two names form a natural key for the *author* resource. We'll update both our database model and our resource to reflect this:
+The *author* model has both a first name and a last name. Together, these two names form a natural key for the *author* resource. We'll update both our database model and our resource to reflect this:
 
 .. code-block:: python
 
@@ -398,7 +398,7 @@ For instance, the *author* model has both a first name and a last name. Together
             natural_key = ('first_name', 'last_name')  # natural key declaration added here
 
 
-Now our earlier query can be written like this:
+Now our earlier query can be written using the full name of the author:
 
 
 .. code-block:: bash
