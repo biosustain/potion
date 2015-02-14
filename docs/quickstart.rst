@@ -344,7 +344,7 @@ RESTful way for querying a *one-to-many* relation:
 
 .. code-block:: bash
 
-    http GET :5000/book where=='{"author": 1}'
+    http GET :5000/book where=='{"author": {"$ref": "/author/1"}}'
 
 .. code-block:: http
 
@@ -367,7 +367,7 @@ RESTful way for querying a *one-to-many* relation:
         }
     ]
 
-So far, in our queries, we have used item ids and *json-ref* objects to refer to items. These *surrogate keys* are can
+So far, in our queries, we have used item ids and *json-ref* objects to refer to items. These *surrogate keys* can
 be difficult to remember and tedious to work with on the command line, but Potion has a solution:
 
 Natural Keys
