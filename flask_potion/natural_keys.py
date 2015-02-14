@@ -75,10 +75,7 @@ class PropertyKey(Key):
         return self.resource.schema.fields[self.property].output(self.property, item)
 
     def convert(self, value):
-        try:
-            return self.resource.manager.first(where=[Condition(self.property, COMPARATORS['$eq'], value)])
-        except IndexError:
-            raise ItemNotFound(self.resource, natural_key=value)
+        return self.resource.manager.first(where=[Condition(self.property, COMPARATORS['$eq'], value)])
 
 
 class PropertiesKey(Key):
@@ -103,13 +100,10 @@ class PropertiesKey(Key):
         return [self.resource.schema.fields[p].output(p, item) for p in self.properties]
 
     def convert(self, value):
-        try:
-            return self.resource.manager.first(where=[
-                Condition(property, COMPARATORS['$eq'], value[i])
-                for i, property in enumerate(self.properties)
-            ])
-        except IndexError:
-            raise ItemNotFound(self.resource, natural_key=value)
+        return self.resource.manager.first(where=[
+            Condition(property, COMPARATORS['$eq'], value[i])
+            for i, property in enumerate(self.properties)
+        ])
 
 
 class IDKey(Key):
