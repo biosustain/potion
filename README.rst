@@ -50,10 +50,10 @@ Features
 - *Flask-SQLAlchemy* integration
 - Filtering, sorting, pagination, validation, built right in
 - Smart system for handling relations between resources
+- Natural keys for extra simple relation querying
 - Easy-to-use, yet highly flexible, optional permissions system
 - Signals for pre- and post-processing of requests
 - Very customizable — everything is just a resource, route, or schema
-- Natural keys for extra simple relation querying
 
 
 Long-term goals
