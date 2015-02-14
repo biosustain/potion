@@ -368,7 +368,7 @@ RESTful way for querying a *one-to-many* relation:
     ]
 
 So far, in our queries, we have used item ids and *json-ref* objects to refer to items. These *surrogate keys* can
-be difficult to remember and tedious to work with on the command line, but Potion has a solution:
+be difficult to remember and tedious to work with on the command line — but Potion has a solution:
 
 Natural Keys
 ^^^^^^^^^^^^
