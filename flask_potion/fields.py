@@ -633,7 +633,7 @@ class ToOne(Raw, ResourceBound):
                 (dict, 'object'),
                 (int, 'integer'),
                 ((list, tuple), 'array'),
-                (six.text_type, 'string')):
+                (six.string_types, 'string')):
             if isinstance(value, python_type):
                 return self.target.meta.key_converters_by_type[json_type].convert(value)
 

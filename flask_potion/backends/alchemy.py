@@ -9,7 +9,7 @@ from sqlalchemy.orm import class_mapper
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 
-from flask.ext.potion.utils import get_value
+from flask_potion.utils import get_value
 from flask_potion import fields
 from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
 from flask_potion.backends import Manager, Pagination

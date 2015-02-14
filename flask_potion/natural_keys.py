@@ -13,7 +13,7 @@ class Key(Schema, ResourceBound):
 
     def matcher_type(self):
         type_ = self.response['type']
-        if isinstance(type_, six.text_type):
+        if isinstance(type_, six.string_types):
             return type_
         return type_[0]
 
