@@ -23,6 +23,18 @@ class RouteTestCase(BaseTestCase):
         with self.app.test_request_context('/foo/test'):
             self.assertEqual({'success': True, 'boundToResource': 'foo'}, view())
 
+    def test_route_schema(self):
+        route = Route.GET(title="foo", description="bar")(lambda *args, **kwargs: None)
+        route.attribute = 'attr'
+
+        self.assertEqual({
+                             "description": "bar",
+                             "href": "attr",
+                             "method": "GET",
+                             "rel": "attr",
+                             "title": "foo"
+                         }, route.schema_factory(Resource))
+
 
 class ResourceTestCase(BaseTestCase):
     def test_potion_resource(self):

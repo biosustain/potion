@@ -36,12 +36,16 @@ class Link(object):
     def __init__(self,
                  view_func,
                  rel=None,
+                 title=None,
+                 description=None,
                  route=None,
                  method=None,
                  schema=None,
                  response_schema=None,
                  format_response=True):
         self.rel = rel
+        self.title = title
+        self.description = description
         self.route = route
         self.method = method
         self.view_func = view_func
@@ -75,6 +79,11 @@ class Link(object):
             ("href", url_rule_to_uri_pattern(self.route.rule_factory(resource, relative=False))),
             ("method", self.method)
         ])
+
+        if self.title:
+            schema["title"] = self.title
+        if self.description:
+            schema["description"] = self.description
 
         if request_schema:
             schema["schema"] = request_schema.request
@@ -113,9 +122,11 @@ class Route(object):
         instance._set_method_link(method, func, **kwargs)
         return instance
 
-    def _set_method_link(self, method, view_func, rel=None, schema=None, response_schema=None):
+    def _set_method_link(self, method, view_func, rel=None, title=None, description=None, schema=None, response_schema=None):
         link = Link(view_func,
                         rel=rel,
+                        title=title,
+                        description=description,
                         route=self,
                         method=method,
                         schema=schema,

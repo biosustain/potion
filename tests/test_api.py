@@ -27,6 +27,17 @@ class ApiTestCase(BaseTestCase):
         response = self.client.get("/book/schema")
         self.assert200(response)
 
+    def test_api_schema(self):
+        api = Api(self.app, title="Welcome to Foo API!", description="...")
+
+        response = self.client.get("/schema")
+        self.assertEqual({
+                             "$schema": "http://json-schema.org/draft-04/hyper-schema#",
+                             "title": "Welcome to Foo API!",
+                             "description": "...",
+                             "properties": {}
+                         }, response.json)
+
     def test_api_prefix(self):
         api = Api(self.app, prefix='/api/v1')
 
