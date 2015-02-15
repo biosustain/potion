@@ -19,7 +19,6 @@ class ApiTestCase(BaseTestCase):
 
         self.assertEqual({
                              "$schema": "http://json-schema.org/draft-04/hyper-schema#",
-                             "definitions": {},
                              "properties": {
                                  "book": {"$ref": "/book/schema#"}
                              }
@@ -53,7 +52,6 @@ class ApiTestCase(BaseTestCase):
 
         self.assertEqual({
                              "$schema": "http://json-schema.org/draft-04/hyper-schema#",
-                             "definitions": {},
                              "properties": {
                                  "book": {"$ref": "/api/v1/book/schema#"}
                              }

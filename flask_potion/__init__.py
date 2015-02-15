@@ -11,7 +11,6 @@ from .routes import RouteSet
 from .utils import unpack
 from .resource import Resource, ModelResource
 
-
 __version_info__ = (1, 0, 0)
 __version__ = '.'.join(map(str, __version_info__))
 __all__ = (
@@ -26,6 +25,7 @@ __all__ = (
     'natural_keys'
 )
 
+
 class Api(object):
     """
     This is the Potion extension.
@@ -35,11 +35,15 @@ class Api(object):
     :param app: a :class:`Flask` instance
     :param list decorators: an optional list of decorator functions
     :param prefix: an optional API prefix. Must start with "/"
+    :param str title: an optional title for the schema
+    :param str description: an optional description for the schema
     """
-    def __init__(self, app=None, decorators=None, prefix=None):
-        self.app = None
+    def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None):
+        self.app = app
         self.prefix = prefix or ''
         self.decorators = decorators or []
+        self.title = title
+        self.description = description
         self.endpoints = set()
         self.resources = {}
         self.views = []
@@ -47,25 +51,22 @@ class Api(object):
         if app is not None:
             self.init_app(app)
 
-
     def init_app(self, app):
         """
-
         :param app: a :class:`Flask` instance
         """
-        self.app = app
-        app.potion = self
+        app.potion = self  # NOTE in part because of this, only one Api instance can exist per app
+        app.config.setdefault('POTION_MAX_PER_PAGE', 100)
+        app.config.setdefault('POTION_DEFAULT_PER_PAGE', 20)
 
-        self.max_per_page = app.config.get('POTION_MAX_PER_PAGE', 100)
-        self.default_per_page = app.config.get('POTION_DEFAULT_PER_PAGE', 20)
-
-        self._complete_view(''.join((self.prefix, '/schema')),
-                            view_func=self.output(self._schema_view),
-                            endpoint='schema',
-                            methods=['GET'])
+        app.add_url_rule(
+            rule=''.join((self.prefix, '/schema')),
+            view_func=self.output(self._schema_view),
+            endpoint='schema',
+            methods=['GET'])
 
         for rule, view, endpoint, methods in self.views:
-            self._complete_view(rule, view_func=view, endpoint=endpoint, methods=methods)
+            app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
 
         @app.errorhandler(PotionException)
         def handle_invalid_usage(error):
@@ -93,25 +94,22 @@ class Api(object):
 
         return wrapper
 
-    def _complete_view(self, rule, **kwargs):
-        self.app.add_url_rule(rule, **kwargs)
-
     def _schema_view(self):
-        definitions = OrderedDict([])
-        properties = OrderedDict([])
-        schema = OrderedDict([
-            ("$schema", "http://json-schema.org/draft-04/hyper-schema#"),
-            ("definitions", definitions),
-            ("properties", properties)
-        ])
+        schema = OrderedDict()
+        schema["$schema"] = "http://json-schema.org/draft-04/hyper-schema#"
 
-        # TODO add title, description
+        if self.title:
+            schema["title"] = self.title
+        if self.description:
+            schema["description"] = self.description
 
+        # schema["definitions"] = definitions = OrderedDict([])
+        schema["properties"] = properties = OrderedDict([])
         for name, resource in sorted(self.resources.items(), key=operator.itemgetter(0)):
             resource_schema_rule = resource.routes['schema'].rule_factory(resource)
             properties[name] = {"$ref": '{}#'.format(resource_schema_rule)}
 
-        return schema, 200, {'Content-Type': 'application/schema+json'}
+        return OrderedDict(schema), 200, {'Content-Type': 'application/schema+json'}
 
     def add_route(self, route, resource, endpoint=None):
         endpoint = endpoint or '.'.join((resource.meta.name, route.attribute))
@@ -123,7 +121,7 @@ class Api(object):
             view = decorator(view)
 
         if self.app:
-            self._complete_view(rule, view_func=view, endpoint=endpoint, methods=methods)
+            self.app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
         else:
             self.views.append((rule, view, endpoint, methods))
 

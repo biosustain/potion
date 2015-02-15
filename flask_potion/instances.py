@@ -1,7 +1,7 @@
 from collections import namedtuple
 import collections
 
-from flask import json, request
+from flask import json, request, current_app
 from flask_sqlalchemy import Pagination as SAPagination
 from werkzeug.utils import cached_property
 
@@ -247,8 +247,8 @@ class Instances(PaginationMixin, Schema, ResourceBound):
                 "per_page": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": self.resource.api.max_per_page,
-                    "default": self.resource.api.default_per_page
+                    "maximum": current_app.config['POTION_MAX_PER_PAGE'],
+                    "default": current_app.config['POTION_DEFAULT_PER_PAGE'],
                 }
             },
             "additionalProperties": True
@@ -302,7 +302,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
         # TODO (implement in FieldSet too:) load values from request.args
         try:
             page = request.args.get('page', 1, type=int)
-            per_page = request.args.get('per_page', self.resource.api.default_per_page, type=int)
+            per_page = request.args.get('per_page', current_app.config['POTION_DEFAULT_PER_PAGE'], type=int)
             where = json.loads(request.args.get('where', '{}'))  # FIXME
             sort = json.loads(request.args.get('sort', '{}'), object_pairs_hook=collections.OrderedDict)
         except ValueError:
