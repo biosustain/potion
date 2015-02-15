@@ -26,31 +26,10 @@ def attribute_to_route_uri(s):
 def to_camel_case(s):
     return s[0].lower() + s.title().replace('_', '')[1:] if s else s
 
-class DeferredSchema(object):
-    def __init__(self, class_, *args, **kwargs):
-        self.schema_class = class_
-        self.schema_args = args
-        self.schema_kwargs = kwargs
-        self._cached_schemas = {}
-
-    def __call__(self, resource):
-        if resource in self._cached_schemas:
-            return self._cached_schemas[resource]
-
-        schema = self.schema_class(*self.schema_args, **self.schema_kwargs)
-        if isinstance(schema, ResourceBound):
-            schema.bind(resource)
-
-        self._cached_schemas[resource] = schema
-        return schema
-
-    @classmethod
-    def resolve(cls, schema, resource):
-        if isinstance(schema, cls):
-            return schema(resource)
-        if isinstance(schema, ResourceBound):
-            return schema.bind(resource)
-        return schema
+def _bind_schema(schema, resource):
+    if isinstance(schema, ResourceBound):
+        return schema.bind(resource)
+    return schema
 
 
 class Link(object):
@@ -87,8 +66,8 @@ class Link(object):
             return "{}_{}".format(self.method, self.route.attribute)
 
     def schema_factory(self, resource):
-        request_schema = DeferredSchema.resolve(self.request_schema, resource)
-        response_schema = DeferredSchema.resolve(self.response_schema, resource)
+        request_schema = _bind_schema(self.request_schema, resource)
+        response_schema = _bind_schema(self.response_schema, resource)
 
         # NOTE "href" for rel="instances" MUST NOT be relative; others MAY BE relative
         schema = OrderedDict([
@@ -192,8 +171,8 @@ class Route(object):
         return ''.join((resource.route_prefix, rule))
 
     def _view_factory(self, link, name, resource):
-        request_schema = DeferredSchema.resolve(link.request_schema, resource)
-        response_schema = DeferredSchema.resolve(link.response_schema, resource)
+        request_schema = _bind_schema(link.request_schema, resource)
+        response_schema = _bind_schema(link.response_schema, resource)
         view_func = link.view_func
 
         def view(*args, **kwargs):

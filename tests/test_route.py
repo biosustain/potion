@@ -1,7 +1,7 @@
 import json
 from flask_potion import fields, Api
 from flask_potion.resource import Resource
-from flask_potion.routes import Route, DeferredSchema
+from flask_potion.routes import Route
 from flask_potion.schema import FieldSet, Schema
 from tests import BaseTestCase
 
