@@ -11,8 +11,6 @@ from .routes import RouteSet
 from .utils import unpack
 from .resource import Resource, ModelResource
 
-__version_info__ = (1, 0, 0)
-__version__ = '.'.join(map(str, __version_info__))
 __all__ = (
     'Api',
     'Resource',
