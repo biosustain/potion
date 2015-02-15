@@ -6,12 +6,12 @@ import sys
 from flask import request
 from werkzeug.utils import cached_property
 
-from .fields import _field_from_object
-from . import fields
-from .utils import get_value
-from .instances import Instances, RelationInstances
-from .reference import ResourceBound, ResourceReference
-from .schema import Schema, FieldSet
+from flask_potion.fields import _field_from_object
+from flask_potion.fields import ToOne, Integer, Object
+from flask_potion.utils import get_value
+from flask_potion.instances import Instances, RelationInstances
+from flask_potion.reference import ResourceBound, ResourceReference
+from flask_potion.schema import Schema, FieldSet
 
 
 HTTP_METHODS = ('GET', 'PUT', 'POST', 'PATCH', 'DELETE')
@@ -33,6 +33,38 @@ def _bind_schema(schema, resource):
 
 
 class Link(object):
+    """
+    This class is an container used by :class:`Route` to store method view functions and their schemas.
+
+    Links are not bound to a specific resource and their schema, generated using :meth:`schema_factory` can vary depending on the resource.
+
+    If ``view_func`` has an ``__annotations__`` attribute (a Python 3.x function annotation), the annotations
+    will be used to generate the ``request_schema`` and ``response_schema``. The *return* annotation in this case
+    is expected to be a :class:`schema.Schema` used for responses, and all other annotations are expected to be of type :class:`fields.Raw`
+    and are combined into a :class:`schema.Fieldset`.
+
+    :param callable view_func: view function
+    :param str rel: relation
+    :param str title: title of schema
+    :param str description: description of schema
+    :param routes.Route route: route this link belongs to
+    :param str method: a HTTP request method name (upper case)
+    :param schema.Schema schema: request schema
+    :param schema.Schema response_schema: response schema
+    :param bool format_response: whether the response should be converted using the response schema
+
+    .. property:: relation
+
+        A relation for the string, equal to ``rel`` if one was given.
+
+    .. attribute:: request_schema
+
+        request schema (not resource-bound)
+
+    .. attribute:: response_schema
+
+        response schema (not resource-bound)
+    """
     def __init__(self,
                  view_func,
                  rel=None,
@@ -70,6 +102,9 @@ class Link(object):
             return "{}_{}".format(self.method, self.route.attribute)
 
     def schema_factory(self, resource):
+        """
+        Returns a link schema for a specific resource.
+        """
         request_schema = _bind_schema(self.request_schema, resource)
         response_schema = _bind_schema(self.response_schema, resource)
 
@@ -104,6 +139,39 @@ def _method_decorator(method):
 
 
 class Route(object):
+    """
+
+    .. decoratormethod:: METHOD(rule=None, attribute=None, rel=None, title=None, description=None, schema=None, response_schema=None, format_response=True)
+
+        A decorator for registering the *METHOD* method handler of a route. Can be used with or without arguments and on both class and route instances. The ``rule`` and ``attribute``
+        arguments are only available on the class.
+
+        When used with an instance will add or replace the view function for the *METHOD* method of this :class:`Route` with the decorated function; otherwise instantiates a new :class:`Route` with the view function.
+
+        This decorator is defined for the *GET*, *PUT*, *POST*, *PATCH* and *DELETE* methods.
+
+        :param str rule: (class-only) route URI relative to the resource, defaults to ``/{attribute}``, replacing any ``'_'`` (underscore) in ``attribute`` with ``'-'`` (dash).
+        :param str attribute: (class-only) attribute on the parent resource, used to identify the route internally; defaults to the attribute name of the decorated view function within the parent resource.
+        :param str rel: relation of the method link to the resource
+        :param str title: title of link schema
+        :param str description: description of link schema
+        :param schema.Schema schema: request schema
+        :param schema.Schema schema: response schema
+        :param bool format_response: whether the response should be converted using the response schema
+
+    .. attribute:: request_schema
+
+        Used to get and set the response schema for the most recently decorated request method view function
+
+    .. attribute:: response_schema
+
+        Used to get and set the response schema for the most recently decorated request method view function
+
+    .. attribute:: method_links
+
+        A dictionary mapping of method names (in upper case) to :class:`routes.Link` objects containing the method view functions.
+
+    """
     def __init__(self, rule=None, attribute=None, format_response=True):
         self.rule = rule
         self.attribute = attribute
@@ -163,9 +231,15 @@ class Route(object):
         self.current_link.response_schema = schema
 
     def links(self):
+        """
+        Helper function that returns a list of all links within this route.
+        """
         return self._method_links.values()
 
     def methods(self):
+        """
+        Helper function that returns a list of all methods supported by this route.
+        """
         return [link.method for link in self.links()]
 
     def _rule_factory(self, resource, relative=False):
@@ -203,9 +277,21 @@ class Route(object):
         return view
 
     def rule_factory(self, resource, relative=False):
+        """
+        Returns a URL rule string for this route and resource.
+
+        :param flask_potion.Resource resource:
+        :param bool relative: whether the rule should be relative to ``resource.route_prefix``
+        """
         return self._rule_factory(resource, relative)
 
     def view_factory(self, name, resource):
+        """
+        Returns a view function for all links within this route and resource.
+
+        :param name: Flask view name
+        :param flask_potion.Resource resource:
+        """
         method_views = {}
 
         for name, link in self._method_links.items():
@@ -235,6 +321,14 @@ for method in HTTP_METHODS:
 
 
 class ItemRoute(Route):
+    """
+    This route can be used with :class:`flask_potion.ModelResource`. It is a simple extension over :class:`Route` with
+    the following adjustments:
+
+    - :meth:`rule_factory` is changed to prefix ``<{id_converter}:id>`` with any rule.
+    - It changes the implementation of :meth:`view_factory` so that it passes the resolved resource item matching *id*
+      as the first positional argument to the view function.
+    """
     def _rule_factory(self, resource, relative=False):
         rule = self.rule
         id_matcher = '<{}:id>'.format(resource.meta.id_converter)
@@ -259,13 +353,24 @@ class ItemRoute(Route):
 
 
 class RouteSet(object):
-    # TODO consider adding dependencies() function for resolving relations before the routes are added
+    """
+    An abstract class for combining related routes into one, which can also be used as a route factory.
+    """
 
     def routes(self):
-        pass
+        """
+        :returns: an iterator over :class:`Route` objects
+        """
+        return ()
 
 
 class ItemAttributeRoute(RouteSet):
+    """
+
+    :param fields.Raw cls_or_instance: a field class or instance
+    :param str attribute: defaults to the field's ``attribute`` attribute
+    :param str io: ``r``, ``w``, or ``rw`` - defaults to the field's ``io`` attribute
+    """
     def __init__(self, cls_or_instance, io=None, attribute=None):
         self.field = _field_from_object(ItemAttributeRoute, cls_or_instance)
         self.attribute = attribute
@@ -296,6 +401,9 @@ class ItemAttributeRoute(RouteSet):
 
 
 class Relation(RouteSet, ResourceBound):
+    """
+    Used to define a relation to another :class:`ModelResource`.
+    """
     def __init__(self, resource, backref=None, io="rw", attribute=None, **kwargs):
         self.reference = ResourceReference(resource)
         self.attribute = attribute
@@ -324,10 +432,10 @@ class Relation(RouteSet, ResourceBound):
                                                            per_page)
 
             relations_route.request_schema = FieldSet({
-                "page": fields.Integer(minimum=1, default=1),
-                "per_page": fields.Integer(minimum=1,
-                                           default=20, # FIXME use API reference
-                                           maximum=50)
+                "page": Integer(minimum=1, default=1),
+                "per_page": Integer(minimum=1,
+                                    default=20,  # FIXME use API reference
+                                    maximum=50)
             })
 
             relations_route.response_schema = RelationInstances(self.target)
@@ -339,8 +447,8 @@ class Relation(RouteSet, ResourceBound):
                 resource.manager.commit()
                 return target_item
 
-            relation_add.request_schema = fields.ToOne(self.target)
-            relation_add.response_schema = fields.ToOne(self.target)
+            relation_add.request_schema = ToOne(self.target)
+            relation_add.response_schema = ToOne(self.target)
 
             @relation_route.DELETE
             def relation_remove(resource, item, target_id):
@@ -354,69 +462,69 @@ class Relation(RouteSet, ResourceBound):
             yield relations_route
 
 
-class ItemMapAttribute(RouteSet):
-    """
-    Adds a route that includes the keys to a dictionary attribute and allows these to be read, set, and deleted
-    either individually or in bulk.
-
-    class Schema:
-        scores = fields.Object(field.Integer)
-
-    GET /item/:id/scores/:key/
-    PUT /item/:id/scores/:key/
-    DELETE /item/:id/scores/:key/
-
-    :param str mapping_attribute: Must map to an attribute that is of type :class:`str`
-    """
-
-    def __init__(self, cls_or_instance, io=None, **kwargs):
-        self.field = field = _field_from_object(cls_or_instance)
-        self.object_field = fields.AttributeMapped(field, **kwargs)
-        self.io = io
-
-    # @Route.GET(lambda r: '/<id:{}>/attribute/<key>'.format(r.meta.id_converter))
-    # def attribute(self, item, key):
-    #     pass
-
-    def routes(self):
-        field = self.field
-        object_field = self.object_field
-        attribute = field.attribute or self.attribute
-        rule = '/{}'.format(attribute_to_route_uri(attribute))
-        io = self.io or field.io
-
-        object = ItemRoute(rule=rule)
-        # object_property = ItemRoute(rule=rule)
-
-        @object.GET(response_schema=object_field)
-        def read(resource, item):
-            return get_value(attribute, item, {})
-
-        read.response_schema = object_field
-
-        @object.POST(schema=object_field)
-        def write(resource, item, value):
-            resource.manager.update(item, {attribute: value})
-            return value
-
-        # TODO PATCH object
-
-        # @object_property.GET(response_schema=field)
-        # def read_property(resource, item, key, value):
-        #     # TODO ensure key matches pattern.
-        #     pass
-        #
-        # @object_property.POST(schema=field)
-        # def write_property(resource, item, key, value):
-        #     # TODO ensure key matches pattern.
-        #     pass
-        #
-        # @object_property.DELETE
-        # def remove_property(resource, item, key):
-        #     # TODO ensure key matches pattern.
-        #     pass
-
-        yield object
+# class ItemMapAttribute(RouteSet):
+#     """
+#     Adds a route that includes the keys to a dictionary attribute and allows these to be read, set, and deleted
+#     either individually or in bulk.
+#
+#     class Schema:
+#         scores = fields.Object(field.Integer)
+#
+#     GET /item/:id/scores/:key/
+#     PUT /item/:id/scores/:key/
+#     DELETE /item/:id/scores/:key/
+#
+#     :param str mapping_attribute: Must map to an attribute that is of type :class:`str`
+#     """
+#
+#     def __init__(self, cls_or_instance, io=None, **kwargs):
+#         self.field = field = _field_from_object(self, cls_or_instance)
+#         self.object_field = Object(field, **kwargs)
+#         self.io = io
+#
+#     # @Route.GET(lambda r: '/<id:{}>/attribute/<key>'.format(r.meta.id_converter))
+#     # def attribute(self, item, key):
+#     #     pass
+#
+#     def routes(self):
+#         field = self.field
+#         object_field = self.object_field
+#         attribute = field.attribute
+#         rule = '/{}'.format(attribute_to_route_uri(attribute))
+#         io = self.io or field.io
+#
+#         object = ItemRoute(rule=rule)
+#         # object_property = ItemRoute(rule=rule)
+#
+#         @object.GET(response_schema=object_field)
+#         def read(resource, item):
+#             return get_value(attribute, item, {})
+#
+#         read.response_schema = object_field
+#
+#         @object.POST(schema=object_field)
+#         def write(resource, item, value):
+#             resource.manager.update(item, {attribute: value})
+#             return value
+#
+#         # TODO PATCH object
+#
+#         # @object_property.GET(response_schema=field)
+#         # def read_property(resource, item, key, value):
+#         #     # TODO ensure key matches pattern.
+#         #     pass
+#         #
+#         # @object_property.POST(schema=field)
+#         # def write_property(resource, item, key, value):
+#         #     # TODO ensure key matches pattern.
+#         #     pass
+#         #
+#         # @object_property.DELETE
+#         # def remove_property(resource, item, key):
+#         #     # TODO ensure key matches pattern.
+#         #     pass
+#
+#         yield object
 
 #
 # class ItemSetAttributeRoute(RouteSet):
