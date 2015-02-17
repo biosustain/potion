@@ -321,7 +321,8 @@ class Object(Raw):
         result = {}
 
         if self.properties:
-            result = {field.attribute or key: field.convert(instance.get(key, None)) for key, field in self.properties.items()}
+            result = {field.attribute or key: field.convert(instance.get(key, field.default))
+                      for key, field in self.properties.items()}
 
         if self.pattern_properties:
             pattern, field = next(iter(self.pattern_properties.items()))
