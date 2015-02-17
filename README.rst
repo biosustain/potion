@@ -41,6 +41,10 @@ The user's guide and documentation is published here:
 
    `http://potion.readthedocs.org/ <http://potion.readthedocs.org/en/latest/>`_
 
+Versioning
+^^^^^^^^^^
+
+Potion will use semantic versioning from v1.0.0. Until then, the minor version is used for changes known to be breaking.
 
 Features
 ========

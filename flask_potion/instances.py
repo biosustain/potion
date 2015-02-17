@@ -34,6 +34,10 @@ DEFAULT_COMPARATORS = (
                },
                lambda in_, value: value in in_,
                (fields.String, fields.Integer, fields.Number)),
+    Comparator('$contains',
+               lambda field: field.container.response,
+               lambda contains, value: value and contains in value,
+               (fields.Array, fields.ToMany)),
     Comparator('$lt',
                lambda field: {"type": "number"},
                lambda lt, value: value < lt,
@@ -50,13 +54,6 @@ DEFAULT_COMPARATORS = (
                lambda field: {"type": "number"},
                lambda gte, value: value <= gte,
                (fields.Integer, fields.Number)),
-    Comparator('$text',
-               lambda field: {
-                   "type": "string",
-                   "minLength": 1
-               },
-               lambda text, value: value and text in value,
-               (fields.String,)),
     Comparator('$startswith',  # TODO case insensitive
                lambda field: {
                    "type": "string",
@@ -187,7 +184,12 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     @classmethod
     def _is_sortable(cls, field):
-        return isinstance(field, (fields.String, fields.Boolean, fields.Number, fields.Integer))
+        return isinstance(field, (fields.String,
+                                  fields.Boolean,
+                                  fields.Number,
+                                  fields.Integer,
+                                  fields.Date,
+                                  fields.DateTime))
 
     def _filter_field_schema(self, field, comparators):
         if len(comparators) == 1 and comparators[0].name == EQUALITY_COMPARATOR:
