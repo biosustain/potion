@@ -12,7 +12,7 @@ setup(
     author='Lars Schöning',
     author_email='lays@biosustain.dtu.dk',
     description='Powerful REST API framework for Flask and SQLAlchemy',
-    long_descriptipn=codecs.open('README.rst', encoding='utf-8').read(),
+    long_description=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
     tests_require=[
         'Flask-Testing>=0.4.1',
