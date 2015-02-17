@@ -257,9 +257,13 @@ class Object(Raw):
                 self.pattern_properties = {pattern: field}
             else:
                 self.additional_properties = field
-        elif isinstance(additional_properties, (type, Raw)):
+
+        if isinstance(additional_properties, (type, Raw)):
             self.additional_properties = _field_from_object(self, additional_properties)
-        elif isinstance(pattern_properties, (type, Raw)):
+        elif additional_properties is True:
+            self.additional_properties = Any()
+
+        if isinstance(pattern_properties, (type, Raw)):
             self.pattern_properties = _field_from_object(self, pattern_properties)
 
         def schema():
