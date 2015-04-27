@@ -245,6 +245,8 @@ We now have both an *author* and a *book* resource:
             author = fields.ToOne('author')
 
     class AuthorResource(ModelResource):
+        books = Relation('book')
+
         class Meta:
             model = Author
 
