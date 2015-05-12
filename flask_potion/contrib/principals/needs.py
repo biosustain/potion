@@ -128,7 +128,7 @@ class HybridRelationshipNeed(HybridItemNeed):
         expression = target_relationship.has(target_field.target.manager.id_column.in_(ids))
 
         for field in reversed_fields:
-            relationship = getattr(field.binding._model, field.attribute)
+            relationship = getattr(field.resource.manager.model, field.attribute)
 
             if isinstance(relationship.impl, ScalarObjectAttributeImpl):
                 expression = relationship.has(expression)
