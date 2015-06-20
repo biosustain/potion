@@ -248,3 +248,7 @@ class SQLAlchemyManager(Manager):
         session.commit()
 
         after_delete.send(self.resource, item=item)
+
+    def commit(self):
+        session = self._get_session()
+        session.commit()

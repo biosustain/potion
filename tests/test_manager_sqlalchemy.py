@@ -13,7 +13,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         super(SQLAlchemyTestCase, self).setUp()
         self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
         self.api = Api(self.app)
-        self.sa = sa = SQLAlchemy(self.app)
+        self.sa = sa = SQLAlchemy(self.app, session_options={"autoflush": False})
 
         class Type(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
@@ -231,26 +231,24 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         super(SQLAlchemyRelationTestCase, self).setUp()
         self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
         self.api = Api(self.app)
-        self.sa = sa = SQLAlchemy(self.app)
+        self.sa = sa = SQLAlchemy(self.app, session_options={"autoflush": False})
+
+        group_members = sa.Table('group_members',
+                               sa.Column('group_id', sa.Integer(), sa.ForeignKey('group.id')),
+                               sa.Column('user_id', sa.Integer(), sa.ForeignKey('user.id')))
 
         class User(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
             parent_id = sa.Column(sa.Integer, sa.ForeignKey(id))
             name = sa.Column(sa.String(60), nullable=False)
 
-            parent = sa.relationship('User', remote_side=[id], backref=backref('children'))
+            parent = sa.relationship('User', remote_side=[id], backref=backref('children', lazy='dynamic'))
 
         class Group(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
             name = sa.Column(sa.String(60), nullable=False)
-
-        class GroupMembership(sa.Model):
-            id = sa.Column(sa.Integer, primary_key=True)
-            user_id = sa.Column(sa.Integer, sa.ForeignKey(User.id), nullable=False)
-            group_id = sa.Column(sa.Integer, sa.ForeignKey(Group.id), nullable=False)
-
-            user = sa.relationship(User)
-            group = sa.relationship(Group)
+            members = sa.relationship('User', secondary=group_members,
+                                      backref=backref('memberships', lazy='dynamic'))
 
         sa.create_all()
 
@@ -272,6 +270,27 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
 
         self.api.add_resource(UserResource)
         self.api.add_resource(GroupResource)
+
+    def test_relationship_secondary(self):
+        response = self.client.post('/group', data={"name": "Foo"})
+        self.assert200(response)
+        self.assertJSONEqual({'$id': 1, '$type': 'group', "name": "Foo"}, response.json)
+
+        response = self.client.post('/user', data={"name": "Bar"})
+        self.assert200(response)
+        self.assertJSONEqual({'$id': 1, '$type': 'user', "name": "Bar"}, response.json)
+
+        response = self.client.get('/group/1/members')
+        self.assert200(response)
+        self.assertJSONEqual([], response.json)
+
+        response = self.client.post('/group/1/members', data={"$ref": "/user/1"})
+        self.assert200(response)
+        self.assertJSONEqual({"$ref": "/user/1"}, response.json)
+
+        response = self.client.get('/group/1/members')
+        self.assert200(response)
+        self.assertJSONEqual([{"$ref": "/user/1"}], response.json)
 
     def test_relationship_post(self):
         response = self.client.post('/user', data={"name": "Foo"})
