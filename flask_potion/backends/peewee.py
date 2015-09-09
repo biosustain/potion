@@ -72,6 +72,8 @@ class PeeweeManager(Manager):
 
                 if isinstance(column, (pw.CharField, pw.TextField)):
                     field_class = fields.String
+                    if hasattr(column, 'max_length') and column.max_length:
+                        kwargs['max_length'] = column.max_length
                 elif isinstance(column, pw.IntegerField):
                     field_class = fields.Integer
                 elif isinstance(column, (pw.DecimalField, pw.FloatField)):
@@ -82,6 +84,8 @@ class PeeweeManager(Manager):
                     field_class = fields.Date
                 elif isinstance(column, pw.DateTimeField):
                     field_class = fields.Datetime
+                elif isinstance(column, pw.BlobField):
+                    field_class = fields.raw
                 elif isinstance(column, postgres_ext.ArrayField):
                     field_class = fields.Array
                     args = (fields.String,)
@@ -95,9 +99,7 @@ class PeeweeManager(Manager):
                     field_class = fields.Raw
                     kwargs = {"schema": {}}
                 else:
-                    raise RuntimeError(
-                        'No appropriate field class for "{}" found'.format(
-                            column))
+                    field_class = fields.String
 
                 kwargs['nullable'] = column.null
 
