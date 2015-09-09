@@ -62,8 +62,7 @@ class PeeweeManager(Manager):
             if (include_fields and name in include_fields) or \
                     (exclude_fields and name not in exclude_fields) or \
                     not (include_fields or exclude_fields):
-                if column.primary_key or \
-                        isinstance(column, pw.ForeignKeyField):
+                if column.primary_key or name in model._meta.rel:
                     continue
                 if name in pre_declared_fields:
                     continue
@@ -86,9 +85,6 @@ class PeeweeManager(Manager):
                 elif isinstance(column, postgres_ext.ArrayField):
                     field_class = fields.Array
                     args = (fields.String,)
-                elif isinstance(column, pw.CharField) and column.max_length:
-                    field_class = fields.String
-                    kwargs = {'max_length': column.max_length}
                 elif postgres_ext and \
                         isinstance(column, postgres_ext.HStoreField):
                     field_class = fields.Object
@@ -159,7 +155,13 @@ class PeeweeManager(Manager):
         signals.before_add_to_relation.send(
             self.resource, item=item, attribute=attribute, child=target_item)
 
-        getattr(item, attribute).add(target_item)
+        relation = getattr(item, attribute)
+        if hasattr(relation, 'add'):
+            relation.add(target_item)
+        else:
+            reverse_attribute = item._meta.reverse_rel[attribute].name
+            setattr(target_item, reverse_attribute, item)
+            target_item.save()
 
         signals.after_add_to_relation.send(
             self.resource, item=item, attribute=attribute, child=target_item)
@@ -168,7 +170,13 @@ class PeeweeManager(Manager):
         signals.before_remove_from_relation.send(
             self.resource, item=item, attribute=attribute, child=target_item)
 
-        getattr(item, attribute).remove(target_item)
+        relation = getattr(item, attribute)
+        if hasattr(relation, 'remove'):
+            relation.remove(target_item)
+        else:
+            reverse_atribute = item._meta.reverse_rel[attribute].name
+            setattr(target_item, reverse_atribute, None)
+            target_item.save()
 
         signals.after_remove_from_relation.send(
             self.resource, item=item, attribute=attribute, child=target_item)

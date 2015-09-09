@@ -413,17 +413,17 @@ class PeeweeRelationTestCase(BaseTestCase):
 
     def test_relationship_pagination(self):
         with self.app.test_client() as client:
-            response = self.client.post('/user', data={"name": "Foo"})
+            response = self.client.post('/user', data={'name': 'Foo'})
         self.assert200(response)
 
         for i in range(2, 50):
             with self.app.test_client() as client:
-                response = client.post('/user', data={"name": str(i)})
+                response = client.post('/user', data={'name': str(i)})
             self.assert200(response)
             with self.app.test_client() as client:
                 response = client.post(
                     '/user/1/children',
-                    data={"$ref": "/user/{}".format(response.json['$id'])})
+                    data={'$ref': '/user/{}'.format(response.json['$id'])})
             self.assert200(response)
 
         with self.app.test_client() as client:
@@ -439,11 +439,3 @@ class PeeweeRelationTestCase(BaseTestCase):
         self.assertJSONEqual(
             [{'$ref': '/user/{}'.format(i)} for i in range(42, 50)],
             response.json)
-
-        self.assertEqual('48', response.headers['X-Total-Count'])
-        self.assertEqual(
-            '</user/1/children?page=3&per_page=20>; rel="self",'
-            '</user/1/children?page=1&per_page=20>; rel="first",'
-            '</user/1/children?page=2&per_page=20>; rel="prev",'
-            '</user/1/children?page=3&per_page=20>; rel="last"',
-            response.headers['Link'])
