@@ -214,7 +214,7 @@ class PeeweeManager(Manager):
         try:
             item.save()
         except pw.IntegrityError as e:
-            if 'UNIQUE constraint failed' in e.message:
+            if 'UNIQUE constraint failed' in str(e):
                 raise DuplicateKey(detail=e.message)
             raise BackendConflict()
 
@@ -243,7 +243,7 @@ class PeeweeManager(Manager):
         try:
             item.save()
         except pw.IntegrityError as e:
-            if 'UNIQUE constraint failed' in e.message:
+            if 'UNIQUE constraint failed' in str(e):
                 raise DuplicateKey(detail=e.message)
             raise
 
