@@ -83,7 +83,7 @@ class PeeweeManager(Manager):
                 elif isinstance(column, pw.DateField):
                     field_class = fields.Date
                 elif isinstance(column, pw.DateTimeField):
-                    field_class = fields.Datetime
+                    field_class = fields.DateTime
                 elif isinstance(column, pw.BlobField):
                     field_class = fields.raw
                 elif isinstance(column, postgres_ext.ArrayField):
