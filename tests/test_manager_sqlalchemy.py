@@ -12,7 +12,7 @@ class SQLAlchemyTestCase(BaseTestCase):
     def setUp(self):
         super(SQLAlchemyTestCase, self).setUp()
         self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
-        self.api = Api(self.app)
+        self.api = Api(self.app, default_manager=SQLAlchemyManager)
         self.sa = sa = SQLAlchemy(self.app, session_options={"autoflush": False})
 
         class Type(sa.Model):
@@ -46,7 +46,7 @@ class SQLAlchemyTestCase(BaseTestCase):
                 include_type = True
 
             class Schema:
-                machines = fields.ToMany(MachineResource)
+                machines = fields.ToMany('machine')
 
         self.MachineResource = MachineResource
         self.TypeResource = TypeResource

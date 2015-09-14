@@ -2,7 +2,6 @@ from collections import namedtuple
 import collections
 
 from flask import json, request, current_app
-from flask_sqlalchemy import Pagination as SAPagination
 from werkzeug.utils import cached_property
 
 from flask_potion import fields
@@ -12,6 +11,12 @@ from .fields import ToMany
 from .reference import ResourceBound
 from .utils import get_value
 from .schema import Schema
+
+try:
+    from flask_sqlalchemy import Pagination as SAPagination
+    PAGINATION_TYPES = (Pagination, SAPagination)
+except ImportError:
+    PAGINATION_TYPES = (Pagination,)
 
 
 Comparator = namedtuple('Comparator', ['name', 'schema', 'expression', 'supported_types'])
@@ -97,7 +102,7 @@ class PaginationMixin(object):
     query_params = ()
 
     def format_response(self, data):
-        if not isinstance(data, (Pagination, SAPagination)):
+        if not isinstance(data, PAGINATION_TYPES):
             return self.format(data)
 
         links = [(request.path, data.page, data.per_page, 'self')]

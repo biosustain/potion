@@ -10,6 +10,7 @@ class ApiTestCase(BaseTestCase):
         class BookResource(ModelResource):
             class Meta:
                 name = "book"
+                model = "book"
                 manager = MemoryManager
 
         api = Api(self.app)
@@ -44,6 +45,7 @@ class ApiTestCase(BaseTestCase):
         class BookResource(ModelResource):
             class Meta:
                 name = "book"
+                model = "book"
                 manager = MemoryManager
 
             @Route.GET

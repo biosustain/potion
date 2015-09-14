@@ -35,8 +35,9 @@ class Api(object):
     :param prefix: an optional API prefix. Must start with "/"
     :param str title: an optional title for the schema
     :param str description: an optional description for the schema
+    :param Manager default_manager: an optional manager to use as default. If SQLAlchemy is installed, will use :class:`backends.alchemy.SQLAlchemyManager`
     """
-    def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None):
+    def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None, default_manager=None):
         self.app = app
         self.prefix = prefix or ''
         self.decorators = decorators or []
@@ -45,6 +46,16 @@ class Api(object):
         self.endpoints = set()
         self.resources = {}
         self.views = []
+
+        self.default_manager = None
+        if default_manager is None:
+            try:
+                from .backends.alchemy import SQLAlchemyManager
+                self.default_manager = SQLAlchemyManager
+            except ImportError:
+                pass
+        else:
+            self.default_manager = default_manager
 
         if app is not None:
             self.init_app(app)
@@ -130,12 +141,21 @@ class Api(object):
         :param Resource resource: resource
         :return:
         """
-        resource.api = self
-        resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
-
         # prevent resources from being added twice
         if resource in self.resources.values():
             return
+
+        # check that each model resource has a manager; if not, initialize it.
+        if issubclass(resource, ModelResource) and resource.manager is None:
+            if self.default_manager:
+                resource.manager = self.default_manager(resource, resource.meta.get('model'))
+            else:
+                raise RuntimeError("'{}' has no manager, and no default manager has been defined. "
+                                   "If you're using Potion with SQLAlchemy, "
+                                   "ensure you have installed Flask-SQLAlchemy.".format(resource.meta.name))
+
+        resource.api = self
+        resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
 
         for route in resource.routes.values():
             self.add_route(route, resource)

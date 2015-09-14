@@ -43,6 +43,7 @@ class NaturalKeyTestCase(BaseTestCase):
                 key_converters = [
                     RefKey()
                 ]
+                model = 'foo'
                 manager = MemoryManager
 
             class Schema:

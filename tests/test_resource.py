@@ -1,6 +1,5 @@
 from flask import json
-from flask_potion import fields, Api
-from flask_potion.resource import ModelResource
+from flask_potion import fields, Api, Resource
 from tests import BaseTestCase
 
 
@@ -12,8 +11,7 @@ class ResourceTestCase(BaseTestCase):
 
     def test_resource(self):
 
-        class FooResource(ModelResource):
-
+        class FooResource(Resource):
             class Schema:
                 name = fields.String()
 

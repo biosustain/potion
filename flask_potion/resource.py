@@ -10,7 +10,6 @@ from .fields import ItemType, ItemUri, Integer, Inline
 from .reference import ResourceBound
 from .instances import Instances
 from .utils import AttributeDict
-from .backends.alchemy import SQLAlchemyManager
 from .routes import Route
 from .schema import FieldSet
 
@@ -162,7 +161,8 @@ class ModelResourceMeta(ResourceMeta):
                 else:
                     fs.set('$uri', ItemUri(class_, attribute=meta.id_attribute))
 
-                class_.manager = meta.manager(class_, meta.model)
+                if meta.manager is not None:
+                    class_.manager = meta.manager(class_, meta.model)
 
                 if meta.include_type:
                     fs.set('$type', ItemType(class_))
@@ -274,7 +274,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         id_field_class = Integer  # Must inherit from Integer, String or ItemUri
         include_id = False
         include_type = False
-        manager = SQLAlchemyManager
+        manager = None
         include_fields = None
         exclude_fields = None
         allowed_filters = "*"
