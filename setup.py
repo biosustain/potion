@@ -44,7 +44,7 @@ setup(
     ],
     zip_safe=False,
     extras_require={
-        'docs': ['sphinx', 'Flask-Principal'],
+        'docs': ['sphinx', 'Flask-Principal', 'Flask-SQLAlchemy', 'peewee'],
         'principal': [
             'Flask-Principal',
         ],
