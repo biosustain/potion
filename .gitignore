@@ -37,3 +37,5 @@ nosetests.xml
 
 # PyCharm
 .idea
+
+*.db
