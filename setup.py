@@ -17,15 +17,15 @@ setup(
     tests_require=[
         'Flask-Testing>=0.4.1',
         'Flask-Principal>=0.4.0',
+        'Flask-SQLAlchemy>=2.0',
+        'peewee>=2.6.3',
         'nose>=1.1.2',
     ],
     install_requires=[
         'Flask>=0.10',
-        'Flask-SQLAlchemy>=2.0',
         'jsonschema>=2.4.0',
         'aniso8601>=0.84',
         'blinker>=1.3',
-        'peewee>=2.6.3',
         'six>=1.8.0'
     ],
     classifiers=[
@@ -47,6 +47,12 @@ setup(
         'docs': ['sphinx', 'Flask-Principal'],
         'principal': [
             'Flask-Principal',
+        ],
+        'sqlalchemy': [
+            'Flask-SQLAlchemy>=2.0'
+        ],
+        'peewee': [
+            'peewee>=2.6.3'
         ]
     }
 )
