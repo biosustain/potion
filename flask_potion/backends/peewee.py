@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 from operator import and_
+from flask import current_app
 
 import peewee as pw
 try:
@@ -214,12 +215,11 @@ class PeeweeManager(Manager):
         try:
             item.save()
         except pw.IntegrityError as e:
-            if 'unique constraint' in str(e).lower():
-                raise DuplicateKey(detail=e.message)
+            if current_app.debug:
+                raise BackendConflict(debug_info=e.args)
             raise BackendConflict()
 
-        signals.after_create.send(
-            self.resource, item=item)
+        signals.after_create.send(self.resource, item=item)
         return item
 
     def read(self, id):
@@ -243,9 +243,9 @@ class PeeweeManager(Manager):
         try:
             item.save()
         except pw.IntegrityError as e:
-            if 'unique constraint' in str(e).lower():
-                raise DuplicateKey(detail=e.message)
-            raise
+            if current_app.debug:
+                raise BackendConflict(debug_info=e.args)
+            raise BackendConflict()
 
         signals.after_update.send(
             self.resource, item=item, changes=actual_changes)
