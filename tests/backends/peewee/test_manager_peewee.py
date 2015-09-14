@@ -1,29 +1,21 @@
 import unittest
 
+import peewee as pw
+from playhouse.fields import ManyToManyField
+
 from flask_potion import Api, fields
 from flask_potion.backends.peewee import PeeweeManager
 from flask_potion.resource import ModelResource
 from flask_potion.routes import Relation
-import peewee as pw
-from playhouse.fields import ManyToManyField
-from playhouse.flask_utils import FlaskDB
-
 from tests import BaseTestCase
-
-
-class DB(FlaskDB):
-    def connect_db(self):
-        pass
-
-    def close_db(self, exc):
-        pass
+from tests.backends.peewee import PeeweeTestDB
 
 
 class PeeweeTestCase(BaseTestCase):
     def setUp(self):
         super(PeeweeTestCase, self).setUp()
         self.app.config['DATABASE'] = 'sqlite://'
-        self.db = db = DB(self.app)
+        self.db = db = PeeweeTestDB(self.app)
         self.api = Api(self.app)
 
         class Type(db.Model):
@@ -33,6 +25,7 @@ class PeeweeTestCase(BaseTestCase):
             name = pw.CharField(max_length=60, null=False)
             wattage = pw.FloatField(null=True)
             type = pw.ForeignKeyField(Type, related_name='machines')
+
         self.db.database.connect()
         self.db.database.create_tables([Type, Machine])
 
@@ -281,7 +274,7 @@ class PeeweeRelationTestCase(BaseTestCase):
         super(PeeweeRelationTestCase, self).setUp()
 
         self.app.config['DATABASE'] = 'sqlite://'
-        self.db = db = DB(self.app)
+        self.db = db = PeeweeTestDB(self.app)
         self.api = Api(self.app)
 
         class User(db.Model):

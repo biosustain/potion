@@ -23,8 +23,8 @@ PW_COMPARATOR_EXPRESSIONS = {
     '$lte': lambda column, value: column <= value,
     '$gte': lambda column, value: column >= value,
     '$contains': lambda column, value: column.contains(value),
-    '$startswith': lambda column, value: column.startswith(value),
-    '$endswith': lambda column, value: column.endswith(value)
+    '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
+    '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%'))
 }
 
 
@@ -215,6 +215,7 @@ class PeeweeManager(Manager):
         try:
             item.save()
         except pw.IntegrityError as e:
+            print(e.args)
             if current_app.debug:
                 raise BackendConflict(debug_info=e.args)
             raise BackendConflict()
