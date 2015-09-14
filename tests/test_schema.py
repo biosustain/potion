@@ -101,5 +101,15 @@ class SchemaTestCase(TestCase):
     def test_fieldset_parse_request(self):
         pass
 
+    def test_fieldset_format(self):
+        self.assertEqual(
+            {"number": 42, "constant": "constant"},
+            FieldSet({
+                "number": fields.Number(),
+                "constant": fields.String(io='r'),
+                "secret": fields.String(io='w'),
+            }).format({"number": 42, "constant": "constant", "secret": "secret"})
+        )
+
     def test_fieldset_format_response(self):
         pass

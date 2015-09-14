@@ -179,7 +179,7 @@ class FieldSet(Schema, ResourceBound):
         return SchemaImpl(self._schema(True))
 
     def format(self, item):
-        return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items())
+        return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items() if 'r' in field.io)
 
     def convert(self, instance, pre_resolved_properties=None, patchable=False, strict=False):
         """
