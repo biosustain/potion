@@ -108,4 +108,6 @@ Authors
 
 Potion is written and maintained by `Lars Schöning <https://github.com/lyschoening>`_.
 
+`Peewee <https://peewee.readthedocs.org/en/latest/>`_ backend support has been contributed by `Michael Lavers <https://github.com/kolanos>`_.
+
 `See here for the full list of contributors <https://github.com/biosustain/potion/graphs/contributors>`_.
