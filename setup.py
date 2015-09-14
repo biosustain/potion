@@ -25,6 +25,7 @@ setup(
         'jsonschema>=2.4.0',
         'aniso8601>=0.84',
         'blinker>=1.3',
+        'peewee>=2.6.3',
         'six>=1.8.0'
     ],
     classifiers=[
