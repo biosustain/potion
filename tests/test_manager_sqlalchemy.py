@@ -125,7 +125,6 @@ class SQLAlchemyTestCase(BaseTestCase):
 
         for i in range(1, 10):
             response = self.client.post('/type', data={"name": "Type-{}".format(i), "machines": []})
-            self.pp(response.json)
             self.assert200(response)
             self.assertJSONEqual(type_(i), response.json)
 
@@ -164,7 +163,6 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assert200(response)
 
         response = self.client.patch('/machine/1', data={"wattage": 10000})
-        self.pp(response.json)
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'machine', 'type': {"$ref": "/type/1"}, "wattage": 10000, "name": "Robot"}, response.json)
 
@@ -175,7 +173,6 @@ class SQLAlchemyTestCase(BaseTestCase):
 
         response = self.client.patch('/machine/1', data={"type": None})
         self.assert400(response)
-        self.pp(response.json)
         self.assertJSONEqual({
                                  'errors': [
                                      {
