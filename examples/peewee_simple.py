@@ -1,21 +1,32 @@
+from peewee import CharField, IntegerField
+from playhouse.flask_utils import FlaskDB
+
 from flask import Flask
-from os.path import isfile
-from peewee import Model, CharField, IntegerField, SqliteDatabase
-from flask_potion.backends.peewee import PeeweeManager
 from flask_potion import Api, ModelResource, fields
+from flask_potion.backends.peewee import PeeweeManager
+
+
+class DB(FlaskDB):
+    def connect_db(self):
+        super(DB, self).connect_db()
+        if not Book.table_exists():
+            Book.create_table()
+
+    def close_db(self, exc):
+        # This is only necessary for a sqlite :memory: databases to prevent the
+        # database from being destroyed after each request.
+        pass
 
 app = Flask(__name__)
 app.debug = True
+app.config['DATABASE'] = 'sqlite://'
 
-pw = SqliteDatabase('peewee-simple.db')
+db = DB(app)
 
 
-class Book(Model):
+class Book(db.Model):
     title = CharField(null=True, unique=True)
     year_published = IntegerField()
-
-    class Meta:
-        database = pw
 
 
 class BookResource(ModelResource):
@@ -29,10 +40,6 @@ class BookResource(ModelResource):
 
 api = Api(app, default_manager=PeeweeManager)
 api.add_resource(BookResource)
-
-if not isfile('peewee-simple.db'):
-    pw.connect()
-    pw.create_tables([Book])
 
 if __name__ == '__main__':
     app.run()

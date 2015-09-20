@@ -6,8 +6,7 @@ Signals
 Potion comes with several `Blinker <http://pythonhosted.org/blinker/>`_ signals. The signals can be used to
 pre-process and post-process most parts of the read, create, update cycle.
 
-Resources using the :class:`SQLAlchemyManager` hook into these signals. Other
-:class:`Manager` implementations should be written to hook into them as well.
+Resources using the :class:`SQLAlchemyManager` or :class:`PeeweeManager` hook into these signals. Other :class:`Manager` implementations should be written to hook into them as well.
 
 
 Signal listeners can edit the item:
