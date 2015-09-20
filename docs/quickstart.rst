@@ -794,6 +794,45 @@ example is perhaps *too* simple, so we're going to complete the guide with a sli
         "value": 1.23
     }
 
+Peewee Backend
+--------------
+
+Potion also includes a Peewee backend if you want a more lightweight ORM. The Peewee backend is very similar to the SQLAlchemy one and only requires a few minor changes to the example above.
+
+First, you'll need to install peewee:
+
+.. code-block:: bash
+
+    $ pip install peewee
+
+Second, when instantiating your Potion API you'll want to set the default manager to the PeeweeManager:
+
+.. code-block:: python
+
+    from flask_potion.backends.peewee import PeeweeManager
+
+    ...
+
+    api = Api(app, default_manager=PeeweeManager)
+
+After that you can pass your Peewee models to your ModelResources just like you would with SQLAlchemy:
+
+.. code-block:: python
+
+    from peewee import Model, CharField, IntegerField
+
+    class Book(Model):
+        title = CharField(null=False)
+        year_published = IntegerField()
+
+        class Meta:
+            database = db
+
+    class BookResource(ModelResource):
+        class Meta:
+            model = Book
+
+See the examples directory for a fully functioning example using Peewee.
 
 What next?
 ----------

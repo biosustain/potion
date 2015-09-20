@@ -1,7 +1,8 @@
+
+from flask import Flask
 from peewee import CharField, IntegerField
 from playhouse.flask_utils import FlaskDB
 
-from flask import Flask
 from flask_potion import Api, ModelResource, fields
 from flask_potion.backends.peewee import PeeweeManager
 
