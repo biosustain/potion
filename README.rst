@@ -30,7 +30,7 @@ Description
 Potion features include validation, model resources and routes, relations, object permissions, filtering, sorting,
 pagination, signals, and automatic API schema generation.
 
-Potion is designed to handle SQLAlchemy models, but it is also possible to integrate other data stores,
+Potion is designed to handle SQLAlchemy and peewee models. It is possible to integrate other data stores,
 or even to use parts of Potion without any data store at all.
 
 
@@ -52,6 +52,7 @@ Features
 - Powerful API framework both for data-store-linked and plain resources
 - JSON-based and fully self-documenting with JSON Hyper-Schema
 - *Flask-SQLAlchemy* integration
+- Peewee integration (contributed by `Michael Lavers <https://github.com/kolanos>`_)
 - Filtering, sorting, pagination, validation, built right in
 - Smart system for handling relations between resources
 - Natural keys for extra simple relation querying
@@ -60,8 +61,8 @@ Features
 - Very customizable — everything is just a resource, route, or schema
 
 
-Example
-=======
+Example *(SQLAlchemy)*
+======================
 
 .. code-block:: python
 
