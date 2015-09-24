@@ -51,5 +51,8 @@ Manager implementations
 .. autoclass:: backends.alchemy.SQLAlchemyManager
    :members:
 
+.. autoclass:: backends.peewee.PeeweeManager
+   :members:
+
 A third manager not listed here is :class:`contrib.principals.PrincipalManager`, which implements a permissions
 system based on *Flask-Principals*.

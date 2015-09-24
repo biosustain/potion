@@ -11,7 +11,7 @@ except ImportError:
 
 from flask_potion import fields, signals
 from flask_potion.backends import Manager
-from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
+from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.utils import get_value
 
 PW_COMPARATOR_EXPRESSIONS = {
@@ -31,9 +31,6 @@ PW_COMPARATOR_EXPRESSIONS = {
 class PeeweeManager(Manager):
     """
     A manager for Peewee models.
-
-    Expects that :class:`Meta.model` contains an SQLALchemy declarative model.
-
     """
     supported_comparators = tuple(PW_COMPARATOR_EXPRESSIONS.keys())
 
@@ -41,12 +38,14 @@ class PeeweeManager(Manager):
         super(PeeweeManager, self).__init__(resource, model)
 
         meta = resource.meta
+# TODO: Add support for composite primary keys.
         self.id_attribute = meta.get(
             'id_attribute', model._meta.primary_key.name)
 
         if 'id_field' in resource.meta:
             self.id_column = model._meta.fields[resource.meta.id_field]
         else:
+            # TODO: Add support for composite primary keys.
             self.id_column = model._meta.primary_key
 
         if not hasattr(resource.Meta, 'name'):
