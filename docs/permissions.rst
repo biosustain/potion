@@ -7,9 +7,9 @@ Permissions with *Flask-Principal*
 
 .. module:: contrib.principals
 
-Flask-Potion includes a manager with an permission system. The permissions system is
+Flask-Potion includes a manager with a permission system. The permissions system is
 built on `Flask-Principal <https://pythonhosted.org/Flask-Principal/>`_
-and enabled replacing :class:`ModelResource` with :class:`PrincipalResource`. Permissions are defined as
+and enabled by replacing :class:`ModelResource` with :class:`PrincipalResource`. Permissions are defined as
 a dictionary in ``Meta.permissions``.
 
 
