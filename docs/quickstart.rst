@@ -641,7 +641,7 @@ Mixin and Resource base classes are evaluated left-to-right.
 Self-documenting API
 --------------------
 
-It can be a huge hassle to write and maintaing the documentation of an API---not with Potion!
+It can be a huge hassle to write and maintain the documentation of an API---not with Potion!
 In fact, every API you saw in this quick start guide was fully documented.
 
 Potion documents itself using `JSON Hyper-Schema <http://json-schema.org/latest/json-schema-hypermedia.html>`_. A
