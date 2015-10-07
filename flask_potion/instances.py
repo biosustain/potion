@@ -72,8 +72,21 @@ DEFAULT_COMPARATORS = (
                    "minLength": 1
                },
                lambda ew, value: value and value.endswith(ew),
+               (fields.String,)),
+    Comparator('$istartswith',
+               lambda field: {
+                   "type": "string",
+                   "minLength": 1
+               },
+               lambda sw, value: value and value.lower().startswith(sw.lower()),
+               (fields.String,)),
+    Comparator('$iendswith',
+               lambda field: {
+                   "type": "string",
+                   "minLength": 1
+               },
+               lambda sw, value: value and value.lower().endswith(sw.lower()),
                (fields.String,))
-
 )
 
 COMPARATORS = {c.name: c for c in DEFAULT_COMPARATORS}

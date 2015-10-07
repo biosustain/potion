@@ -27,7 +27,9 @@ SA_COMPARATOR_EXPRESSIONS = {
     '$gte': lambda column, value: column >= value,
     '$contains': lambda column, value: column.contains(value),
     '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
-    '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%'))
+    '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%')),
+    '$istartswith': lambda column, value: column.ilike(value.replace('%', '\\%') + "%"),
+    '$iendswith': lambda column, value: column.ilike("%" + value.replace('%', '\\%'))
 }
 
 

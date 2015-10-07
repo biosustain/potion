@@ -14,7 +14,7 @@ class MemoryManager(Manager):
 
         This manager is intended for debugging only.
     """
-    supported_comparators = ('$eq', '$ne', '$lt', '$gt', '$le', '$ge', '$in', '$startswith', '$endswith')
+    supported_comparators = ('$eq', '$ne', '$lt', '$gt', '$le', '$ge', '$in', '$startswith', '$endswith', '$istartswith', '$iendswith')
 
     def __init__(self, resource, model):
         super(MemoryManager, self).__init__(resource, model)
