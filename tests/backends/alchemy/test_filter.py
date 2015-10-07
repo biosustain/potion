@@ -154,6 +154,36 @@ class FilterTestCase(BaseTestCase):
 
         self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
 
+    def test_istartswith(self):
+        self.post_sample_set_a()
+
+        response = self.client.get('/user?where={"first_name": {"$istartswith": "jo"}}')
+
+        self.assertEqualWithout([
+                                    {'first_name': 'John', 'last_name': 'Doe'},
+                                    {'first_name': 'Jonnie', 'last_name': 'Doe'},
+                                    {'first_name': 'Joe', 'last_name': 'Bloggs'}
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/user?where={"first_name": {"$istartswith": "j%e"}}')
+
+        self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+    def test_iendswith(self):
+        self.post_sample_set_a()
+
+        response = self.client.get('/user?where={"last_name": {"$iendswith": "Oe"}}')
+
+        self.assertEqualWithout([
+                                    {'first_name': 'John', 'last_name': 'Doe'},
+                                    {'first_name': 'Jonnie', 'last_name': 'Doe'},
+                                    {'first_name': 'Jane', 'last_name': 'Roe'}
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/user?where={"first_name": {"$istartswith": "j%e"}}')
+
+        self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
     @unittest.SkipTest
     def test_text_search(self):
         self.post_sample_set_a()
