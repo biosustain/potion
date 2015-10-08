@@ -165,14 +165,6 @@ class MongoEngineManager(Manager):
 
     def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
         query = getattr(item, attribute)
-
-        if isinstance(query, (mongo_fields.ReferenceField,
-                              mongo_fields.GenericReferenceField,
-                              mongo_fields.CachedReferenceField)):
-            if page and per_page:
-                return Pagination.from_list(query, page, per_page)
-            return query
-
         if page and per_page:
             return Pagination.from_list(query, page, per_page)
         else:
