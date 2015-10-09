@@ -1,7 +1,9 @@
-from bson.errors import InvalidId
+from __future__ import absolute_import
+
 from flask import current_app
-from mongoengine import OperationError, ValidationError
 import mongoengine.fields as mongo_fields
+from mongoengine import OperationError, ValidationError
+from bson.errors import InvalidId
 
 from flask_potion.utils import get_value
 from flask_potion import fields
