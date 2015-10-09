@@ -59,14 +59,14 @@ DEFAULT_COMPARATORS = (
                lambda field: {"type": "number"},
                lambda gte, value: value <= gte,
                (fields.Integer, fields.Number)),
-    Comparator('$startswith',  # TODO case insensitive
+    Comparator('$startswith',
                lambda field: {
                    "type": "string",
                    "minLength": 1
                },
                lambda sw, value: value and value.startswith(sw),
                (fields.String,)),
-    Comparator('$endswith',  # TODO case insensitive
+    Comparator('$endswith',
                lambda field: {
                    "type": "string",
                    "minLength": 1

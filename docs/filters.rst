@@ -29,6 +29,6 @@ $gte           Greater than or equal                         :class:`fields.Stri
 $text          Text search (PostgreSQL)                      :class:`fields.String`
 $startswith    Starts with                                   :class:`fields.String`
 $endswith      Ends with                                     :class:`fields.String`
-$istartswith   Starts with, case-insensitive                 :class:`fields.String`
-$iendswith     Ends with, case-insensitive                   :class:`fields.String`
+$istartswith   Starts with (case insensitive)                :class:`fields.String`
+$iendswith     Ends with (case insensitive)                  :class:`fields.String`
 =============  ============================================  ========================================
