@@ -33,7 +33,7 @@ class BaseTestCase(TestCase):
                 [self._without(v, without) for v in second],
                 msg=msg
             )
-        elif isinstance(first, dict) and self.assertEqual(second, dict):
+        elif isinstance(first, dict) and isinstance(second, dict):
             self.assertEqual(self._without(first, without),
                              self._without(second, without),
                              msg=msg)
