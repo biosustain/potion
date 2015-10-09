@@ -1,7 +1,7 @@
 import unittest
 from flask_mongoengine import MongoEngine
 from mongoengine.fields import IntField, StringField, BooleanField
-from flask.ext.potion.backends.mongoengine import MongoEngineManager
+from flask_potion.backends.mongoengine import MongoEngineManager
 from flask_potion import ModelResource, fields, Api
 from tests import BaseTestCase
 

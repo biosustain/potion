@@ -1,7 +1,7 @@
 from functools import partial
-from flask.ext.mongoengine import MongoEngine
+from flask_mongoengine import MongoEngine
 from mongoengine import IntField, StringField, ReferenceField, ListField
-from flask.ext.potion.backends.mongoengine import MongoEngineManager
+from flask_potion.backends.mongoengine import MongoEngineManager
 from flask_potion import signals
 from flask_potion.routes import Relation
 from flask_potion.resource import ModelResource

@@ -1,7 +1,7 @@
 import unittest
-from flask.ext.mongoengine import MongoEngine
+from flask_mongoengine import MongoEngine
 from mongoengine.fields import StringField, FloatField, ReferenceField, ListField
-from flask.ext.potion.backends.mongoengine import MongoEngineManager
+from flask_potion.backends.mongoengine import MongoEngineManager
 from flask_potion.routes import Relation
 from flask_potion import Api, fields
 from flask_potion.resource import ModelResource

@@ -1,19 +1,36 @@
 from __future__ import absolute_import
 
+from bson import ObjectId as bson_ObjectId
 from flask import current_app
-import mongoengine.fields as mongo_fields
-
 from mongoengine.errors import OperationError, ValidationError
 from bson.errors import InvalidId
 
+import mongoengine.fields as mongo_fields
 
 from flask_potion.utils import get_value
-from flask_potion import fields
-from flask_potion.backends.mongoengine import fields as custom_fields
 from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.backends import Manager, Pagination
 from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
+from flask_potion import fields
+
+
+# TODO: more elaborate field that validates and returns ObjectId
+
+class custom_fields:
+    class ObjectId(fields.String):
+        def formatter(self, value):
+            if isinstance(value, bson_ObjectId):
+                return str(value)
+            else:
+                return value
+
+
+MONGO_REFERENCE_FIELD_TYPES = (
+    mongo_fields.ReferenceField,
+    mongo_fields.CachedReferenceField,
+    mongo_fields.ObjectIdField
+)
 
 
 COMPARATOR_EXPRESSIONS = {
@@ -26,12 +43,13 @@ COMPARATOR_EXPRESSIONS = {
     '$gte': lambda column, value: {"%s__gte" % column: value},
     '$contains': lambda column, value: {"%s__contains" % column: value},
     '$startswith': lambda column, value: {"%s__startswith" % column: value.replace('%', '\\%')},
-    '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')}
+    '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')},
+    # TODO: $istartswith and $iendswith filters
 }
 
-MONGO2POTION = {
+MONGO_FIELDS_MAPPING = {
     mongo_fields.ReferenceField: fields.Object,
-    mongo_fields.ObjectIdField: custom_fields.ObjectIdField,
+    mongo_fields.ObjectIdField: custom_fields.ObjectId,
     mongo_fields.IntField: fields.Integer,
     mongo_fields.FloatField: fields.Number,
     mongo_fields.BooleanField: fields.Boolean,
@@ -53,29 +71,25 @@ class MongoEngineManager(Manager):
 
     """
     supported_comparators = tuple(COMPARATOR_EXPRESSIONS.keys())
-    reference_fields = (mongo_fields.ReferenceField, mongo_fields.CachedReferenceField, mongo_fields.ObjectIdField)
 
     def __init__(self, resource, model):
         super(MongoEngineManager, self).__init__(resource, model)
         meta = resource.meta
 
-
-
-
-        self.id_attribute = meta.get('id_attribute', model.pk)
-        meta.id_attribute = self.id_attribute
+        # XXX hack: mongoengine has preferences for field types.
+        self.id_attribute = id_attribute = meta.get('id_attribute', model.pk)
         self.id_column = model._fields[self.id_attribute]
-        id_field_class, id_field_args, id_field_kwargs = self._get_field_from_mongoengine_type(self.id_column)
 
-
-        meta.id_field_class = fields.String
+        meta.id_attribute = id_attribute
+        meta.id_field_class = custom_fields.ObjectId
         meta.id_converter = 'string'
 
+        # XXX is this necessary?
         for key_converter in meta.key_converters:
             key_converter.rebind(resource)
 
         if resource.meta.include_id:
-            resource.schema.set("$id", id_field_class(*id_field_args, io='r', attribute=self.id_attribute, **id_field_kwargs))
+            resource.schema.set("$id", custom_fields.ObjectId(io='r', attribute=id_attribute))
 
         # resource name: use model table's name if not set explicitly
         if not hasattr(resource.Meta, 'name'):
@@ -92,13 +106,14 @@ class MongoEngineManager(Manager):
             if (include_fields and name in include_fields) or \
                     (exclude_fields and name not in exclude_fields) or \
                     not (include_fields or exclude_fields):
+
                 if column.primary_key:
                     continue
                 if name in pre_declared_fields:
                     continue
-                if isinstance(column, self.reference_fields):
+                if isinstance(column, MONGO_REFERENCE_FIELD_TYPES):
                     continue
-                if isinstance(column, mongo_fields.ListField) and isinstance(column.field, self.reference_fields):
+                if isinstance(column, mongo_fields.ListField) and isinstance(column.field, MONGO_REFERENCE_FIELD_TYPES):
                     continue
 
                 field_class, args, kwargs = self._get_field_from_mongoengine_type(column)
@@ -111,36 +126,38 @@ class MongoEngineManager(Manager):
 
                 if not (column.null or column.default is not None):
                     fs.required.add(name)
+
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
-    def _get_field_from_mongoengine_type(self, column):
+    def _get_field_from_mongoengine_type(self, property):
         args = ()
         kwargs = {}
 
-        if isinstance(column, mongo_fields.ListField):
+        if isinstance(property, mongo_fields.ListField):
             field_class = fields.Array
-            args = (self._get_field_from_mongoengine_type(column.field)[0], )
-        elif isinstance(column, mongo_fields.UUIDField):
-            field_class = fields.String
-            kwargs['max_length'] = 36
-            kwargs['min_length'] = 36
-        elif isinstance(column, mongo_fields.StringField):
+            args = (self._get_field_from_mongoengine_type(property.field)[0],)
+        elif isinstance(property, mongo_fields.UUIDField):  # TODO support UUIDfield
             field_class = fields.String
             kwargs = {
-                'max_length': column.max_length,
-                'min_length': column.min_length,
-                'enum': column.choices,
-                'pattern': column.regex
+                'max_length': 36,
+                'min_length': 36,
+            }
+        elif isinstance(property, mongo_fields.StringField):
+            field_class = fields.String
+            kwargs = {
+                'max_length': property.max_length,
+                'min_length': property.min_length,
+                'enum': property.choices,
+                'pattern': property.regex
             }
         else:
             try:
-                field_class = MONGO2POTION[type(column)]
+                field_class = MONGO_FIELDS_MAPPING[type(property)]
             except KeyError:
-                raise TypeError("%s not supported (use %s)" % (type(column), str(list(MONGO2POTION.keys()))))
+                raise TypeError("%s not supported (use %s)" % (type(property), str(list(MONGO_FIELDS_MAPPING.keys()))))
 
-        kwargs['nullable'] = column.null
-        kwargs['default'] = column.default
-
+        kwargs['nullable'] = property.null
+        kwargs['default'] = property.default
         return field_class, args, kwargs
 
     def _where_expression(self, where):
@@ -204,8 +221,8 @@ class MongoEngineManager(Manager):
     def create(self, properties, commit=True):
         item = self.model()
 
-        for prop, value in properties.items():
-            setattr(item, prop, value)
+        for key, value in properties.items():
+            setattr(item, key, value)
 
         before_create.send(self.resource, item=item)
 
@@ -221,14 +238,9 @@ class MongoEngineManager(Manager):
 
     def read(self, id):
         try:
-            item = self.model.objects(**{self.id_attribute: id}).first()
-            return item
+            return self.model.objects(**{self.id_attribute: id}).first()
         except (InvalidId, ValidationError):
-            item = None
-
-        if item is None:
             raise ItemNotFound(self.resource, id=id)
-        return item
 
     def update(self, item, changes, commit=True):
         actual_changes = {

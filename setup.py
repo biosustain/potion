@@ -54,6 +54,9 @@ setup(
         ],
         'peewee': [
             'peewee>=2.6.3'
-        ]
+        ],
+        'mongoengine': [
+            'Flask-MongoEngine>=0.7.0'
+        ],
     }
 )
