@@ -14,7 +14,7 @@ from blinker import ANY
 class MongoEngineSignalTestCase(BaseTestCase):
     def setUp(self):
         super(MongoEngineSignalTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'testdb'
+        self.app.config['MONGODB_DB'] = 'potion-test-db'
         self.api = Api(self.app, default_manager=MongoEngineManager)
         self.me = me = MongoEngine(self.app)
 
@@ -55,6 +55,9 @@ class MongoEngineSignalTestCase(BaseTestCase):
         self.GroupResource = GroupResource
         self.api.add_resource(UserResource)
         self.api.add_resource(GroupResource)
+
+    def tearDown(self):
+        self.me.connection.drop_database('potion-test-db')
 
     @contextmanager
     def assertSignals(self, expected_events, sender=ANY):

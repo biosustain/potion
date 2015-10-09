@@ -11,7 +11,7 @@ from tests import BaseTestCase
 class MongoEngineTestCase(BaseTestCase):
     def setUp(self):
         super(MongoEngineTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'testdb'
+        self.app.config['MONGODB_DB'] = 'potion-test-db'
         self.api = Api(self.app, default_manager=MongoEngineManager)
         self.me = me = MongoEngine(self.app)
 
@@ -63,7 +63,7 @@ class MongoEngineTestCase(BaseTestCase):
         self.api.add_resource(TypeResource)
 
     def tearDown(self):
-        self.me.connection.drop_database("testdb")
+        self.me.connection.drop_database('potion-test-db')
 
     def test_field_discovery(self):
         self.assertEqual(set(self.MachineResource.schema.fields.keys()), {'$id', '$type', 'name', 'type', 'wattage'})
@@ -258,7 +258,7 @@ class MongoEngineRelationTestCase(BaseTestCase):
 
     def setUp(self):
         super(MongoEngineRelationTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'testdb'
+        self.app.config['MONGODB_DB'] = 'potion-test-db'
         self.api = Api(self.app, default_manager=MongoEngineManager)
         self.me = me = MongoEngine(self.app)
 
@@ -377,4 +377,4 @@ class MongoEngineRelationTestCase(BaseTestCase):
                          '</user/{}/children?page=3&per_page=20>; rel="last"'.format(user_id, user_id, user_id, user_id), response.headers['Link'])
 
     def tearDown(self):
-        self.me.connection.drop_database("testdb")
+        self.me.connection.drop_database('potion-test-db')

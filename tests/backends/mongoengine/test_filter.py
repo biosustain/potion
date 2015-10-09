@@ -10,7 +10,7 @@ class FilterTestCase(BaseTestCase):
     def setUp(self):
         super(FilterTestCase, self).setUp()
         app = self.app
-        app.config['MONGODB_DB'] = 'testdb'
+        app.config['MONGODB_DB'] = 'potion-test-db'
         app.config['TESTING'] = True
 
         self.api = Api(self.app, default_manager=MongoEngineManager)
@@ -212,7 +212,7 @@ class FilterTestCase(BaseTestCase):
         pass
 
     def tearDown(self):
-        self.me.connection.drop_database("testdb")
+        self.me.connection.drop_database('potion-test-db')
 
 if __name__ == '__main__':
     unittest.main()
