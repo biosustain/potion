@@ -30,8 +30,8 @@ Description
 Potion features include validation, model resources and routes, relations, object permissions, filtering, sorting,
 pagination, signals, and automatic API schema generation.
 
-Potion is designed to handle SQLAlchemy and peewee models. It is possible to integrate other data stores,
-or even to use parts of Potion without any data store at all.
+Potion is designed to handle SQLAlchemy, peewee or MongoEngine models. It is possible to add backends for other data stores,
+or even to use a subset of Potion without any data store at all.
 
 
 User's Guide
@@ -51,8 +51,10 @@ Features
 
 - Powerful API framework both for data-store-linked and plain resources
 - JSON-based and fully self-documenting with JSON Hyper-Schema
-- *Flask-SQLAlchemy* integration
-- Peewee integration (contributed by `Michael Lavers <https://github.com/kolanos>`_)
+- Backend integrations:
+  - *Flask-SQLAlchemy*
+  - Peewee (contributed by `Michael Lavers <https://github.com/kolanos>`_)
+  - MongoEngine
 - Filtering, sorting, pagination, validation, built right in
 - Smart system for handling relations between resources
 - Natural keys for extra simple relation querying
@@ -110,5 +112,7 @@ Authors
 Potion is written and maintained by `Lars Schöning <https://github.com/lyschoening>`_.
 
 `Peewee <https://peewee.readthedocs.org/en/latest/>`_ backend support has been contributed by `Michael Lavers <https://github.com/kolanos>`_.
+
+`MongoEngine <http://mongoengine.org/>`_ backend support has been contributed by `João Cardoso <https://github.com/joaocardoso>`_.
 
 `See here for the full list of contributors <https://github.com/biosustain/potion/graphs/contributors>`_.
