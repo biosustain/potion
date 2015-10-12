@@ -166,21 +166,6 @@ class ModelResourceMeta(ResourceMeta):
 
                 if meta.include_type:
                     fs.set('$type', ItemType(class_))
-
-            if 'natural_key' in meta:
-                if isinstance(meta.natural_key, str):
-                    meta['key_converters'] += (PropertyKey(meta.natural_key),)
-                elif isinstance(meta.natural_key, (list, tuple)):
-                    meta['key_converters'] += (PropertiesKey(*meta.natural_key),)
-
-            if 'key_converters' in meta:
-                meta.key_converters = [k.bind(class_) for k in meta['key_converters']]
-                meta.key_converters_by_type = {}
-                for nk in meta.key_converters:
-                    if nk.matcher_type() in meta.key_converters_by_type:
-                        raise RuntimeError(
-                            'Multiple keys of type {} defined for {}'.format(nk.matcher_key(), meta.name))
-                    meta.key_converters_by_type[nk.matcher_type()] = nk
         return class_
 
 

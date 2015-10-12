@@ -38,7 +38,6 @@ class MongoEngineTestCase(BaseTestCase):
 
         class MachineResource(ModelResource):
             class Meta:
-                manager = MongoEngineManager
                 model = Machine
                 include_id = True
                 include_type = True
@@ -48,7 +47,6 @@ class MongoEngineTestCase(BaseTestCase):
 
         class TypeResource(ModelResource):
             class Meta:
-                manager = MongoEngineManager
                 model = Type
                 include_id = True
                 include_type = True

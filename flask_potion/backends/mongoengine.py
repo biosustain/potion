@@ -76,20 +76,11 @@ class MongoEngineManager(Manager):
         super(MongoEngineManager, self).__init__(resource, model)
         meta = resource.meta
 
-        # XXX hack: mongoengine has preferences for field types.
-        self.id_attribute = id_attribute = meta.get('id_attribute', model.pk)
+        self.id_attribute = meta.id_attribute
         self.id_column = model._fields[self.id_attribute]
 
-        meta.id_attribute = id_attribute
-        meta.id_field_class = custom_fields.ObjectId
-        meta.id_converter = 'string'
-
-        # XXX is this necessary?
-        for key_converter in meta.key_converters:
-            key_converter.rebind(resource)
-
         if resource.meta.include_id:
-            resource.schema.set("$id", custom_fields.ObjectId(io='r', attribute=id_attribute))
+            resource.schema.set("$id", custom_fields.ObjectId(io='r', attribute=self.id_attribute))
 
         # resource name: use model table's name if not set explicitly
         if not hasattr(resource.Meta, 'name'):
@@ -128,6 +119,12 @@ class MongoEngineManager(Manager):
                     fs.required.add(name)
 
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
+
+    def _init_key_converters(self, resource, meta):
+        meta.id_attribute = meta.get('id_attribute', meta.model.pk)
+        meta.id_field_class = custom_fields.ObjectId
+        meta.id_converter = 'string'
+        super(MongoEngineManager, self)._init_key_converters(resource, meta)
 
     def _get_field_from_mongoengine_type(self, property):
         args = ()

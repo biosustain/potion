@@ -23,6 +23,25 @@ class Manager(object):
         self.resource = resource
         self.model = model
 
+        self._init_key_converters(resource, resource.meta)
+
+    def _init_key_converters(self, resource, meta):
+        if 'natural_key' in meta:
+            from flask_potion.natural_keys import PropertyKey, PropertiesKey
+            if isinstance(meta.natural_key, str):
+                meta['key_converters'] += (PropertyKey(meta.natural_key),)
+            elif isinstance(meta.natural_key, (list, tuple)):
+                meta['key_converters'] += (PropertiesKey(*meta.natural_key),)
+
+        if 'key_converters' in meta:
+            meta.key_converters = [k.bind(resource) for k in meta['key_converters']]
+            meta.key_converters_by_type = {}
+            for nk in meta.key_converters:
+                if nk.matcher_type() in meta.key_converters_by_type:
+                    raise RuntimeError(
+                        'Multiple keys of type {} defined for {}'.format(nk.matcher_key(), meta.name))
+                meta.key_converters_by_type[nk.matcher_type()] = nk
+
     @staticmethod
     def _get_field_from_python_type(python_type):
         try:
