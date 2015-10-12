@@ -794,7 +794,7 @@ example is perhaps *too* simple, so we're going to complete the guide with a sli
         "value": 1.23
     }
 
-Peewee Backend
+Peewee backend
 --------------
 
 Potion also includes a Peewee backend if you want a more lightweight ORM. The Peewee backend is very similar to the SQLAlchemy one and only requires a few minor changes to the example above.
@@ -833,6 +833,19 @@ After that you can pass your Peewee models to your ModelResources just like you 
             model = Book
 
 See the examples directory for a fully functioning example using Peewee.
+
+MongoEngine backend
+-------------------
+
+If you are more of a NoSQL person, you can use `MongoEngine <https://flask-mongoengine.readthedocs.org/en/latest/>`_ --- an ORM for MongoDB.
+
+First ensure you have installed the ``flask_mongoengine`` package:
+
+.. code-block:: bash
+
+    $ pip install flask_mongoengine
+
+The MongoEngine manager works just like the other managers. See the examples directory for an example using MongoEngine.
 
 What next?
 ----------
