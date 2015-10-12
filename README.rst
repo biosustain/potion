@@ -52,9 +52,11 @@ Features
 - Powerful API framework both for data-store-linked and plain resources
 - JSON-based and fully self-documenting with JSON Hyper-Schema
 - Backend integrations:
+
   - *Flask-SQLAlchemy*
   - Peewee (contributed by `Michael Lavers <https://github.com/kolanos>`_)
   - MongoEngine
+
 - Filtering, sorting, pagination, validation, built right in
 - Smart system for handling relations between resources
 - Natural keys for extra simple relation querying
