@@ -43,6 +43,7 @@ COMPARATOR_EXPRESSIONS = {
     '$contains': lambda column, value: {"%s__contains" % column: value},
     '$startswith': lambda column, value: {"%s__startswith" % column: value.replace('%', '\\%')},
     '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')},
+    '%icontains': lambda column, value: {"%s__icontains" % column: value.replace('%', '\\%')},
     '$istartswith': lambda column, value: {"%s__istartswith" % column: value.replace('%', '\\%')},
     '$iendswith': lambda column, value: {"%s__iendswith" % column: value.replace('%', '\\%')},
 }
