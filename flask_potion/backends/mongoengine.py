@@ -33,11 +33,8 @@ class custom_fields:
             super(custom_fields.EmbeddedField, self).__init__(*args, **kwargs)
             self.model = model
 
-        def formatter(self, value):
-            if value is not None:
-                return value.to_mongo()
-
         def converter(self, value):
+            value = super(custom_fields.EmbeddedField, self).converter(value)
             if value is not None:
                 return self.model(**value)
 

@@ -80,7 +80,20 @@ class FieldsTestCase(BaseTestCase):
                          })
         self.assertEqual(response.json['properties']['reference_mapping']['default'], {})
         ref_model = dict(id='adfb48a6763c5741b92f6ade')
-        self.client.post("/model", data={'reference_mapping': {"1": ref_model}, 'object_id_mapping': ref_model["id"]})
+        response = self.client.post("/model", data={'reference_mapping': {"1": ref_model}, 'object_id_mapping': {"a": ref_model["id"]}})
+        self.assertJSONEqual(response.json,
+                             {
+                                 'reference_mapping': {
+                                     '1': {
+                                         'id': 'adfb48a6763c5741b92f6ade'
+                                     }
+                                 },
+                                 '$uri': '/model/561e6a807f551ce7d5df1003',
+                                 'float_mapping': {},
+                                 'object_id_mapping': {
+                                     'a': 'adfb48a6763c5741b92f6ade'
+                                 }, 'string_mapping': {}
+                             })
 
 
     def tearDown(self):
