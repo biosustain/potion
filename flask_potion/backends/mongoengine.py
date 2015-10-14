@@ -25,11 +25,32 @@ class custom_fields:
             else:
                 return value
 
+        def converter(self, value):
+            return bson_ObjectId(value)
+
+    class EmbeddedField(fields.Object):
+        def __init__(self, model, *args, **kwargs):
+            super(custom_fields.EmbeddedField, self).__init__(*args, **kwargs)
+            self.model = model
+
+        def formatter(self, value):
+            if value is not None:
+                return value.to_mongo()
+
+        def converter(self, value):
+            if value is not None:
+                return self.model(**value)
+
 MONGO_REFERENCE_FIELD_TYPES = (
     mongo_fields.ReferenceField,
-    mongo_fields.CachedReferenceField,
-    mongo_fields.ObjectIdField
+    mongo_fields.CachedReferenceField
 )
+
+MONGO_EMBEDDED_FIELD_TYPES = (
+    mongo_fields.EmbeddedDocumentField,
+    mongo_fields.GenericEmbeddedDocumentField
+)
+
 
 
 COMPARATOR_EXPRESSIONS = {
@@ -48,8 +69,8 @@ COMPARATOR_EXPRESSIONS = {
     '$iendswith': lambda column, value: {"%s__iendswith" % column: value.replace('%', '\\%')},
 }
 
+
 MONGO_FIELDS_MAPPING = {
-    mongo_fields.EmbeddedDocumentField: fields.Object,
     mongo_fields.CachedReferenceField: fields.Object,
     mongo_fields.ReferenceField: fields.Object,
     mongo_fields.ObjectIdField: custom_fields.ObjectId,
@@ -62,7 +83,6 @@ MONGO_FIELDS_MAPPING = {
     mongo_fields.LongField: fields.Number,
     mongo_fields.BinaryField: fields.List,
     # TODO: map key constraints properly (DictField and MapField have different enforced constraints on key)
-    mongo_fields.DictField: fields.Object,
     mongo_fields.MapField: fields.Object,
     mongo_fields.DateTimeField: fields.Date,
     mongo_fields.ComplexDateTimeField: fields.DateTime
@@ -113,18 +133,18 @@ class MongoEngineManager(Manager):
                 if isinstance(column, mongo_fields.ListField) and isinstance(column.field, MONGO_REFERENCE_FIELD_TYPES):
                     continue
 
-                field_class, args, kwargs = self._get_field_from_mongoengine_type(column)
-
                 io = "rw"
                 if name in read_only_fields:
                     io = "r"
                 elif name in write_only_fields:
                     io = "w"
 
+                field_instance = self._get_field_from_mongoengine_type(column, io=io, attribute=name)
+
                 if not (column.null or column.default is not None):
                     fs.required.add(name)
 
-                fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
+                fs.set(name, field_instance)
 
     def _init_key_converters(self, resource, meta):
         meta.id_attribute = meta.get('id_attribute', meta.model.pk)
@@ -132,36 +152,43 @@ class MongoEngineManager(Manager):
         meta.id_converter = 'string'
         super(MongoEngineManager, self)._init_key_converters(resource, meta)
 
-    def _get_field_from_mongoengine_type(self, property):
+    def _get_field_from_mongoengine_type(self, field, **kwargs):
         args = ()
-        kwargs = {}
 
-        if isinstance(property, mongo_fields.ListField):
-            field_class = fields.Array
-            args = (self._get_field_from_mongoengine_type(property.field)[0],)
-        elif isinstance(property, mongo_fields.EmbeddedDocumentField):
-            field_class = fields.Inline
-            args = (property.document_type_obj, )
-        elif isinstance(property, mongo_fields.UUIDField):  # TODO support UUIDfield
+        if isinstance(field, mongo_fields.ListField):
+            field_class = fields.List
+            args = (self._get_field_from_mongoengine_type(field.field), )
+        elif isinstance(field, MONGO_EMBEDDED_FIELD_TYPES+MONGO_REFERENCE_FIELD_TYPES):
+            field_class = custom_fields.EmbeddedField
+            model = field.document_type
+            properties = {}
+            for prop, ref_field in model._fields.items():
+                properties[prop] = self._get_field_from_mongoengine_type(ref_field)
+            args = (model, properties, )
+        elif isinstance(field, mongo_fields.DictField):
+            field_class = fields.Object
+            properties = self._get_field_from_mongoengine_type(field.field)
+            args = (properties, )
+        elif isinstance(field, mongo_fields.UUIDField):  # TODO support UUIDfield
             field_class = fields.String
             kwargs['max_length'] = 36
             kwargs['min_length'] = 36
-        elif isinstance(property, mongo_fields.StringField):
+        elif isinstance(field, mongo_fields.StringField):
             field_class = fields.String
-            kwargs['max_length'] = property.max_length
-            kwargs['min_length'] = property.min_length
-            kwargs['enum'] = property.choices
-            kwargs['pattern'] = property.regex
+            kwargs['max_length'] = field.max_length
+            kwargs['min_length'] = field.min_length
+            kwargs['enum'] = field.choices
+            kwargs['pattern'] = field.regex
         else:
             try:
-                field_class = MONGO_FIELDS_MAPPING[type(property)]
+                field_class = MONGO_FIELDS_MAPPING[type(field)]
             except KeyError:
-                raise TypeError("%s not supported (use %s)" % (type(property), str(list(MONGO_FIELDS_MAPPING.keys()))))
+                raise TypeError("%s not supported (use %s)" % (type(field), str(list(MONGO_FIELDS_MAPPING.keys()))))
 
-        kwargs['nullable'] = property.null
-        kwargs['default'] = property.default
-        kwargs['description'] = property.help_text
-        return field_class, args, kwargs
+        kwargs['nullable'] = field.null
+        kwargs['default'] = field.default
+        kwargs['description'] = field.help_text
+        return field_class(*args, **kwargs)
 
     def _where_expression(self, where):
         expressions = {}
