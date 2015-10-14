@@ -68,19 +68,12 @@ COMPARATOR_EXPRESSIONS = {
 
 
 MONGO_FIELDS_MAPPING = {
-    mongo_fields.CachedReferenceField: fields.Object,
-    mongo_fields.ReferenceField: fields.Object,
     mongo_fields.ObjectIdField: custom_fields.ObjectId,
     mongo_fields.IntField: fields.Integer,
     mongo_fields.FloatField: fields.Number,
     mongo_fields.BooleanField: fields.Boolean,
-    mongo_fields.ListField: fields.List,
-    mongo_fields.SortedListField: fields.List,
-    mongo_fields.EmbeddedDocumentListField: fields.List,
     mongo_fields.LongField: fields.Number,
     mongo_fields.BinaryField: fields.List,
-    # TODO: map key constraints properly (DictField and MapField have different enforced constraints on key)
-    mongo_fields.MapField: fields.Object,
     mongo_fields.DateTimeField: fields.Date,
     mongo_fields.ComplexDateTimeField: fields.DateTime
 }
@@ -164,8 +157,11 @@ class MongoEngineManager(Manager):
             args = (model, properties, )
         elif isinstance(field, mongo_fields.DictField):
             field_class = fields.Object
-            properties = self._get_field_from_mongoengine_type(field.field)
-            args = (properties, )
+            if field.field is not None:
+                properties = self._get_field_from_mongoengine_type(field.field)
+                args = (properties, )
+            else:
+                args = (fields.Any, )
         elif isinstance(field, mongo_fields.UUIDField):  # TODO support UUIDfield
             field_class = fields.String
             kwargs['max_length'] = 36
