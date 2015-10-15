@@ -12,11 +12,21 @@ from .reference import ResourceBound
 from .utils import get_value
 from .schema import Schema
 
+available_paginations = [Pagination]
+
 try:
     from flask_sqlalchemy import Pagination as SAPagination
-    PAGINATION_TYPES = (Pagination, SAPagination)
+    available_paginations.append(SAPagination)
 except ImportError:
-    PAGINATION_TYPES = (Pagination,)
+    pass
+
+try:
+    from flask_mongoengine import Pagination as MEPagination
+    available_paginations.append(MEPagination)
+except ImportError:
+    pass
+
+PAGINATION_TYPES = tuple(available_paginations)
 
 
 Comparator = namedtuple('Comparator', ['name', 'schema', 'expression', 'supported_types'])

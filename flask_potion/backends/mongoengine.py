@@ -219,8 +219,7 @@ class MongoEngineManager(Manager):
         after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
-        instances = self.instances(where=where, sort=sort)
-        return Pagination(instances, page, per_page, instances.count())
+        return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)
 
     def instances(self, where=None, sort=None):
         query = self.model.objects
