@@ -1,7 +1,7 @@
 import unittest
 from flask_potion.exceptions import ItemNotFound, ValidationError
 from flask_potion.backends.memory import MemoryManager
-from flask_potion.natural_keys import RefKey, IDKey, PropertiesKey
+from flask_potion.natural_keys import RefKey, IDKey, PropertiesKey, PropertyKey
 from flask_potion import fields
 from flask_potion import Api
 from flask_potion.resource import Resource, ModelResource
@@ -54,6 +54,26 @@ class NaturalKeyTestCase(BaseTestCase):
         foo_field = fields.ToOne('foo')
         self.assertJSONEqual(FOO_REFERENCE, foo_field.response)
         self.assertJSONEqual(FOO_REFERENCE, foo_field.request)
+
+    def test_multiple_keys(self):
+        with self.assertRaises(RuntimeError) as cx:
+            class Bar(ModelResource):
+                class Meta:
+                    key_converters = (
+                        RefKey(),
+                        PropertyKey('name')
+                    )
+                    model = 'bar'
+                    natural_key = 'alias'
+                    manager = MemoryManager
+
+                class Schema:
+                    name = fields.String()
+                    alias = fields.String()
+
+            self.api.add_resource(Bar)
+        self.assertEqual('Multiple keys of type string defined for bar', cx.exception.args[0])
+
 
     def test_property_key(self):
         class Foo(ModelResource):
