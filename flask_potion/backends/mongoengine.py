@@ -197,7 +197,7 @@ class MongoEngineManager(Manager):
             if reverse:
                 yield "-%s" % attribute
             else:
-                yield "%s" % attribute
+                yield "+%s" % attribute
 
     def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
         query = getattr(item, attribute)
