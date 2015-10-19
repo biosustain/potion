@@ -278,6 +278,87 @@ class ResourceTestCase(BaseTestCase):
         response = self.client.get("/foo/unauthorize-decorator")
         self.assert401(response)
 
+    def test_route_disabling(self):
+
+        class FooResource(Resource):
+            @Route.GET
+            def foo(self):
+                return 'foo'
+
+            @Route.GET
+            def baz(self):
+                return 'baz'
+
+            @baz.POST
+            def baz(self, value):
+                return 'baz: {}'.format(value)
+
+            baz.request_schema = fields.String()
+
+            class Meta:
+                name = 'foo'
+                disabled_routes = ('readBaz',)
+
+        class BarResource(FooResource):
+            class Meta:
+                name = 'bar'
+
+        class BazResource(BarResource):
+            class Meta:
+                name = 'baz'
+                disabled_routes = ('readFoo',)
+
+        api = Api(self.app)
+        api.add_resource(FooResource)
+        api.add_resource(BarResource)
+        api.add_resource(BazResource)
+
+        print(FooResource.routes)
+        self.assertEqual({
+            'describedBy': Resource.described_by,
+            'readFoo': FooResource.foo,
+            'createBaz': FooResource.baz
+        }, FooResource.routes)
+
+        print(BarResource.routes)
+        self.assertEqual({
+            'describedBy': Resource.described_by,
+            'readFoo': FooResource.foo,
+            'createBaz': FooResource.baz
+        }, BarResource.routes)
+
+        self.assertIsNone(BazResource.routes.get('readFoo', None))
+        self.assertIsNotNone(BazResource.routes.get('readBaz', None))
+        self.assertIsNotNone(BazResource.routes.get('createBaz', None))
+
+        response = self.client.get("/foo/foo")
+        self.assertEqual('foo', response.json)
+
+        response = self.client.get("/foo/baz")
+        self.assert405(response)
+
+        response = self.client.get("/bar/foo")
+        self.assert200(response)
+        self.assertEqual('foo', response.json)
+
+        response = self.client.get("/bar/baz")
+        self.assert405(response)
+
+        response = self.client.post("/bar/baz", data='xyz', force_json=True)
+        self.assert200(response)
+        self.assertEqual('baz: xyz', response.json)
+
+        response = self.client.get("/baz/foo")
+        self.assert404(response)
+
+        response = self.client.get("/baz/baz")
+        self.assertEqual('baz', response.json)
+
+        response = self.client.post("/baz/baz", data='123', force_json=True)
+        self.assert200(response)
+        self.assertEqual('baz: 123', response.json)
+
+
     def test_resource_schema(self):
         class UserResource(Resource):
             @Route.GET('/<int:id>', rel="self")

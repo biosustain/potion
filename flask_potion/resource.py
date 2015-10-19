@@ -81,6 +81,9 @@ class ResourceMeta(type):
             if isinstance(m, ResourceBound):
                 m.bind(class_)
 
+        for relation in meta.disabled_routes:
+            routes.pop(relation, None)
+
         return class_
 
 
@@ -148,6 +151,7 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
         title = None
         description = None
         required_fields = None
+        disabled_routes = ()
         route_decorators = {}
         read_only_fields = ()
         write_only_fields = ()
