@@ -7,7 +7,7 @@ from six import wraps
 from werkzeug.wrappers import BaseResponse
 
 from .exceptions import PotionException
-from .routes import RouteSet
+from .routes import RouteSet, to_camel_case
 from .utils import unpack
 from .resource import Resource, ModelResource
 
@@ -115,16 +115,22 @@ class Api(object):
         # schema["definitions"] = definitions = OrderedDict([])
         schema["properties"] = properties = OrderedDict([])
         for name, resource in sorted(self.resources.items(), key=operator.itemgetter(0)):
-            resource_schema_rule = resource.routes['schema'].rule_factory(resource)
+            resource_schema_rule = resource.routes['describedBy'].rule_factory(resource)
             properties[name] = {"$ref": '{}#'.format(resource_schema_rule)}
 
         return OrderedDict(schema), 200, {'Content-Type': 'application/schema+json'}
 
-    def add_route(self, route, resource, endpoint=None):
-        endpoint = endpoint or '.'.join((resource.meta.name, route.attribute))
-        methods = route.methods()
+    def add_route(self, route, resource, endpoint=None, decorator=None):
+        endpoint = endpoint or '.'.join((resource.meta.name, route.relation))
+        methods = [route.method]
         rule = route.rule_factory(resource)
-        view = self.output(route.view_factory(endpoint, resource))
+
+        view_func = route.view_factory(endpoint, resource)
+
+        if decorator:
+            view_func = decorator(view_func)
+
+        view = self.output(view_func)
 
         for decorator in self.decorators:
             view = decorator(view)
@@ -158,7 +164,8 @@ class Api(object):
         resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
 
         for route in resource.routes.values():
-            self.add_route(route, resource)
+            route_decorator = resource.meta.route_decorators.get(route.relation, None)
+            self.add_route(route, resource, decorator=route_decorator)
 
         for name, rset in inspect.getmembers(resource, lambda m: isinstance(m, RouteSet)):
             if rset.attribute is None:
@@ -167,7 +174,7 @@ class Api(object):
             for i, route in enumerate(rset.routes()):
                 if route.attribute is None:
                     route.attribute = '{}_{}'.format(rset.attribute, i)
-                resource.routes['{}_{}'.format(rset.attribute, route.attribute)] = route
+                resource.routes['{}_{}'.format(rset.attribute, route.relation)] = route
                 self.add_route(route, resource)
 
         self.resources[resource.meta.name] = resource

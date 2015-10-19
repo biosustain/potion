@@ -216,7 +216,6 @@ class PeeweeManager(Manager):
         try:
             item.save()
         except pw.IntegrityError as e:
-            print(e.args)
             if current_app.debug:
                 raise BackendConflict(debug_info=e.args)
             raise BackendConflict()
