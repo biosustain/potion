@@ -25,12 +25,29 @@ class custom_fields:
             else:
                 return value
 
+        def converter(self, value):
+            return bson_ObjectId(value)
+
+    class EmbeddedField(fields.Object):
+        def __init__(self, model, *args, **kwargs):
+            super(custom_fields.EmbeddedField, self).__init__(*args, **kwargs)
+            self.model = model
+
+        def converter(self, value):
+            value = super(custom_fields.EmbeddedField, self).converter(value)
+            if value is not None:
+                return self.model(**value)
 
 MONGO_REFERENCE_FIELD_TYPES = (
     mongo_fields.ReferenceField,
-    mongo_fields.CachedReferenceField,
-    mongo_fields.ObjectIdField
+    mongo_fields.CachedReferenceField
 )
+
+MONGO_EMBEDDED_FIELD_TYPES = (
+    mongo_fields.EmbeddedDocumentField,
+    mongo_fields.GenericEmbeddedDocumentField
+)
+
 
 
 COMPARATOR_EXPRESSIONS = {
@@ -44,20 +61,19 @@ COMPARATOR_EXPRESSIONS = {
     '$contains': lambda column, value: {"%s__contains" % column: value},
     '$startswith': lambda column, value: {"%s__startswith" % column: value.replace('%', '\\%')},
     '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')},
-    # TODO: $istartswith and $iendswith filters
+    '%icontains': lambda column, value: {"%s__icontains" % column: value.replace('%', '\\%')},
+    '$istartswith': lambda column, value: {"%s__istartswith" % column: value.replace('%', '\\%')},
+    '$iendswith': lambda column, value: {"%s__iendswith" % column: value.replace('%', '\\%')},
 }
 
+
 MONGO_FIELDS_MAPPING = {
-    mongo_fields.ReferenceField: fields.Object,
     mongo_fields.ObjectIdField: custom_fields.ObjectId,
     mongo_fields.IntField: fields.Integer,
     mongo_fields.FloatField: fields.Number,
     mongo_fields.BooleanField: fields.Boolean,
-    mongo_fields.ListField: fields.Array,
-    mongo_fields.SortedListField: fields.Array,
     mongo_fields.LongField: fields.Number,
-    mongo_fields.BinaryField: fields.Array,
-    mongo_fields.DictField: fields.Object,
+    mongo_fields.BinaryField: fields.List,
     mongo_fields.DateTimeField: fields.Date,
     mongo_fields.ComplexDateTimeField: fields.DateTime
 }
@@ -82,7 +98,7 @@ class MongoEngineManager(Manager):
         if resource.meta.include_id:
             resource.schema.set("$id", custom_fields.ObjectId(io='r', attribute=self.id_attribute))
 
-        # resource name: use model table's name if not set explicitly
+        # resource name: use model collection's name if not set explicitly
         if not hasattr(resource.Meta, 'name'):
             meta['name'] = model._meta.get('collection', model.__class__.__name__).lower()
 
@@ -107,18 +123,18 @@ class MongoEngineManager(Manager):
                 if isinstance(column, mongo_fields.ListField) and isinstance(column.field, MONGO_REFERENCE_FIELD_TYPES):
                     continue
 
-                field_class, args, kwargs = self._get_field_from_mongoengine_type(column)
-
                 io = "rw"
                 if name in read_only_fields:
                     io = "r"
                 elif name in write_only_fields:
                     io = "w"
 
+                field_instance = self._get_field_from_mongoengine_type(column, io=io, attribute=name)
+
                 if not (column.null or column.default is not None):
                     fs.required.add(name)
 
-                fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
+                fs.set(name, field_instance)
 
     def _init_key_converters(self, resource, meta):
         meta.id_attribute = meta.get('id_attribute', meta.model.pk)
@@ -126,36 +142,46 @@ class MongoEngineManager(Manager):
         meta.id_converter = 'string'
         super(MongoEngineManager, self)._init_key_converters(resource, meta)
 
-    def _get_field_from_mongoengine_type(self, property):
+    def _get_field_from_mongoengine_type(self, field, **kwargs):
         args = ()
-        kwargs = {}
 
-        if isinstance(property, mongo_fields.ListField):
-            field_class = fields.Array
-            args = (self._get_field_from_mongoengine_type(property.field)[0],)
-        elif isinstance(property, mongo_fields.UUIDField):  # TODO support UUIDfield
+        if isinstance(field, mongo_fields.ListField):
+            field_class = fields.List
+            args = (self._get_field_from_mongoengine_type(field.field), )
+        elif isinstance(field, MONGO_EMBEDDED_FIELD_TYPES+MONGO_REFERENCE_FIELD_TYPES):
+            field_class = custom_fields.EmbeddedField
+            model = field.document_type
+            properties = {}
+            for prop, ref_field in model._fields.items():
+                properties[prop] = self._get_field_from_mongoengine_type(ref_field)
+            args = (model, properties, )
+        elif isinstance(field, mongo_fields.DictField):
+            field_class = fields.Object
+            if field.field is not None:
+                properties = self._get_field_from_mongoengine_type(field.field)
+                args = (properties, )
+            else:
+                args = (fields.Any, )
+        elif isinstance(field, mongo_fields.UUIDField):  # TODO support UUIDfield
             field_class = fields.String
-            kwargs = {
-                'max_length': 36,
-                'min_length': 36,
-            }
-        elif isinstance(property, mongo_fields.StringField):
+            kwargs['max_length'] = 36
+            kwargs['min_length'] = 36
+        elif isinstance(field, mongo_fields.StringField):
             field_class = fields.String
-            kwargs = {
-                'max_length': property.max_length,
-                'min_length': property.min_length,
-                'enum': property.choices,
-                'pattern': property.regex
-            }
+            kwargs['max_length'] = field.max_length
+            kwargs['min_length'] = field.min_length
+            kwargs['enum'] = field.choices
+            kwargs['pattern'] = field.regex
         else:
             try:
-                field_class = MONGO_FIELDS_MAPPING[type(property)]
+                field_class = MONGO_FIELDS_MAPPING[type(field)]
             except KeyError:
-                raise TypeError("%s not supported (use %s)" % (type(property), str(list(MONGO_FIELDS_MAPPING.keys()))))
+                raise TypeError("%s not supported (use %s)" % (type(field), str(list(MONGO_FIELDS_MAPPING.keys()))))
 
-        kwargs['nullable'] = property.null
-        kwargs['default'] = property.default
-        return field_class, args, kwargs
+        kwargs['nullable'] = field.null
+        kwargs['default'] = field.default
+        kwargs['description'] = field.help_text
+        return field_class(*args, **kwargs)
 
     def _where_expression(self, where):
         expressions = {}
@@ -171,7 +197,7 @@ class MongoEngineManager(Manager):
             if reverse:
                 yield "-%s" % attribute
             else:
-                yield "%s" % attribute
+                yield "+%s" % attribute
 
     def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
         query = getattr(item, attribute)
@@ -193,8 +219,7 @@ class MongoEngineManager(Manager):
         after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
-        instances = self.instances(where=where, sort=sort)
-        return Pagination(instances, page, per_page, instances.count())
+        return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)
 
     def instances(self, where=None, sort=None):
         query = self.model.objects
