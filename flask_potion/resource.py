@@ -15,16 +15,26 @@ from .schema import FieldSet
 
 
 class ResourceMeta(type):
+
     def __new__(mcs, name, bases, members):
         class_ = super(ResourceMeta, mcs).__new__(mcs, name, bases, members)
         class_.routes = routes = dict(getattr(class_, 'routes') or {})
         class_.meta = meta = AttributeDict(getattr(class_, 'meta', {}) or {})
 
+        def add_route(routes, route, name):
+            if route.attribute is None:
+                route.attribute = name
+
+            for r in route._related_routes:
+                if r.attribute is None:
+                    r.attribute = name
+                routes[r.relation] = r
+
+            routes[route.relation] = route
+
         for base in bases:
             for n, m in inspect.getmembers(base, lambda m: isinstance(m, Route)):
-                if m.attribute is None:
-                    m.attribute = n
-                routes[m.attribute] = m
+                add_route(routes, m, n)
 
             if hasattr(base, 'Meta'):
                 meta.update(base.Meta.__dict__)
@@ -66,13 +76,13 @@ class ResourceMeta(type):
 
         for n, m in members.items():
             if isinstance(m, Route):
-                if m.attribute is None:
-                    m.attribute = n
-
-                routes[m.attribute] = m
+                add_route(routes, m, n)
 
             if isinstance(m, ResourceBound):
                 m.bind(class_)
+
+        for relation in meta.disabled_routes:
+            routes.pop(relation, None)
 
         return class_
 
@@ -92,7 +102,7 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
 
     .. attribute:: routes
 
-        A dictionary of routes registered with this resource. Keyed by ``Route.attribute``.
+        A dictionary of routes registered with this resource. Keyed by ``Route.relation``.
 
     .. attribute:: schema
 
@@ -125,7 +135,7 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
             if value:
                 schema[property] = value
 
-        links = itertools.chain(*(route.links() for name, route in sorted(self.routes.items())))
+        links = [route for name, route in sorted(self.routes.items())]
 
         if self.schema:
             schema['type'] = "object"
@@ -141,6 +151,8 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
         title = None
         description = None
         required_fields = None
+        disabled_routes = ()
+        route_decorators = {}
         read_only_fields = ()
         write_only_fields = ()
 

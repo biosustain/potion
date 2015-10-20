@@ -39,7 +39,7 @@ class Manager(object):
             for nk in meta.key_converters:
                 if nk.matcher_type() in meta.key_converters_by_type:
                     raise RuntimeError(
-                        'Multiple keys of type {} defined for {}'.format(nk.matcher_key(), meta.name))
+                        'Multiple keys of type {} defined for {}'.format(nk.matcher_type(), meta.name))
                 meta.key_converters_by_type[nk.matcher_type()] = nk
 
     @staticmethod

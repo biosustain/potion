@@ -38,7 +38,7 @@ class MixinTestCase(BaseTestCase):
             class Schema:
                 field_e = fields.String()
 
-        self.assertEqual({'schema', 'success'}, set(FooResource.routes.keys()))
+        self.assertEqual({'describedBy', 'readSuccess'}, set(FooResource.routes.keys()))
 
         data, code, headers = FooResource().described_by()
 
