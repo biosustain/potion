@@ -297,7 +297,7 @@ class ResourceTestCase(BaseTestCase):
 
             class Meta:
                 name = 'foo'
-                excluded_routes = ('readBaz',)
+                exclude_routes = ('readBaz',)
 
         class BarResource(FooResource):
             class Meta:
@@ -306,7 +306,7 @@ class ResourceTestCase(BaseTestCase):
         class BazResource(BarResource):
             class Meta:
                 name = 'baz'
-                excluded_routes = ('readFoo',)
+                exclude_routes = ('readFoo',)
 
         api = Api(self.app)
         api.add_resource(FooResource)
