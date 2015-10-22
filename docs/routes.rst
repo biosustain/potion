@@ -13,11 +13,6 @@ Routes & Route Sets
 
 |
 
-.. autoclass:: Link
-    :members:
-
-|
-
 .. autoclass:: RouteSet
     :members:
 

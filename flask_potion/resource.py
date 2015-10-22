@@ -81,8 +81,9 @@ class ResourceMeta(type):
             if isinstance(m, ResourceBound):
                 m.bind(class_)
 
-        for relation in meta.disabled_routes:
-            routes.pop(relation, None)
+        if meta.exclude_routes:
+            for relation in meta.exclude_routes:
+                routes.pop(relation, None)
 
         return class_
 
@@ -91,6 +92,49 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
     """
     A plain resource with nothing but a schema.
 
+    A resource is configured using the `Schema` and `Meta` attributes as well as any properties that are of type
+    :class:`.routes.Route` or :class:`.routes.RouteSet`.
+
+    :class:`Meta` class attributes:
+
+    =====================  ==============================  ==============================================================================
+    Attribute name         Default                         Description
+    =====================  ==============================  ==============================================================================
+    name                   ---                             Name of the resource; defaults to the lower-case of the `model's` class name
+    title                  ``None``                        JSON-schema title declaration
+    description            ``None``                        JSON-schema description declaration
+    exclude_routes         ``()``                          A list of strings; any routes --- including inherited routes --- whose ``Route.relation``
+                                                           match one of these string is omitted from the resource.
+    route_decorators       ``{}``                          A dictionary of decorators to apply to routes in the resource.
+                                                           The keys must match the ``Route.relation`` attribute.
+    exclude_fields         ``()``                          A list of fields that should not be imported from the `model`.
+    required_fields        ``()``                          Fields that are automatically imported from the model are automatically
+                                                           required if their columns are not `nullable` and do not have a `default`.
+    read_only_fields       ``()``                          A list of fields that are returned by the resource but are ignored in `POST`
+                                                           and `PATCH` requests. Useful for e.g. timestamps.
+    write_only_fields      ``()``                          A list of fields that can be written to but are not returned. For secret stuff.
+
+    =====================  ==============================  ==============================================================================
+
+    Usage example:
+
+    .. code-block:: python
+
+        class LogResource(Resource):
+            class Schema:
+                level = fields.String(enum=['info', 'warning', 'error'])
+                message = fields.String()
+
+            class Meta:
+                name = 'log'
+
+            @Route.POST('',
+                        rel="create",
+                        schema=fields.Inline('self'),
+                        response_schema=fields.Inline('self'))
+            def create(self, properties):
+                print('{level}: {message}'.format(**properties))
+                return properties
 
     .. attribute:: api
 
@@ -151,7 +195,7 @@ class Resource(six.with_metaclass(ResourceMeta, object)):
         title = None
         description = None
         required_fields = None
-        disabled_routes = ()
+        exclude_routes = ()
         route_decorators = {}
         read_only_fields = ()
         write_only_fields = ()

@@ -63,18 +63,7 @@ class Route(object):
     is expected to be a :class:`schema.Schema` used for responses, and all other annotations are expected to be of type :class:`fields.Raw`
     and are combined into a :class:`schema.Fieldset`.
 
-    :param str method: a HTTP request method name (upper case)
-    :param callable view_func: view function
-    :param rule: url rule string or callable returning a string
-    :param str rel: relation
-    :param str title: title of schema
-    :param str description: description of schema
-    :param routes.Route route: route this link belongs to
-    :param schema.Schema schema: request schema
-    :param schema.Schema response_schema: response schema
-    :param bool format_response: whether the response should be converted using the response schema
-
-    .. property:: relation
+    .. attribute:: relation
 
         A relation for the string, equal to ``rel`` if one was given.
 
@@ -116,6 +105,17 @@ class Route(object):
     .. attribute:: method_links
 
         A dictionary mapping of method names (in upper case) to :class:`routes.Link` objects containing the method view functions.
+
+    :param str method: a HTTP request method name (upper case)
+    :param callable view_func: view function
+    :param rule: url rule string or callable returning a string
+    :param str rel: relation
+    :param str title: title of schema
+    :param str description: description of schema
+    :param routes.Route route: route this link belongs to
+    :param schema.Schema schema: request schema
+    :param schema.Schema response_schema: response schema
+    :param bool format_response: whether the response should be converted using the response schema
 
     """
 
