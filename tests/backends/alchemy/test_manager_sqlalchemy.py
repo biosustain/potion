@@ -289,6 +289,13 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
         self.assert200(response)
         self.assertJSONEqual([{"$ref": "/user/1"}], response.json)
 
+    def test_relationship_secondary_delete_missing(self):
+        response = self.client.post('/group', data={"name": "Foo"})
+        response = self.client.post('/user', data={"name": "Bar"})
+
+        response = self.client.delete('/group/1/members/1')
+        self.assertStatus(response, 204)
+
     def test_relationship_post(self):
         response = self.client.post('/user', data={"name": "Foo"})
         self.assert200(response)
@@ -311,6 +318,19 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
 
     def test_relationship_delete(self):
         self.test_relationship_post()
+
+        response = self.client.delete('/user/1/children/2')
+        self.assertStatus(response, 204)
+
+        response = self.client.get('/user/1/children')
+        self.assert200(response)
+        self.assertJSONEqual([], response.json)
+
+    def test_relationship_delete_missing(self):
+        self.test_relationship_post()
+
+        response = self.client.delete('/user/1/children/2')
+        self.assertStatus(response, 204)
 
         response = self.client.delete('/user/1/children/2')
         self.assertStatus(response, 204)

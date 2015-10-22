@@ -157,8 +157,11 @@ class SQLAlchemyManager(Manager):
 
     def relation_remove(self, item, attribute, target_resource, target_item):
         before_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
-        getattr(item, attribute).remove(target_item)
-        after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        try:
+            getattr(item, attribute).remove(target_item)
+            after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        except ValueError:
+            pass  # if the relation does not exist, do nothing
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
         return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)
