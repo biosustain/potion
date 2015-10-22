@@ -83,9 +83,25 @@ Composite field types
 SQLAlchemy-specific field types
 -------------------------------
 
-.. class:: fields.InlineModel
+.. class:: fields.sa.InlineModel
 
    For creating SQLAlchemy models without having to give them their own resource.
+
+   Usage example:
+
+   .. code-block:: python
+
+      class FooResource(Resource):
+         class Meta:
+            model = Foo
+
+         class Schema:
+            # Here, Foo.bars is a collection of Bar items
+            bars = fields.List(fields.InlineModel({
+                "name": fields.String(description="Bar name"),
+                "height": fields.Integer(description="Height of bar")
+            }, model=Bar))
+
 
    :param dict properties: A dictionary of :class:`Raw` objects
    :param model: An SQLAlchemy model
