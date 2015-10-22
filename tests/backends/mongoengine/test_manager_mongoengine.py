@@ -316,9 +316,12 @@ class MongoEngineRelationTestCase(BaseTestCase):
 
     def test_relationship_secondary_delete_missing(self):
         response = self.client.post('/group', data={"name": "Foo"})
-        response = self.client.post('/user', data={"name": "Bar"})
+        user_id = response.json["$id"]
 
-        response = self.client.delete('/group/1/members/1')
+        response = self.client.post('/user', data={"name": "Bar"})
+        group_id = response.json["$id"]
+
+        response = self.client.delete('/group/{}/members/{}'.format(user_id, group_id))
         self.assertStatus(response, 204)
 
     def test_relationship_post(self):
