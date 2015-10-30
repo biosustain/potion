@@ -140,7 +140,7 @@ class PeeweeManager(Manager):
         return and_(*expressions)
 
     def _order_by(self, sort):
-        for attribute, reverse in sort:
+        for field, attribute, reverse in sort:
             column = getattr(self.model, attribute)
 
             if reverse:

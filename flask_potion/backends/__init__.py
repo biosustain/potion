@@ -59,6 +59,17 @@ class Manager(object):
         except KeyError:
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
 
+    def is_sortable_field(self, field):
+        return isinstance(field, (fields.String,
+                                  fields.Boolean,
+                                  fields.Number,
+                                  fields.Integer,
+                                  fields.Date,
+                                  fields.DateTime))
+
+    def get_field_comparators(self, field):
+        pass
+
     def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
         """
 

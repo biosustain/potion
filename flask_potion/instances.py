@@ -201,21 +201,12 @@ class Instances(PaginationMixin, Schema, ResourceBound):
         else:
             raise RuntimeError("Meta.allowed_filters is not configured properly")
 
-        self.sort_fields = {name: field for name, field in sort.items() if self._is_sortable(field)}
+        self.sort_fields = {name: field for name, field in sort.items()}
 
     def rebind(self, resource):
         return self.__class__(
             filters=self.allowed_filters
         ).bind(resource)
-
-    @classmethod
-    def _is_sortable(cls, field):
-        return isinstance(field, (fields.String,
-                                  fields.Boolean,
-                                  fields.Number,
-                                  fields.Integer,
-                                  fields.Date,
-                                  fields.DateTime))
 
     def _filter_field_schema(self, field, comparators):
         if len(comparators) == 1 and comparators[0].name == EQUALITY_COMPARATOR:
@@ -255,8 +246,12 @@ class Instances(PaginationMixin, Schema, ResourceBound):
         return {
             "type": "object",
             "properties": {  # FIXME switch to tuples
-                             name: {"type": "boolean", "title": "Reverse order?"}
-                             for name in self.sort_fields
+                             name: {
+                                 "type": "boolean",
+                                 "description": "Sort by {} in descending order if 'true', ascending order if 'false'.".format(name)
+                             }
+                             for name, field in self.sort_fields.items()
+                             if self.resource.manager.is_sortable_field(field)
             },
             "additionalProperties": False
         }
@@ -322,7 +317,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
     def _convert_sort(self, sort):
         for name, reverse in sort.items():
             field = self.sort_fields[name]
-            yield field.attribute or name, reverse
+            yield field, field.attribute or name, reverse
 
     def parse_request(self, request):
 

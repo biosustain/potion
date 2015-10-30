@@ -5,7 +5,7 @@ from flask_sqlalchemy import get_state
 from sqlalchemy import String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, aliased
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -108,6 +108,14 @@ class SQLAlchemyManager(Manager):
                     fs.required.add(name)
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
+    def is_sortable_field(self, field):
+        if super(SQLAlchemyManager, self).is_sortable_field(field):
+            return True
+        elif isinstance(field, fields.ToOne):
+            return isinstance(field.target.manager, SQLAlchemyManager)
+        else:
+            return False
+
     @staticmethod
     def _get_session():
         return get_state(current_app).db.session
@@ -129,14 +137,20 @@ class SQLAlchemyManager(Manager):
 
         return and_(*expressions)
 
-    def _order_by(self, sort):
-        for attribute, reverse in sort:
+    def _order_query_by(self, query, sort):
+        order_clauses = []
+
+        for field, attribute, reverse in sort:
             column = getattr(self.model, attribute)
 
-            if reverse:
-                yield column.desc()
-            else:
-                yield column.asc()
+            if isinstance(field, fields.ToOne):
+                target_alias = aliased(field.target.meta.model)
+                query = query.join(target_alias, column).reset_joinpoint()
+                column = getattr(target_alias, field.target.meta.sort_attribute or field.target.meta.id_attribute)
+
+            order_clauses.append(column.desc() if reverse else column.asc())
+
+        return query.order_by(*order_clauses)
 
     def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
         query = getattr(item, attribute)
@@ -172,7 +186,7 @@ class SQLAlchemyManager(Manager):
         if where:
             query = query.filter(self._where_expression(where))
         if sort:
-            query = query.order_by(*self._order_by(sort))
+            query = self._order_query_by(query, sort)
 
         return query
 

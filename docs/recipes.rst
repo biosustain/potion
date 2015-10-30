@@ -101,7 +101,7 @@ some minor changes.
             if where:
                 query = query.filter(self._where_expression(where))
             if sort:
-                query = query.order_by(*self._order_by(sort))
+                query = self._order_query_by(query, sort)
             return query
     
         def archive_instances(self, page, per_page, where=None, sort=None):
@@ -123,6 +123,7 @@ some minor changes.
 
         class Schema:
             is_archived = fields.Boolean(io='r')
+            exclude_routes = ['destroy'] # we're using rel="archive" instead.
 
         @Route.GET('/<int:id>', rel="self", attribute="instance")
         def read(self, id) -> fields.Inline('self'):

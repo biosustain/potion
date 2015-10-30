@@ -187,7 +187,8 @@ class PrincipalManager(SQLAlchemyManager):
         if where:
             query = query.filter(self._where_expression(where))
         if sort:
-            query = query.order_by(*self._order_by(sort))
+            query = self._order_query_by(query, sort)
+
         return query
 
     def read(self, id):

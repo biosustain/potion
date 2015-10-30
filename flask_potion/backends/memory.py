@@ -36,7 +36,7 @@ class MemoryManager(Manager):
 
     @staticmethod
     def _sort_items(items, sort):
-        for key, reverse in reversed(sort):
+        for field, key, reverse in reversed(sort):
             items = sorted(items, key=lambda item: get_value(key, item, None), reverse=reverse)
         return items
 

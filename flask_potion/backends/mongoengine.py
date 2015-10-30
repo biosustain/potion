@@ -193,7 +193,7 @@ class MongoEngineManager(Manager):
 
     @staticmethod
     def _order_by(sort):
-        for attribute, reverse in sort:
+        for field, attribute, reverse in sort:
             if reverse:
                 yield "-%s" % attribute
             else:

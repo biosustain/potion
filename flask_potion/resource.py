@@ -311,6 +311,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
 
     class Meta:
         id_attribute = 'id'
+        sort_attribute = None  # None means use id_attribute
         id_converter = 'int'
         id_field_class = Integer  # Must inherit from Integer, String or ItemUri
         include_id = False
