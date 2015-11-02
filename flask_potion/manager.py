@@ -24,13 +24,11 @@ class Manager(object):
         self._init_filters(resource, resource.meta)
         self._init_key_converters(resource, resource.meta)
 
-    def _create_filter(self, filter_class, name, field, attribute):
-        return filter_class(name,
-                            field=field,
-                            attribute=field.attribute or attribute)
-
     def _init_model(self, resource, model, meta):
         self.model = model
+
+    def _init_filter(self, filter_class, name, field, attribute):
+        return filter_class(name, field=field, attribute=field.attribute or attribute)
 
     def _init_filters(self, resource, meta):
         fields = resource.schema.fields
@@ -40,7 +38,7 @@ class Manager(object):
                                            filters_by_type=self.FILTERS_BY_TYPE)
         self.filters = {
             field_name: {
-                name: self._create_filter(filter, name, fields[field_name], field_name)
+                name: self._init_filter(filter, name, fields[field_name], field_name)
                 for name, filter in field_filters.items()
                 }
             for field_name, field_filters in field_filters.items()

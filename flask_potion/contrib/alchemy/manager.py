@@ -96,7 +96,7 @@ class SQLAlchemyManager(Manager):
                     fs.required.add(name)
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
-    def _create_filter(self, filter_class, name, field, attribute):
+    def _init_filter(self, filter_class, name, field, attribute):
         return filter_class(name,
                             field=field,
                             attribute=field.attribute or attribute,
