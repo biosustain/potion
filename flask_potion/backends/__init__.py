@@ -1,8 +1,11 @@
 from __future__ import division
 import datetime
 from math import ceil
+import pprint
 
 import six
+from werkzeug.utils import cached_property
+from flask_potion.filters import filters_for_fields, FILTER_NAMES, FILTERS_BY_TYPE
 from flask_potion.exceptions import ItemNotFound
 from flask_potion import fields
 
@@ -17,6 +20,8 @@ class Manager(object):
     :param flask_potion.resource.Resource resource: resource class
     :param model: model read from ``Meta.model`` or ``None``
     """
+    filter_names = FILTER_NAMES
+    filters_by_type = FILTERS_BY_TYPE
     supported_comparators = ()
 
     def __init__(self, resource, model):
@@ -24,6 +29,20 @@ class Manager(object):
         self.model = model
 
         self._init_key_converters(resource, resource.meta)
+
+    @cached_property
+    def filters(self):
+        fields = self.resource.schema.fields
+        pprint.pprint(fields)
+        filters = filters_for_fields(self.resource.schema.fields,
+                                     self.resource.meta.filters,
+                                     filter_names=self.filter_names,
+                                     filters_by_type=self.filters_by_type)
+        pprint.pprint(filters)
+        return {
+            field_name: {name: filter(name, field=fields[field_name]) for name, filter in field_filters.items()}
+            for field_name, field_filters in filters.items()
+        }
 
     def _init_key_converters(self, resource, meta):
         if 'natural_key' in meta:

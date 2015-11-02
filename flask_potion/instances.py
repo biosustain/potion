@@ -1,8 +1,10 @@
 from collections import namedtuple
 import collections
+import pprint
 
 from flask import json, request, current_app
 from werkzeug.utils import cached_property
+from .filters import convert_filter
 
 from flask_potion import fields
 from .exceptions import InvalidJSON
@@ -161,82 +163,66 @@ class Instances(PaginationMixin, Schema, ResourceBound):
     query_params = ('where', 'sort')
 
     def __init__(self, default_sort=None, filters=None):
-
-        # TODO only allow filters supported by the manager
-        if filters in (ALL, None):
-            filters = ALL
-        elif isinstance(filters, (list, tuple)):
-            filters = {field: ALL for field in filters}
-        elif isinstance(filters, dict):
-            filters = dict(filters)
-
-        self.allowed_filters = filters
-        self.filters = {}
         self.sort_fields = []
 
     def _on_bind(self, resource):
         fs = resource.schema
-        filters = self.allowed_filters
+        # filters = self.allowed_filters
 
-        for name, field in fs.fields.items():
-            try:
-                available_comparators = COMPARATORS_BY_TYPE[field.__class__]
-            except KeyError:
-                continue
+        # for name, field in fs.fields.items():
+        #     try:
+        #         available_comparators = COMPARATORS_BY_TYPE[field.__class__]
+        #     except KeyError:
+        #         continue
+        #
+        #     if filters == ALL:
+        #         self.filters[name] = field, available_comparators
+        #     elif name in filters:
+        #         if filters[name] == ALL:
+        #             comparators = available_comparators
+        #         else:
+        #             comparators = [c for c in filters[name] if c in available_comparators]
+        #
+        #         self.filters[name] = field, comparators
+        #
+        # if filters in (ALL, None):
+        #     sort = fs.fields
+        # elif isinstance(filters, (list, tuple, dict)):
+        #     sort = {name: fs.fields[name] for name in filters}
+        # else:
+        #     raise RuntimeError("Meta.allowed_filters is not configured properly")
+        #
 
-            if filters == ALL:
-                self.filters[name] = field, available_comparators
-            elif name in filters:
-                if filters[name] == ALL:
-                    comparators = available_comparators
-                else:
-                    comparators = [c for c in filters[name] if c in available_comparators]
-
-                self.filters[name] = field, comparators
-
-        if filters in (ALL, None):
-            sort = fs.fields
-        elif isinstance(filters, (list, tuple, dict)):
-            sort = {name: fs.fields[name] for name in filters}
-        else:
-            raise RuntimeError("Meta.allowed_filters is not configured properly")
-
+        sort = {name: fs.fields[name] for name in resource.manager.filters}
         self.sort_fields = {name: field for name, field in sort.items()}
 
     def rebind(self, resource):
-        return self.__class__(
-            filters=self.allowed_filters
-        ).bind(resource)
+        return self.__class__().bind(resource)
 
-    def _filter_field_schema(self, field, comparators):
-        if len(comparators) == 1 and comparators[0].name == EQUALITY_COMPARATOR:
-            return comparators[0].schema(field)
-
-        comparator_options = {
-            "type": "object",
-            "properties": {c.name: c.schema(field) for c in comparators if c.name != EQUALITY_COMPARATOR},
-            "minProperties": 1,
-            "maxProperties": 1,
-            "additionalProperties": False
-        }
-
-        if COMPARATORS[EQUALITY_COMPARATOR] in comparators:
+    def _field_filters_schema(self, filters):
+        if len(filters) == 1:
+            return filters.values()[0].request
+        else:
             return {
-                "oneOf": [
-                    comparator_options,
-                    COMPARATORS[EQUALITY_COMPARATOR].schema(field)
-                ]
+                "anyOf": [filter.request for filter in filters.values()]
             }
 
-        return comparator_options
-
     @cached_property
-    def _where_schema(self):
+    def _filter_schema(self):
+
+        pprint.pprint({
+            "type": "object",
+            "properties": {
+                name: self._field_filters_schema(filters)
+                for name, filters in self.resource.manager.filters.items()
+            },
+            "additionalProperties": False
+        })
         return {
             "type": "object",
             "properties": {
-                name: self._filter_field_schema(field, comparators)
-                for name, (field, comparators) in self.filters.items()
+                name: self._field_filters_schema(filters)
+                for name, filters in self.resource.manager.filters.items()
             },
             "additionalProperties": False
         }
@@ -260,7 +246,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
         request_schema = {
             "type": "object",
             "properties": {
-                "where": self._where_schema,
+                "where": self._filter_schema,
                 "sort": self._sort_schema,
                 "page": {
                     "type": "integer",
@@ -288,31 +274,36 @@ class Instances(PaginationMixin, Schema, ResourceBound):
     # pass
     #     # TODO properties -> field attributes
     #     # parse filters
+    #
+    # def _convert_where(self, where):
+    #     for name, condition in where.items():
+    #         field, comparators = self.filters[name]
+    #
+    #         value = None
+    #         comparator = None
+    #         if isinstance(condition, dict) and '$ref' not in condition:
+    #             # if len(condition) == 1 and '$ref' in condition:
+    #
+    #             for c in comparators:
+    #                 if c.name in condition:
+    #                     comparator = c
+    #                     value = condition[c.name]
+    #                     break
+    #
+    #             assert comparator is not None
+    #         elif isinstance(condition, list):
+    #             comparator = COMPARATORS['$in']
+    #             value = condition
+    #         else:
+    #             comparator = COMPARATORS['$eq']
+    #             value = field.convert(condition)
+    #
+    #         yield Condition(field.attribute or name, comparator, value)
 
-    def _convert_where(self, where):
-        for name, condition in where.items():
-            field, comparators = self.filters[name]
-
-            value = None
-            comparator = None
-            if isinstance(condition, dict) and '$ref' not in condition:
-                # if len(condition) == 1 and '$ref' in condition:
-
-                for c in comparators:
-                    if c.name in condition:
-                        comparator = c
-                        value = condition[c.name]
-                        break
-
-                assert comparator is not None
-            elif isinstance(condition, list):
-                comparator = COMPARATORS['$in']
-                value = condition
-            else:
-                comparator = COMPARATORS['$eq']
-                value = field.convert(condition)
-
-            yield Condition(field.attribute or name, comparator, value)
+    def _convert_filters(self, where):
+        for name, value in where.items():
+            filters = self.resource.manager.filters[name]
+            yield convert_filter(value, filters)
 
     def _convert_sort(self, sort):
         for name, reverse in sort.items():
@@ -338,7 +329,9 @@ class Instances(PaginationMixin, Schema, ResourceBound):
             "sort": sort
         })
 
-        result['where'] = tuple(self._convert_where(result['where']))
+        pprint.pprint(where)
+
+        result['where'] = tuple(self._convert_filters(result['where']))
         result['sort'] = tuple(self._convert_sort(result['sort']))
         return result
 

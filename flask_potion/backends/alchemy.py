@@ -8,6 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper, aliased
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
+from werkzeug.utils import cached_property
+from flask_potion.filters import filters_for_fields
+from flask_potion.backends.alchemy_filters import FILTER_NAMES, FILTERS_BY_TYPE
 
 from flask_potion.utils import get_value
 from flask_potion import fields
@@ -40,6 +43,8 @@ class SQLAlchemyManager(Manager):
     Expects that :class:`Meta.model` contains an SQLALchemy declarative model.
 
     """
+    filter_names = FILTER_NAMES
+    filters_by_type = FILTERS_BY_TYPE
     supported_comparators = tuple(SA_COMPARATOR_EXPRESSIONS.keys())
 
     def __init__(self, resource, model):
@@ -123,12 +128,26 @@ class SQLAlchemyManager(Manager):
     def _query(self):
         return self.model.query
 
+
+    @cached_property
+    def filters(self):
+        fields = self.resource.schema.fields
+        filters = filters_for_fields(self.resource.schema.fields,
+                                     self.resource.meta.filters,
+                                     filter_names=self.filter_names,
+                                     filters_by_type=self.filters_by_type)
+        return {
+            field_name: {name: filter(name,
+                                      field=fields[field_name],
+                                      column=getattr(self.model, fields[field_name].attribute or field_name)) for name, filter in field_filters.items()}
+            for field_name, field_filters in filters.items()
+        }
+
     def _where_expression(self, where):
         expressions = []
 
         for condition in where:
-            column = getattr(self.model, condition.attribute)
-            expressions.append(SA_COMPARATOR_EXPRESSIONS[condition.comparator.name](column, condition.value))
+            expressions.append(condition.filter.expression(condition.value))
 
         if len(expressions) == 1:
             return expressions[0]

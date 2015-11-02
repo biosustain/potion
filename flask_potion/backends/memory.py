@@ -28,10 +28,9 @@ class MemoryManager(Manager):
         return self.id_sequence
 
     @staticmethod
-    def _filter_items(items, where):
+    def _filter_items(items, conditions):
         for item in items:
-            # TODO ensure condition uses the field attribute, not the post attribute
-            if all(condition(item) for condition in where):
+            if all(condition(item) for condition in conditions):
                 yield item
 
     @staticmethod

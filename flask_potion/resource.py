@@ -319,7 +319,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         manager = None
         include_fields = None
         exclude_fields = None
-        allowed_filters = "*"
+        filters = True
         permissions = {
             "read": "anyone",  # anybody, yes
             "create": "nobody",  # noone, no
