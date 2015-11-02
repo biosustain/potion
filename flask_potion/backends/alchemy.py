@@ -8,8 +8,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper, aliased
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
-from werkzeug.utils import cached_property
-from flask_potion.filters import filters_for_fields
 from flask_potion.backends.alchemy_filters import FILTER_NAMES, FILTERS_BY_TYPE, SQLAlchemyBaseFilter
 
 from flask_potion.utils import get_value
@@ -18,7 +16,7 @@ from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
 from flask_potion.backends import Manager, Pagination
 from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
-
+from flask_sqlalchemy import Pagination as SAPagination
 
 SA_COMPARATOR_EXPRESSIONS = {
     '$eq': lambda column, value: column == value,
@@ -45,7 +43,7 @@ class SQLAlchemyManager(Manager):
     """
     filter_names = FILTER_NAMES
     filters_by_type = FILTERS_BY_TYPE
-    supported_comparators = tuple(SA_COMPARATOR_EXPRESSIONS.keys())
+    pagination_types = (Pagination, SAPagination)
 
     def __init__(self, resource, model):
         super(SQLAlchemyManager, self).__init__(resource, model)
@@ -115,12 +113,12 @@ class SQLAlchemyManager(Manager):
 
     def _create_filter(self, filter_class, name, field, attribute):
         return filter_class(name,
-                          field=field,
-                          attribute=field.attribute or attribute,
-                          column=getattr(self.model, field.attribute or attribute))
+                            field=field,
+                            attribute=field.attribute or attribute,
+                            column=getattr(self.model, field.attribute or attribute))
 
-    def is_sortable_field(self, field):
-        if super(SQLAlchemyManager, self).is_sortable_field(field):
+    def _is_sortable_field(self, field):
+        if super(SQLAlchemyManager, self)._is_sortable_field(field):
             return True
         elif isinstance(field, fields.ToOne):
             return isinstance(field.target.manager, SQLAlchemyManager)

@@ -14,7 +14,7 @@ from flask_potion.backends import Manager, Pagination
 from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 from flask_potion import fields
-
+from flask_mongoengine import Pagination as MEPagination
 
 # TODO: more elaborate field that validates and returns ObjectId
 
@@ -49,25 +49,6 @@ MONGO_EMBEDDED_FIELD_TYPES = (
     mongo_fields.GenericEmbeddedDocumentField
 )
 
-
-
-# COMPARATOR_EXPRESSIONS = {
-#     '$eq': lambda column, value: {column: value},
-#     '$ne': lambda column, value: {"%s__ne" % column: value},
-#     '$in': lambda column, value: {"%s__in" % column: value},
-#     '$lt': lambda column, value: {"%s__lt" % column: value},
-#     '$gt': lambda column, value: {"%s__gt" % column: value},
-#     '$lte': lambda column, value: {"%s__lte" % column: value},
-#     '$gte': lambda column, value: {"%s__gte" % column: value},
-#     '$contains': lambda column, value: {"%s__contains" % column: value},
-#     '$startswith': lambda column, value: {"%s__startswith" % column: value.replace('%', '\\%')},
-#     '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')},
-#     '%icontains': lambda column, value: {"%s__icontains" % column: value.replace('%', '\\%')},
-#     '$istartswith': lambda column, value: {"%s__istartswith" % column: value.replace('%', '\\%')},
-#     '$iendswith': lambda column, value: {"%s__iendswith" % column: value.replace('%', '\\%')},
-# }
-
-
 MONGO_FIELDS_MAPPING = {
     mongo_fields.ObjectIdField: custom_fields.ObjectId,
     mongo_fields.IntField: fields.Integer,
@@ -89,7 +70,7 @@ class MongoEngineManager(Manager):
     """
     filter_names = FILTER_NAMES
     filters_by_type = FILTERS_BY_TYPE
-    # supported_comparators = tuple(COMPARATOR_EXPRESSIONS.keys())
+    pagination_types = (Pagination, MEPagination)
 
     def __init__(self, resource, model):
         super(MongoEngineManager, self).__init__(resource, model)

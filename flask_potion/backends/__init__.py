@@ -9,6 +9,40 @@ from flask_potion.exceptions import ItemNotFound
 from flask_potion import fields
 
 
+class Pagination(object):
+    """
+    A pagination class for list-like instances.
+
+    :param items:
+    :param page:
+    :param per_page:
+    :param total:
+    """
+
+    def __init__(self, items, page, per_page, total):
+        self.items = items
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+
+    @property
+    def pages(self):
+        return max(1, int(ceil(self.total / self.per_page)))
+
+    @property
+    def has_prev(self):
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        return self.page < self.pages
+
+    @classmethod
+    def from_list(cls, items, page, per_page):
+        start = per_page * (page - 1)
+        return Pagination(items[start:start + per_page], page, per_page, len(items))
+
+
 class Manager(object):
     """
 
@@ -21,7 +55,7 @@ class Manager(object):
     """
     filter_names = FILTER_NAMES
     filters_by_type = FILTERS_BY_TYPE
-    supported_comparators = ()
+    pagination_types = (Pagination,)
 
     def __init__(self, resource, model):
         self.resource = resource
@@ -47,6 +81,24 @@ class Manager(object):
                 for name, filter in field_filters.items()
                 }
             for field_name, field_filters in filters.items()
+        }
+
+    def _is_sortable_field(self, field):
+        return isinstance(field, (fields.String,
+                                  fields.Boolean,
+                                  fields.Number,
+                                  fields.Integer,
+                                  fields.Date,
+                                  fields.DateTime))
+
+    @cached_property
+    def sort_fields(self):
+        fields = self.resource.schema.fields
+        filters = self.filters
+
+        return {
+            name: field for name, field in fields.items()
+            if name in filters and self._is_sortable_field(field)
         }
 
     def _init_key_converters(self, resource, meta):
@@ -82,14 +134,6 @@ class Manager(object):
             }[python_type]
         except KeyError:
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
-
-    def is_sortable_field(self, field):
-        return isinstance(field, (fields.String,
-                                  fields.Boolean,
-                                  fields.Number,
-                                  fields.Integer,
-                                  fields.Date,
-                                  fields.DateTime))
 
     def get_field_comparators(self, field):
         pass
@@ -210,37 +254,3 @@ class Manager(object):
     def begin(self):
 
         pass
-
-
-class Pagination(object):
-    """
-    A pagination class for list-like instances.
-
-    :param items:
-    :param page:
-    :param per_page:
-    :param total:
-    """
-
-    def __init__(self, items, page, per_page, total):
-        self.items = items
-        self.page = page
-        self.per_page = per_page
-        self.total = total
-
-    @property
-    def pages(self):
-        return max(1, int(ceil(self.total / self.per_page)))
-
-    @property
-    def has_prev(self):
-        return self.page > 1
-
-    @property
-    def has_next(self):
-        return self.page < self.pages
-
-    @classmethod
-    def from_list(cls, items, page, per_page):
-        start = per_page * (page - 1)
-        return Pagination(items[start:start + per_page], page, per_page, len(items))

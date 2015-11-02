@@ -3,31 +3,20 @@ from flask import json, request, current_app
 from werkzeug.utils import cached_property
 from .filters import convert_filters
 from .exceptions import InvalidJSON
-from .backends import Pagination
 from .fields import ToMany
 from .reference import ResourceBound
 from .schema import Schema
-
-PAGINATION_TYPES = (Pagination,)
-
-try:
-    from flask_sqlalchemy import Pagination as SAPagination
-    PAGINATION_TYPES += (SAPagination,)
-except ImportError:
-    pass
-
-try:
-    from flask_mongoengine import Pagination as MEPagination
-    PAGINATION_TYPES += (MEPagination,)
-except ImportError:
-    pass
 
 
 class PaginationMixin(object):
     query_params = ()
 
+    @cached_property
+    def _pagination_types(self):
+        raise NotImplemented()
+
     def format_response(self, data):
-        if not isinstance(data, PAGINATION_TYPES):
+        if not isinstance(data, self._pagination_types):
             return self.format(data)
 
         links = [(request.path, data.page, data.per_page, 'self')]
@@ -53,7 +42,10 @@ class PaginationMixin(object):
 
 
 class RelationInstances(PaginationMixin, ToMany):
-    pass
+
+    @cached_property
+    def _pagination_types(self):
+        return self.container.target.manager.pagination_types
 
 
 class Instances(PaginationMixin, Schema, ResourceBound):
@@ -64,16 +56,12 @@ class Instances(PaginationMixin, Schema, ResourceBound):
     """
     query_params = ('where', 'sort')
 
-    def __init__(self, default_sort=None, filters=None):
-        self.sort_fields = []
-
-    def _on_bind(self, resource):
-        fs = resource.schema
-        sort = {name: fs.fields[name] for name in resource.manager.filters}
-        self.sort_fields = {name: field for name, field in sort.items()}
-
     def rebind(self, resource):
         return self.__class__().bind(resource)
+
+    @cached_property
+    def _pagination_types(self):
+        return self.resource.manager.pagination_types
 
     def _field_filters_schema(self, filters):
         if len(filters) == 1:
@@ -82,12 +70,20 @@ class Instances(PaginationMixin, Schema, ResourceBound):
             return {"anyOf": [filter.request for filter in filters.values()]}
 
     @cached_property
+    def _filters(self):
+        return self.resource.manager.filters
+
+    @cached_property
+    def _sort_fields(self):
+        return self.resource.manager.sort_fields
+
+    @cached_property
     def _filter_schema(self):
         return {
             "type": "object",
             "properties": {
                 name: self._field_filters_schema(filters)
-                for name, filters in self.resource.manager.filters.items()
+                for name, filters in self._filters.items()
             },
             "additionalProperties": False
         }
@@ -101,8 +97,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
                                  "type": "boolean",
                                  "description": "Sort by {} in descending order if 'true', ascending order if 'false'.".format(name)
                              }
-                             for name, field in self.sort_fields.items()
-                             if self.resource.manager.is_sortable_field(field)
+                             for name, field in self._sort_fields.items()
             },
             "additionalProperties": False
         }
@@ -137,12 +132,11 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     def _convert_filters(self, where):
         for name, value in where.items():
-            filters = self.resource.manager.filters[name]
-            yield convert_filters(value, filters)
+            yield convert_filters(value, self._filters[name])
 
     def _convert_sort(self, sort):
         for name, reverse in sort.items():
-            field = self.sort_fields[name]
+            field = self._sort_fields[name]
             yield field, field.attribute or name, reverse
 
     def parse_request(self, request):

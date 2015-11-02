@@ -13,25 +13,9 @@ except ImportError:
     postgres_ext = False
 
 from flask_potion import fields, signals
-from flask_potion.filters import filters_for_fields
 from flask_potion.backends import Manager
 from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.utils import get_value
-
-# PW_COMPARATOR_EXPRESSIONS = {
-#     '$eq': lambda column, value: column == value,
-#     '$ne': lambda column, value: column != value,
-#     '$in': lambda column, value: column << value,
-#     '$lt': lambda column, value: column < value,
-#     '$gt': lambda column, value: column > value,
-#     '$lte': lambda column, value: column <= value,
-#     '$gte': lambda column, value: column >= value,
-#     '$contains': lambda column, value: column.contains(value),
-#     '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
-#     '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%')),
-#     '$istartswith': lambda column, value: column ** (value.replace('%', '\\%') + "%"),
-#     '$iendswith': lambda column, value: column ** ("%" + value.replace('%', '\\%'))
-# }
 
 
 class PeeweeManager(Manager):
