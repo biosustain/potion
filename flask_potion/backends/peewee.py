@@ -4,37 +4,42 @@ from operator import and_
 from flask import current_app
 
 import peewee as pw
+from werkzeug.utils import cached_property
+from .peewee_filters import FILTER_NAMES, FILTERS_BY_TYPE, PeeweeBaseFilter
+
 try:
     from playhouse import postgres_ext
 except ImportError:
     postgres_ext = False
 
 from flask_potion import fields, signals
+from flask_potion.filters import filters_for_fields
 from flask_potion.backends import Manager
 from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.utils import get_value
 
-PW_COMPARATOR_EXPRESSIONS = {
-    '$eq': lambda column, value: column == value,
-    '$ne': lambda column, value: column != value,
-    '$in': lambda column, value: column << value,
-    '$lt': lambda column, value: column < value,
-    '$gt': lambda column, value: column > value,
-    '$lte': lambda column, value: column <= value,
-    '$gte': lambda column, value: column >= value,
-    '$contains': lambda column, value: column.contains(value),
-    '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
-    '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%')),
-    '$istartswith': lambda column, value: column ** (value.replace('%', '\\%') + "%"),
-    '$iendswith': lambda column, value: column ** ("%" + value.replace('%', '\\%'))
-}
+# PW_COMPARATOR_EXPRESSIONS = {
+#     '$eq': lambda column, value: column == value,
+#     '$ne': lambda column, value: column != value,
+#     '$in': lambda column, value: column << value,
+#     '$lt': lambda column, value: column < value,
+#     '$gt': lambda column, value: column > value,
+#     '$lte': lambda column, value: column <= value,
+#     '$gte': lambda column, value: column >= value,
+#     '$contains': lambda column, value: column.contains(value),
+#     '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
+#     '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%')),
+#     '$istartswith': lambda column, value: column ** (value.replace('%', '\\%') + "%"),
+#     '$iendswith': lambda column, value: column ** ("%" + value.replace('%', '\\%'))
+# }
 
 
 class PeeweeManager(Manager):
     """
     A manager for Peewee models.
     """
-    supported_comparators = tuple(PW_COMPARATOR_EXPRESSIONS.keys())
+    filter_names = FILTER_NAMES
+    filters_by_type = FILTERS_BY_TYPE
 
     def __init__(self, resource, model):
         super(PeeweeManager, self).__init__(resource, model)
@@ -120,24 +125,14 @@ class PeeweeManager(Manager):
                 fs.set(
                     name, field_class(*args, io=io, attribute=name, **kwargs))
 
+    def _create_filter(self, filter_class, name, field, attribute):
+        return filter_class(name,
+                            field=field,
+                            attribute=field.attribute or attribute,
+                            column=getattr(self.model, field.attribute or attribute))
+
     def _query(self):
         return self.model.select()
-
-    def _where_expression(self, where):
-        expressions = []
-
-        for condition in where:
-            column = getattr(self.model, condition.attribute)
-            expressions.append(
-                PW_COMPARATOR_EXPRESSIONS[condition.comparator.name](
-                    column, condition.value))
-
-        if len(expressions) == 1:
-            return expressions[0]
-
-        # TODO ranking by default with text-search.
-
-        return and_(*expressions)
 
     def _order_by(self, sort):
         for field, attribute, reverse in sort:
@@ -192,7 +187,7 @@ class PeeweeManager(Manager):
         query = self._query()
 
         if where:
-            query = query.where(self._where_expression(where))
+            query = PeeweeBaseFilter.apply(query, where)
         if sort:
             query = query.order_by(*self._order_by(sort))
 

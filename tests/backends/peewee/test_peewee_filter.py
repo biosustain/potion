@@ -41,9 +41,9 @@ class PeeeeFilterTestCase(BaseTestCase):
             class Meta:
                 model = User
                 name = 'allow-user'
-                allowed_filters = {
-                    'first_name': ['$eq'],
-                    'is_staff': '*'
+                filters = {
+                    'first_name': ['eq'],
+                    'is_staff': True
                 }
 
         self.api.add_resource(UserResource)
@@ -116,10 +116,7 @@ class PeeeeFilterTestCase(BaseTestCase):
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
 
         response = self.client.get('/user?where={"age": {"$lt": 21.0}}')
-
-        self.assertEqualWithout([
-                                    {'first_name': 'Jane', 'last_name': 'Roe'}
-                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+        self.assert400(response)
 
         response = self.client.get('/user?where={"age": {"$lt": null}}')
         self.assert400(response)

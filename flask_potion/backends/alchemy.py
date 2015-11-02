@@ -10,7 +10,7 @@ from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.utils import cached_property
 from flask_potion.filters import filters_for_fields
-from flask_potion.backends.alchemy_filters import FILTER_NAMES, FILTERS_BY_TYPE
+from flask_potion.backends.alchemy_filters import FILTER_NAMES, FILTERS_BY_TYPE, SQLAlchemyBaseFilter
 
 from flask_potion.utils import get_value
 from flask_potion import fields
@@ -113,6 +113,12 @@ class SQLAlchemyManager(Manager):
                     fs.required.add(name)
                 fs.set(name, field_class(*args, io=io, attribute=name, **kwargs))
 
+    def _create_filter(self, filter_class, name, field, attribute):
+        return filter_class(name,
+                          field=field,
+                          attribute=field.attribute or attribute,
+                          column=getattr(self.model, field.attribute or attribute))
+
     def is_sortable_field(self, field):
         if super(SQLAlchemyManager, self).is_sortable_field(field):
             return True
@@ -127,34 +133,6 @@ class SQLAlchemyManager(Manager):
 
     def _query(self):
         return self.model.query
-
-
-    @cached_property
-    def filters(self):
-        fields = self.resource.schema.fields
-        filters = filters_for_fields(self.resource.schema.fields,
-                                     self.resource.meta.filters,
-                                     filter_names=self.filter_names,
-                                     filters_by_type=self.filters_by_type)
-        return {
-            field_name: {name: filter(name,
-                                      field=fields[field_name],
-                                      column=getattr(self.model, fields[field_name].attribute or field_name)) for name, filter in field_filters.items()}
-            for field_name, field_filters in filters.items()
-        }
-
-    def _where_expression(self, where):
-        expressions = []
-
-        for condition in where:
-            expressions.append(condition.filter.expression(condition.value))
-
-        if len(expressions) == 1:
-            return expressions[0]
-
-        # TODO ranking by default with text-search.
-
-        return and_(*expressions)
 
     def _order_query_by(self, query, sort):
         order_clauses = []
@@ -203,7 +181,7 @@ class SQLAlchemyManager(Manager):
         query = self._query()
 
         if where:
-            query = query.filter(self._where_expression(where))
+            query = SQLAlchemyBaseFilter.apply(query, where)
         if sort:
             query = self._order_query_by(query, sort)
 

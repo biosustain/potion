@@ -6,6 +6,7 @@ from mongoengine.errors import OperationError, ValidationError
 from bson.errors import InvalidId
 
 import mongoengine.fields as mongo_fields
+from .mongoengine_filters import FILTER_NAMES, FILTERS_BY_TYPE
 
 from flask_potion.utils import get_value
 from flask_potion.exceptions import ItemNotFound, BackendConflict
@@ -50,21 +51,21 @@ MONGO_EMBEDDED_FIELD_TYPES = (
 
 
 
-COMPARATOR_EXPRESSIONS = {
-    '$eq': lambda column, value: {column: value},
-    '$ne': lambda column, value: {"%s__ne" % column: value},
-    '$in': lambda column, value: {"%s__in" % column: value},
-    '$lt': lambda column, value: {"%s__lt" % column: value},
-    '$gt': lambda column, value: {"%s__gt" % column: value},
-    '$lte': lambda column, value: {"%s__lte" % column: value},
-    '$gte': lambda column, value: {"%s__gte" % column: value},
-    '$contains': lambda column, value: {"%s__contains" % column: value},
-    '$startswith': lambda column, value: {"%s__startswith" % column: value.replace('%', '\\%')},
-    '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')},
-    '%icontains': lambda column, value: {"%s__icontains" % column: value.replace('%', '\\%')},
-    '$istartswith': lambda column, value: {"%s__istartswith" % column: value.replace('%', '\\%')},
-    '$iendswith': lambda column, value: {"%s__iendswith" % column: value.replace('%', '\\%')},
-}
+# COMPARATOR_EXPRESSIONS = {
+#     '$eq': lambda column, value: {column: value},
+#     '$ne': lambda column, value: {"%s__ne" % column: value},
+#     '$in': lambda column, value: {"%s__in" % column: value},
+#     '$lt': lambda column, value: {"%s__lt" % column: value},
+#     '$gt': lambda column, value: {"%s__gt" % column: value},
+#     '$lte': lambda column, value: {"%s__lte" % column: value},
+#     '$gte': lambda column, value: {"%s__gte" % column: value},
+#     '$contains': lambda column, value: {"%s__contains" % column: value},
+#     '$startswith': lambda column, value: {"%s__startswith" % column: value.replace('%', '\\%')},
+#     '$endswith': lambda column, value: {"%s__endswith" % column: value.replace('%', '\\%')},
+#     '%icontains': lambda column, value: {"%s__icontains" % column: value.replace('%', '\\%')},
+#     '$istartswith': lambda column, value: {"%s__istartswith" % column: value.replace('%', '\\%')},
+#     '$iendswith': lambda column, value: {"%s__iendswith" % column: value.replace('%', '\\%')},
+# }
 
 
 MONGO_FIELDS_MAPPING = {
@@ -86,7 +87,9 @@ class MongoEngineManager(Manager):
     Expects that :class:`Meta.model` contains an MongoEngine declarative model.
 
     """
-    supported_comparators = tuple(COMPARATOR_EXPRESSIONS.keys())
+    filter_names = FILTER_NAMES
+    filters_by_type = FILTERS_BY_TYPE
+    # supported_comparators = tuple(COMPARATOR_EXPRESSIONS.keys())
 
     def __init__(self, resource, model):
         super(MongoEngineManager, self).__init__(resource, model)
@@ -187,7 +190,7 @@ class MongoEngineManager(Manager):
         expressions = {}
 
         for condition in where:
-            expressions.update(COMPARATOR_EXPRESSIONS[condition.comparator.name](condition.attribute, condition.value))
+            expressions.update(condition.filter.expression(condition.value))
 
         return expressions
 

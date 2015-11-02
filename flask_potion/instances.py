@@ -1,17 +1,11 @@
-from collections import namedtuple
 import collections
-import pprint
-
 from flask import json, request, current_app
 from werkzeug.utils import cached_property
-from .filters import convert_filter
-
-from flask_potion import fields
+from .filters import convert_filters
 from .exceptions import InvalidJSON
 from .backends import Pagination
 from .fields import ToMany
 from .reference import ResourceBound
-from .utils import get_value
 from .schema import Schema
 
 PAGINATION_TYPES = (Pagination,)
@@ -27,98 +21,6 @@ try:
     PAGINATION_TYPES += (MEPagination,)
 except ImportError:
     pass
-
-
-Comparator = namedtuple('Comparator', ['name', 'schema', 'expression', 'supported_types'])
-
-DEFAULT_COMPARATORS = (
-    Comparator('$eq',
-               lambda field: field.response,
-               lambda eq, value: value == eq,
-               (fields.Boolean, fields.String, fields.Integer, fields.Number, fields.ToOne)),
-    Comparator('$ne',
-               lambda field: field.response,
-               lambda ne, value: value != ne,
-               (fields.Boolean, fields.String, fields.Integer, fields.Number)),
-    Comparator('$in',
-               lambda field: {
-                   "type": "array",
-                   # "minItems": 1, # NOTE: Permitting 0 items for now.
-                   "uniqueItems": True,
-                   "items": field.response  # NOTE: None is valid.
-               },
-               lambda in_, value: value in in_,
-               (fields.String, fields.Integer, fields.Number)),
-    Comparator('$contains',
-               lambda field: field.container.response,
-               lambda contains, value: value and contains in value,
-               (fields.Array, fields.ToMany)),
-    Comparator('$lt',
-               lambda field: {"type": "number"},
-               lambda lt, value: value < lt,
-               (fields.Integer, fields.Number)),
-    Comparator('$gt',
-               lambda field: {"type": "number"},
-               lambda gt, value: value > gt,
-               (fields.Integer, fields.Number)),
-    Comparator('$lte',
-               lambda field: {"type": "number"},
-               lambda lte, value: value <= lte,
-               (fields.Integer, fields.Number)),
-    Comparator('$gte',
-               lambda field: {"type": "number"},
-               lambda gte, value: value <= gte,
-               (fields.Integer, fields.Number)),
-    Comparator('$startswith',
-               lambda field: {
-                   "type": "string",
-                   "minLength": 1
-               },
-               lambda sw, value: value and value.startswith(sw),
-               (fields.String,)),
-    Comparator('$endswith',
-               lambda field: {
-                   "type": "string",
-                   "minLength": 1
-               },
-               lambda ew, value: value and value.endswith(ew),
-               (fields.String,)),
-    Comparator('$istartswith',
-               lambda field: {
-                   "type": "string",
-                   "minLength": 1
-               },
-               lambda sw, value: value and value.lower().startswith(sw.lower()),
-               (fields.String,)),
-    Comparator('$iendswith',
-               lambda field: {
-                   "type": "string",
-                   "minLength": 1
-               },
-               lambda sw, value: value and value.lower().endswith(sw.lower()),
-               (fields.String,))
-)
-
-COMPARATORS = {c.name: c for c in DEFAULT_COMPARATORS}
-
-COMPARATORS_BY_TYPE = {
-    t: [c for c in DEFAULT_COMPARATORS if t in c.supported_types]
-    for t in (fields.Boolean, fields.String, fields.Integer, fields.Number, fields.ToOne)
-}
-
-EQUALITY_COMPARATOR = '$eq'
-
-ALL = '*'
-
-
-class Condition(object):
-    def __init__(self, attribute, comparator, value):
-        self.attribute = attribute
-        self.comparator = comparator
-        self.value = value
-
-    def __call__(self, item):
-        return self.comparator.expression(self.value, get_value(self.attribute, item, None))
 
 
 class PaginationMixin(object):
@@ -167,32 +69,6 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     def _on_bind(self, resource):
         fs = resource.schema
-        # filters = self.allowed_filters
-
-        # for name, field in fs.fields.items():
-        #     try:
-        #         available_comparators = COMPARATORS_BY_TYPE[field.__class__]
-        #     except KeyError:
-        #         continue
-        #
-        #     if filters == ALL:
-        #         self.filters[name] = field, available_comparators
-        #     elif name in filters:
-        #         if filters[name] == ALL:
-        #             comparators = available_comparators
-        #         else:
-        #             comparators = [c for c in filters[name] if c in available_comparators]
-        #
-        #         self.filters[name] = field, comparators
-        #
-        # if filters in (ALL, None):
-        #     sort = fs.fields
-        # elif isinstance(filters, (list, tuple, dict)):
-        #     sort = {name: fs.fields[name] for name in filters}
-        # else:
-        #     raise RuntimeError("Meta.allowed_filters is not configured properly")
-        #
-
         sort = {name: fs.fields[name] for name in resource.manager.filters}
         self.sort_fields = {name: field for name, field in sort.items()}
 
@@ -201,23 +77,12 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     def _field_filters_schema(self, filters):
         if len(filters) == 1:
-            return filters.values()[0].request
+            return next(iter(filters.values())).request
         else:
-            return {
-                "anyOf": [filter.request for filter in filters.values()]
-            }
+            return {"anyOf": [filter.request for filter in filters.values()]}
 
     @cached_property
     def _filter_schema(self):
-
-        pprint.pprint({
-            "type": "object",
-            "properties": {
-                name: self._field_filters_schema(filters)
-                for name, filters in self.resource.manager.filters.items()
-            },
-            "additionalProperties": False
-        })
         return {
             "type": "object",
             "properties": {
@@ -270,40 +135,10 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
         return response_schema, request_schema
 
-    # def convert(self, value):
-    # pass
-    #     # TODO properties -> field attributes
-    #     # parse filters
-    #
-    # def _convert_where(self, where):
-    #     for name, condition in where.items():
-    #         field, comparators = self.filters[name]
-    #
-    #         value = None
-    #         comparator = None
-    #         if isinstance(condition, dict) and '$ref' not in condition:
-    #             # if len(condition) == 1 and '$ref' in condition:
-    #
-    #             for c in comparators:
-    #                 if c.name in condition:
-    #                     comparator = c
-    #                     value = condition[c.name]
-    #                     break
-    #
-    #             assert comparator is not None
-    #         elif isinstance(condition, list):
-    #             comparator = COMPARATORS['$in']
-    #             value = condition
-    #         else:
-    #             comparator = COMPARATORS['$eq']
-    #             value = field.convert(condition)
-    #
-    #         yield Condition(field.attribute or name, comparator, value)
-
     def _convert_filters(self, where):
         for name, value in where.items():
             filters = self.resource.manager.filters[name]
-            yield convert_filter(value, filters)
+            yield convert_filters(value, filters)
 
     def _convert_sort(self, sort):
         for name, reverse in sort.items():
@@ -328,8 +163,6 @@ class Instances(PaginationMixin, Schema, ResourceBound):
             "where": where,
             "sort": sort
         })
-
-        pprint.pprint(where)
 
         result['where'] = tuple(self._convert_filters(result['where']))
         result['sort'] = tuple(self._convert_sort(result['sort']))

@@ -45,8 +45,8 @@ class ItemNotFound(PotionException):
                 "$type": self.resource.meta.name,
                 "$where": {
                     condition.attribute: {
-                        condition.comparator.name: condition.value
-                    } if condition.comparator.name != '$eq' else condition.value
+                        "${}".format(condition.filter.name): condition.value
+                    } if condition.filter.name is not None else condition.value
                     for condition in self.where
                 } if self.where else None
             }

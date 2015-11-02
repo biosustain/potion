@@ -55,9 +55,9 @@ class FilterTestCase(BaseTestCase):
             class Meta:
                 model = User
                 name = 'allow-user'
-                allowed_filters = {
-                    'first_name': ['$eq'],
-                    'is_staff': '*'
+                filters = {
+                    'first_name': ['eq'],
+                    'is_staff': True
                 }
 
         self.api.add_resource(UserResource)

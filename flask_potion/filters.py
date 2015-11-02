@@ -1,6 +1,7 @@
 from .schema import Schema
 from .utils import get_value
-import fields
+from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany
+
 
 class BaseFilter(Schema):
     """
@@ -184,12 +185,12 @@ FILTER_NAMES = (
 )
 
 FILTERS_BY_TYPE = (
-    (fields.Boolean, (
+    (Boolean, (
         EqualFilter,
         NotEqualFilter,
         InFilter
     )),
-    (fields.Integer, (
+    (Integer, (
         EqualFilter,
         NotEqualFilter,
         LessThanFilter,
@@ -198,7 +199,7 @@ FILTERS_BY_TYPE = (
         GreaterThanEqualFilter,
         InFilter,
     )),
-    (fields.Number, (
+    (Number, (
         EqualFilter,
         NotEqualFilter,
         LessThanFilter,
@@ -207,7 +208,7 @@ FILTERS_BY_TYPE = (
         GreaterThanEqualFilter,
         InFilter,
     )),
-    (fields.String, (
+    (String, (
         EqualFilter,
         NotEqualFilter,
         StringContainsFilter,
@@ -218,15 +219,15 @@ FILTERS_BY_TYPE = (
         IEndsWithFilter,
         InFilter,
     )),
-    (fields.Array, (
+    (Array, (
         ContainsFilter,
     )),
-    (fields.ToOne, (
+    (ToOne, (
         EqualFilter,
         NotEqualFilter,
         InFilter,
     )),
-    (fields.ToMany, (
+    (ToMany, (
         ContainsFilter,
     )),
 )
@@ -239,7 +240,7 @@ class Condition(object):
         self.value = value
 
     def __call__(self, item):
-        return self.filter.op(get_value(self.attribute, item, None))
+        return self.filter.op(get_value(self.attribute, item, None), self.value)
 
 
 def _get_names_for_filter(filter, filter_names=FILTER_NAMES):
@@ -333,7 +334,7 @@ def filters_for_fields(fields,
     return filters
 
 
-def convert_filter(value, field_filters):
+def convert_filters(value, field_filters):
     if isinstance(value, dict) and len(value) == 1:
         filter_name = next(iter(value))
 

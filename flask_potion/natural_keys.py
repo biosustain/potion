@@ -1,7 +1,8 @@
 import re
 
 import six
-from .instances import Condition, COMPARATORS
+from werkzeug.utils import cached_property
+from .filters import Condition
 
 from .schema import Schema
 from .reference import ResourceBound
@@ -74,8 +75,12 @@ class PropertyKey(Key):
     def format(self, item):
         return self.resource.schema.fields[self.property].output(self.property, item)
 
+    @cached_property
+    def _field_filter(self):
+        return self.resource.manager.filters[self.property][None]
+
     def convert(self, value):
-        return self.resource.manager.first(where=[Condition(self.property, COMPARATORS['$eq'], value)])
+        return self.resource.manager.first(where=[Condition(self.property, self._field_filter, value)])
 
 
 class PropertiesKey(Key):
@@ -85,6 +90,7 @@ class PropertiesKey(Key):
 
     def matcher_type(self):
         return 'array'
+
 
     def rebind(self, resource):
         return self.__class__(*self.properties).bind(resource)
@@ -99,9 +105,13 @@ class PropertiesKey(Key):
     def format(self, item):
         return [self.resource.schema.fields[p].output(p, item) for p in self.properties]
 
+    @cached_property
+    def _field_filters(self):
+        return self.resource.manager.filters
+
     def convert(self, value):
         return self.resource.manager.first(where=[
-            Condition(property, COMPARATORS['$eq'], value[i])
+            Condition(property, self._field_filters[property][None], value[i])
             for i, property in enumerate(self.properties)
         ])
 
