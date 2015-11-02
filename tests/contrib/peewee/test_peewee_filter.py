@@ -1,34 +1,34 @@
 import unittest
-from flask_mongoengine import MongoEngine
-from mongoengine.fields import IntField, StringField, BooleanField
-from flask_potion.backends.mongoengine import MongoEngineManager
+from peewee import CharField, IntegerField, BooleanField
+from flask_potion.contrib.peewee import PeeweeManager
 from flask_potion import ModelResource, fields, Api
 from tests import BaseTestCase
+from tests.contrib.peewee import PeeweeTestDB
 
 
-class FilterTestCase(BaseTestCase):
+class PeeeeFilterTestCase(BaseTestCase):
     def setUp(self):
-        super(FilterTestCase, self).setUp()
+        super(PeeeeFilterTestCase, self).setUp()
         app = self.app
-        app.config['MONGODB_DB'] = 'potion-test-db'
-        app.config['TESTING'] = True
+        app.config['DATABASE'] = 'sqlite://'
 
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = me = MongoEngine(app)
+        self.db = db = PeeweeTestDB(self.app)
+        self.api = Api(self.app, default_manager=PeeweeManager)
+        app.debug = True
 
-        class User(me.Document):
-            meta = {
-                "collection": "user"
-            }
+        class User(db.Model):
+            id = IntegerField(primary_key=True)
+            first_name = CharField(max_length=60, null=False)
+            last_name = CharField(max_length=60, null=False)
 
-            first_name = StringField(max_length=60, null=False)
-            last_name = StringField(max_length=60, null=False)
+            gender = CharField(max_length=1, null=True)
 
-            gender = StringField(max_length=1)
-
-            age = IntField()
+            age = IntegerField()
 
             is_staff = BooleanField(default=None)
+
+        db.database.connect()
+        db.database.create_tables([User])
 
         class UserResource(ModelResource):
             class Schema:
@@ -153,9 +153,40 @@ class FilterTestCase(BaseTestCase):
 
         self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
 
+    def test_istartswith(self):
+        self.post_sample_set_a()
+
+        response = self.client.get('/user?where={"first_name": {"$istartswith": "jo"}}')
+
+        self.assertEqualWithout([
+                                    {'first_name': 'John', 'last_name': 'Doe'},
+                                    {'first_name': 'Jonnie', 'last_name': 'Doe'},
+                                    {'first_name': 'Joe', 'last_name': 'Bloggs'}
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/user?where={"first_name": {"$istartswith": "j%e"}}')
+
+        self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+    def test_iendswith(self):
+        self.post_sample_set_a()
+
+        response = self.client.get('/user?where={"last_name": {"$iendswith": "Oe"}}')
+
+        self.assertEqualWithout([
+                                    {'first_name': 'John', 'last_name': 'Doe'},
+                                    {'first_name': 'Jonnie', 'last_name': 'Doe'},
+                                    {'first_name': 'Jane', 'last_name': 'Roe'}
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/user?where={"first_name": {"$istartswith": "j%e"}}')
+
+        self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
     @unittest.SkipTest
     def test_text_search(self):
         self.post_sample_set_a()
+
         response = self.client.get('/user?search=sbc+dedf&rank=1')
 
     def test_sort(self):
@@ -208,8 +239,6 @@ class FilterTestCase(BaseTestCase):
     def test_schema(self):
         pass
 
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')
 
 if __name__ == '__main__':
     unittest.main()

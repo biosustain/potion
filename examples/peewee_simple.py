@@ -4,7 +4,7 @@ from peewee import CharField, IntegerField
 from playhouse.flask_utils import FlaskDB
 
 from flask_potion import Api, ModelResource, fields
-from flask_potion.backends.peewee import PeeweeManager
+from flask.ext.potion.contrib.peewee.manager import PeeweeManager
 
 
 class DB(FlaskDB):

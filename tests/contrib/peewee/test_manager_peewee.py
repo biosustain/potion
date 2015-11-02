@@ -4,11 +4,11 @@ import peewee as pw
 from playhouse.fields import ManyToManyField
 
 from flask_potion import Api, fields
-from flask_potion.backends.peewee import PeeweeManager
+from flask_potion.contrib.peewee import PeeweeManager
 from flask_potion.resource import ModelResource
 from flask_potion.routes import Relation
 from tests import BaseTestCase
-from tests.backends.peewee import PeeweeTestDB
+from tests.contrib.peewee import PeeweeTestDB
 
 
 class PeeweeTestCase(BaseTestCase):

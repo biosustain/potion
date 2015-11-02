@@ -1,6 +1,7 @@
 from flask_potion import fields
 import flask_potion.filters as filters
 
+
 class EqualFilter(filters.EqualFilter):
     def expression(self, value):
         return {self.attribute: value}

@@ -1,4 +1,3 @@
-from __future__ import division
 from flask_potion.exceptions import ItemNotFound
 from flask_potion.instances import Pagination
 from flask_potion.manager import Manager

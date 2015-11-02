@@ -1,8 +1,6 @@
 from __future__ import absolute_import
 from flask import current_app
-
 import peewee as pw
-from .peewee_filters import FILTER_NAMES, FILTERS_BY_TYPE, PeeweeBaseFilter
 
 try:
     from playhouse import postgres_ext
@@ -10,9 +8,11 @@ except ImportError:
     postgres_ext = False
 
 from flask_potion import fields, signals
-from flask_potion.manager import Manager
+from flask_potion.contrib.peewee.filters import FILTER_NAMES, FILTERS_BY_TYPE, PeeweeBaseFilter
 from flask_potion.exceptions import ItemNotFound, BackendConflict
+from flask_potion.manager import Manager
 from flask_potion.utils import get_value
+
 
 class PeeweeManager(Manager):
     """

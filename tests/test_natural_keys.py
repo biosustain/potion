@@ -1,6 +1,6 @@
 import unittest
 from flask_potion.exceptions import ItemNotFound, ValidationError
-from flask_potion.backends.memory import MemoryManager
+from flask_potion.contrib.memory.manager import MemoryManager
 from flask_potion.natural_keys import RefKey, IDKey, PropertiesKey, PropertyKey
 from flask_potion import fields
 from flask_potion import Api

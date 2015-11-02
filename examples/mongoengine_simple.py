@@ -3,7 +3,7 @@ from flask_mongoengine import MongoEngine
 from mongoengine import StringField, IntField
 
 from flask_potion import Api, ModelResource, fields
-from flask_potion.backends.mongoengine import MongoEngineManager
+from flask.ext.potion.contrib.mongoengine.manager import MongoEngineManager
 
 app = Flask(__name__)
 app.debug = True

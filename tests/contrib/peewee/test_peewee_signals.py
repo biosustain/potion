@@ -1,7 +1,6 @@
 from functools import partial
-from flask_mongoengine import MongoEngine
-from mongoengine import IntField, StringField, ReferenceField, ListField
-from flask_potion.backends.mongoengine import MongoEngineManager
+from peewee import CharField, ForeignKeyField
+from flask_potion.contrib.peewee import PeeweeManager
 from flask_potion import signals
 from flask_potion.routes import Relation
 from flask_potion.resource import ModelResource
@@ -9,20 +8,23 @@ from flask_potion import Api
 from tests import BaseTestCase
 from blinker._utilities import contextmanager
 from blinker import ANY
+from tests.contrib.peewee import PeeweeTestDB
 
 
-class MongoEngineSignalTestCase(BaseTestCase):
+class PeeweeSignalTestCase(BaseTestCase):
     def setUp(self):
-        super(MongoEngineSignalTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'potion-test-db'
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = me = MongoEngine(self.app)
+        super(PeeweeSignalTestCase, self).setUp()
+        app = self.app
+        app.config['DATABASE'] = 'sqlite://'
 
-        class User(me.Document):
-            name = StringField(max_length=60, null=False)
-            gender = StringField(max_length=1, null=True)
+        self.db = db = PeeweeTestDB(self.app)
+        self.api = Api(self.app, default_manager=PeeweeManager)
 
-            children = ListField(ReferenceField("User"))
+        class User(db.Model):
+            name = CharField(max_length=60)
+            gender = CharField(max_length=1, null=True)
+
+            parent = ForeignKeyField('self', null=True, related_name='children')
 
             def __eq__(self, other):
                 return self.name == other.name
@@ -30,12 +32,16 @@ class MongoEngineSignalTestCase(BaseTestCase):
             def __repr__(self):
                 return 'User({})'.format(self.name)
 
-        class Group(me.Document):
-            name = StringField(max_length=60, null=False)
+        class Group(db.Model):
+            name = CharField(max_length=60)
 
-        class GroupMembership(me.Document):
-            user = ReferenceField(User)
-            group = ReferenceField(Group)
+        class GroupMembership(db.Model):
+            user = ForeignKeyField(User)
+            group = ForeignKeyField(Group)
+
+        db.database.connect()
+        db.database.create_tables([User, Group, GroupMembership])
+
 
         class UserResource(ModelResource):
             class Meta:
@@ -55,9 +61,6 @@ class MongoEngineSignalTestCase(BaseTestCase):
         self.GroupResource = GroupResource
         self.api.add_resource(UserResource)
         self.api.add_resource(GroupResource)
-
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')
 
     @contextmanager
     def assertSignals(self, expected_events, sender=ANY):
@@ -96,14 +99,17 @@ class MongoEngineSignalTestCase(BaseTestCase):
 
             self.assertEqual(events, expected_events)
 
+
     def test_create_signal(self):
+
         with self.assertSignals([
             (signals.before_create, self.UserResource, {'item': self.User(name="Foo")}),
             (signals.after_create, self.UserResource, {'item': self.User(name="Foo")})
         ]):
             response = self.client.post('/user', data={"name": "Foo"})
             self.assert200(response)
-            self.assertJSONEqual({'$uri': response.json["$uri"], "name": "Foo", "gender": None}, response.json)
+            self.assertJSONEqual({'$uri': '/user/1', "name": "Foo", "gender": None}, response.json)
+
 
     def test_update_signal(self):
         response = self.client.post('/user', data={"name": "Foo"})
@@ -115,10 +121,9 @@ class MongoEngineSignalTestCase(BaseTestCase):
             (signals.after_update, self.UserResource, {'changes': {'gender': 'M', 'name': 'Bar'},
                                                        'item': self.User(name="Bar")})
         ]):
-            uri = response.json["$uri"]
-            response = self.client.patch(uri, data={"name": "Bar", "gender": "M"})
+            response = self.client.patch('/user/1', data={"name": "Bar", "gender": "M"})
             self.assert200(response)
-            self.assertJSONEqual({'$uri': uri, "name": "Bar", "gender": "M"}, response.json)
+            self.assertJSONEqual({'$uri': '/user/1', "name": "Bar", "gender": "M"}, response.json)
 
     def test_delete_signal(self):
         response = self.client.post('/user', data={"name": "Foo"})
@@ -128,13 +133,12 @@ class MongoEngineSignalTestCase(BaseTestCase):
             (signals.before_delete, self.UserResource, {'item': self.User(name="Foo")}),
             (signals.after_delete, self.UserResource, {'item': self.User(name="Foo")})
         ]):
-            response = self.client.delete(response.json["$uri"])
+            response = self.client.delete('/user/1')
             self.assertStatus(response, 204)
 
     def test_relation_signal(self):
 
         response = self.client.post('/user', data={"name": "Foo"})
-        user1_uri = response.json["$uri"]
         self.assert200(response)
 
         with self.assertSignals([
@@ -154,13 +158,10 @@ class MongoEngineSignalTestCase(BaseTestCase):
                                                                      'child': self.User(name="Bar")})
         ]):
             response = self.client.post('/user', data={"name": "Bar"})
-            user2_uri = response.json["$uri"]
-            user2_id = user2_uri.split("/")[-1]
             self.assert200(response)
 
-            response = self.client.post('{}/children'.format(user1_uri), data={"$ref": user2_uri})
-
+            response = self.client.post('/user/1/children', data={"$ref": "/user/2"})
             self.assert200(response)
 
-            response = self.client.delete('{}/children/{}'.format(user1_uri, user2_id))
+            response = self.client.delete('/user/1/children/2')
             self.assertStatus(response, 204)

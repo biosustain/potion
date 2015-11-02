@@ -1,21 +1,20 @@
 from flask import current_app
-from flask_sqlalchemy import get_state
-from sqlalchemy import String, func
+from flask.ext.sqlalchemy import Pagination as SAPagination, get_state
+from sqlalchemy import String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper, aliased
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
-from flask_potion.backends.alchemy_filters import FILTER_NAMES, FILTERS_BY_TYPE, SQLAlchemyBaseFilter
 
-from flask_potion.utils import get_value
 from flask_potion import fields
-from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
+from flask_potion.contrib.alchemy.filters import FILTER_NAMES, FILTERS_BY_TYPE, SQLAlchemyBaseFilter
+from flask_potion.exceptions import ItemNotFound, DuplicateKey, BackendConflict
 from flask_potion.instances import Pagination
 from flask_potion.manager import Manager
-from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
-    before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
-from flask_sqlalchemy import Pagination as SAPagination
+from flask_potion.signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
+    after_remove_from_relation, before_create, after_create, before_update, after_update, before_delete, after_delete
+from flask_potion.utils import get_value
 
 
 class SQLAlchemyManager(Manager):

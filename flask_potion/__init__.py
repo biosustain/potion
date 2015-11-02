@@ -35,7 +35,7 @@ class Api(object):
     :param prefix: an optional API prefix. Must start with "/"
     :param str title: an optional title for the schema
     :param str description: an optional description for the schema
-    :param Manager default_manager: an optional manager to use as default. If SQLAlchemy is installed, will use :class:`backends.alchemy.SQLAlchemyManager`
+    :param Manager default_manager: an optional manager to use as default. If SQLAlchemy is installed, will use :class:`contrib.alchemy.SQLAlchemyManager`
     """
     def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None, default_manager=None):
         self.app = app
@@ -50,7 +50,7 @@ class Api(object):
         self.default_manager = None
         if default_manager is None:
             try:
-                from .backends.alchemy import SQLAlchemyManager
+                from flask_potion.contrib.alchemy import SQLAlchemyManager
                 self.default_manager = SQLAlchemyManager
             except ImportError:
                 pass

@@ -3,8 +3,9 @@ from bson.errors import InvalidId
 from flask_mongoengine import MongoEngine
 from mongoengine import ObjectIdField, MapField, FloatField, StringField, EmbeddedDocumentField, \
     EmbeddedDocument
+
 from flask_potion import Api, ModelResource
-from flask_potion.backends.mongoengine import MongoEngineManager
+from flask_potion.contrib.mongoengine import MongoEngineManager
 from tests import BaseTestCase
 
 

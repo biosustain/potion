@@ -1,6 +1,6 @@
 from flask_potion.routes import Route, ItemRoute
 from flask_potion import Api, fields
-from flask_potion.backends.memory import MemoryManager
+from flask_potion.contrib.memory.manager import MemoryManager
 from flask_potion.resource import ModelResource
 from tests import BaseTestCase
 

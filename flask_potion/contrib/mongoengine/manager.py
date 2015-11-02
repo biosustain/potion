@@ -1,13 +1,14 @@
 from __future__ import absolute_import
 
 from bson import ObjectId as bson_ObjectId
-from flask import current_app
-from mongoengine.errors import OperationError, ValidationError
 from bson.errors import InvalidId
 
+from flask import current_app
+from mongoengine.errors import OperationError, ValidationError
 import mongoengine.fields as mongo_fields
-from .mongoengine_filters import FILTER_NAMES, FILTERS_BY_TYPE
+from flask_mongoengine import Pagination as MEPagination
 
+from flask_potion.contrib.mongoengine.filters import FILTER_NAMES, FILTERS_BY_TYPE
 from flask_potion.utils import get_value
 from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.instances import Pagination
@@ -15,7 +16,7 @@ from flask_potion.manager import Manager
 from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 from flask_potion import fields
-from flask_mongoengine import Pagination as MEPagination
+
 
 # TODO: more elaborate field that validates and returns ObjectId
 
@@ -39,6 +40,7 @@ class custom_fields:
             value = super(custom_fields.EmbeddedField, self).converter(value)
             if value is not None:
                 return self.model(**value)
+
 
 MONGO_REFERENCE_FIELD_TYPES = (
     mongo_fields.ReferenceField,
@@ -133,21 +135,21 @@ class MongoEngineManager(Manager):
 
         if isinstance(field, mongo_fields.ListField):
             field_class = fields.List
-            args = (self._get_field_from_mongoengine_type(field.field), )
-        elif isinstance(field, MONGO_EMBEDDED_FIELD_TYPES+MONGO_REFERENCE_FIELD_TYPES):
+            args = (self._get_field_from_mongoengine_type(field.field),)
+        elif isinstance(field, MONGO_EMBEDDED_FIELD_TYPES + MONGO_REFERENCE_FIELD_TYPES):
             field_class = custom_fields.EmbeddedField
             model = field.document_type
             properties = {}
             for prop, ref_field in model._fields.items():
                 properties[prop] = self._get_field_from_mongoengine_type(ref_field)
-            args = (model, properties, )
+            args = (model, properties,)
         elif isinstance(field, mongo_fields.DictField):
             field_class = fields.Object
             if field.field is not None:
                 properties = self._get_field_from_mongoengine_type(field.field)
-                args = (properties, )
+                args = (properties,)
             else:
-                args = (fields.Any, )
+                args = (fields.Any,)
         elif isinstance(field, mongo_fields.UUIDField):  # TODO support UUIDfield
             field_class = fields.String
             kwargs['max_length'] = 36
@@ -259,7 +261,7 @@ class MongoEngineManager(Manager):
         actual_changes = {
             key: value for key, value in changes.items()
             if get_value(key, item, None) != value
-        }
+            }
 
         try:
             before_update.send(self.resource, item=item, changes=actual_changes)
