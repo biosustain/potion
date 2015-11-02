@@ -1,8 +1,6 @@
 from functools import partial
-from flask_sqlalchemy import SQLAlchemy
 from peewee import CharField, ForeignKeyField
-from sqlalchemy.orm import backref
-from flask.ext.potion.backends.peewee import PeeweeManager
+from flask_potion.backends.peewee import PeeweeManager
 from flask_potion import signals
 from flask_potion.routes import Relation
 from flask_potion.resource import ModelResource

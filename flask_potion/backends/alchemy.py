@@ -1,5 +1,3 @@
-from operator import and_
-
 from flask import current_app
 from flask_sqlalchemy import get_state
 from sqlalchemy import String, func
@@ -13,25 +11,11 @@ from flask_potion.backends.alchemy_filters import FILTER_NAMES, FILTERS_BY_TYPE,
 from flask_potion.utils import get_value
 from flask_potion import fields
 from flask_potion.exceptions import DuplicateKey, ItemNotFound, BackendConflict
-from flask_potion.backends import Manager, Pagination
+from flask_potion.instances import Pagination
+from flask_potion.manager import Manager
 from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 from flask_sqlalchemy import Pagination as SAPagination
-
-SA_COMPARATOR_EXPRESSIONS = {
-    '$eq': lambda column, value: column == value,
-    '$ne': lambda column, value: column != value,
-    '$in': lambda column, value: column.in_(value) if len(value) else False,
-    '$lt': lambda column, value: column < value,
-    '$gt': lambda column, value: column > value,
-    '$lte': lambda column, value: column <= value,
-    '$gte': lambda column, value: column >= value,
-    '$contains': lambda column, value: column.contains(value),
-    '$startswith': lambda column, value: column.startswith(value.replace('%', '\\%')),
-    '$endswith': lambda column, value: column.endswith(value.replace('%', '\\%')),
-    '$istartswith': lambda column, value: column.ilike(value.replace('%', '\\%') + "%"),
-    '$iendswith': lambda column, value: column.ilike("%" + value.replace('%', '\\%'))
-}
 
 
 class SQLAlchemyManager(Manager):
@@ -41,14 +25,16 @@ class SQLAlchemyManager(Manager):
     Expects that :class:`Meta.model` contains an SQLALchemy declarative model.
 
     """
-    filter_names = FILTER_NAMES
-    filters_by_type = FILTERS_BY_TYPE
-    pagination_types = (Pagination, SAPagination)
+    FILTER_NAMES = FILTER_NAMES
+    FILTERS_BY_TYPE = FILTERS_BY_TYPE
+    PAGINATION_TYPES = (Pagination, SAPagination)
 
     def __init__(self, resource, model):
         super(SQLAlchemyManager, self).__init__(resource, model)
 
-        meta = resource.meta
+    def _init_model(self, resource, model, meta):
+        super(SQLAlchemyManager, self)._init_model(resource, model, meta)
+
         mapper = class_mapper(model)
 
         self.id_attribute = meta.get('id_attribute', mapper.primary_key[0].name)

@@ -1,4 +1,6 @@
+from __future__ import division
 import collections
+from math import ceil
 from flask import json, request, current_app
 from werkzeug.utils import cached_property
 from .filters import convert_filters
@@ -45,7 +47,7 @@ class RelationInstances(PaginationMixin, ToMany):
 
     @cached_property
     def _pagination_types(self):
-        return self.container.target.manager.pagination_types
+        return self.container.target.manager.PAGINATION_TYPES
 
 
 class Instances(PaginationMixin, Schema, ResourceBound):
@@ -61,7 +63,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     @cached_property
     def _pagination_types(self):
-        return self.resource.manager.pagination_types
+        return self.resource.manager.PAGINATION_TYPES
 
     def _field_filters_schema(self, filters):
         if len(filters) == 1:
@@ -75,7 +77,10 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     @cached_property
     def _sort_fields(self):
-        return self.resource.manager.sort_fields
+        return {
+            name: field for name, field in self.resource.schema.fields.items()
+            if name in self._filters and self.resource.manager._is_sortable_field(field)
+        }
 
     @cached_property
     def _filter_schema(self):
@@ -164,3 +169,37 @@ class Instances(PaginationMixin, Schema, ResourceBound):
 
     def format(self, items):
         return [self.resource.schema.format(item) for item in items]
+
+
+class Pagination(object):
+    """
+    A pagination class for list-like instances.
+
+    :param items:
+    :param page:
+    :param per_page:
+    :param total:
+    """
+
+    def __init__(self, items, page, per_page, total):
+        self.items = items
+        self.page = page
+        self.per_page = per_page
+        self.total = total
+
+    @property
+    def pages(self):
+        return max(1, int(ceil(self.total / self.per_page)))
+
+    @property
+    def has_prev(self):
+        return self.page > 1
+
+    @property
+    def has_next(self):
+        return self.page < self.pages
+
+    @classmethod
+    def from_list(cls, items, page, per_page):
+        start = per_page * (page - 1)
+        return Pagination(items[start:start + per_page], page, per_page, len(items))

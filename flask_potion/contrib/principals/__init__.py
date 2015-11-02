@@ -7,7 +7,7 @@ from flask_principal import Permission, RoleNeed
 
 from flask_potion.resource import ModelResource
 from flask_potion.fields import ToOne
-from flask_potion.backends import Pagination
+from flask_potion.instances import Pagination
 from flask_potion.exceptions import ItemNotFound
 from flask_potion.backends.alchemy import SQLAlchemyManager
 from .permission import HybridPermission

@@ -1,6 +1,6 @@
 from bson import ObjectId
 from bson.errors import InvalidId
-from flask.ext.mongoengine import MongoEngine
+from flask_mongoengine import MongoEngine
 from mongoengine import ObjectIdField, MapField, FloatField, StringField, EmbeddedDocumentField, \
     EmbeddedDocument
 from flask_potion import Api, ModelResource

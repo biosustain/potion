@@ -38,6 +38,7 @@ class BaseTestCase(TestCase):
                              self._without(second, without),
                              msg=msg)
         else:
+            self.maxDiff = None
             self.assertEqual(first, second)
 
     def create_app(self):

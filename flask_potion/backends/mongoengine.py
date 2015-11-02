@@ -10,7 +10,8 @@ from .mongoengine_filters import FILTER_NAMES, FILTERS_BY_TYPE
 
 from flask_potion.utils import get_value
 from flask_potion.exceptions import ItemNotFound, BackendConflict
-from flask_potion.backends import Manager, Pagination
+from flask_potion.instances import Pagination
+from flask_potion.manager import Manager
 from flask_potion.signals import before_create, before_update, after_update, before_delete, after_delete, after_create, \
     before_add_to_relation, after_remove_from_relation, before_remove_from_relation, after_add_to_relation
 from flask_potion import fields
@@ -68,14 +69,15 @@ class MongoEngineManager(Manager):
     Expects that :class:`Meta.model` contains an MongoEngine declarative model.
 
     """
-    filter_names = FILTER_NAMES
-    filters_by_type = FILTERS_BY_TYPE
-    pagination_types = (Pagination, MEPagination)
+    FILTER_NAMES = FILTER_NAMES
+    FILTERS_BY_TYPE = FILTERS_BY_TYPE
+    PAGINATION_TYPES = (Pagination, MEPagination)
 
     def __init__(self, resource, model):
         super(MongoEngineManager, self).__init__(resource, model)
-        meta = resource.meta
 
+    def _init_model(self, resource, model, meta):
+        super(MongoEngineManager, self)._init_model(resource, model, meta)
         self.id_attribute = meta.id_attribute
         self.id_column = model._fields[self.id_attribute]
 

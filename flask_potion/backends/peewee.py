@@ -1,10 +1,7 @@
 from __future__ import absolute_import
-
-from operator import and_
 from flask import current_app
 
 import peewee as pw
-from werkzeug.utils import cached_property
 from .peewee_filters import FILTER_NAMES, FILTERS_BY_TYPE, PeeweeBaseFilter
 
 try:
@@ -13,25 +10,23 @@ except ImportError:
     postgres_ext = False
 
 from flask_potion import fields, signals
-from flask_potion.backends import Manager
+from flask_potion.manager import Manager
 from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.utils import get_value
-
 
 class PeeweeManager(Manager):
     """
     A manager for Peewee models.
     """
-    filter_names = FILTER_NAMES
-    filters_by_type = FILTERS_BY_TYPE
+    FILTER_NAMES = FILTER_NAMES
+    FILTERS_BY_TYPE = FILTERS_BY_TYPE
 
     def __init__(self, resource, model):
         super(PeeweeManager, self).__init__(resource, model)
 
-        meta = resource.meta
-# TODO: Add support for composite primary keys.
-        self.id_attribute = meta.get(
-            'id_attribute', model._meta.primary_key.name)
+    def _init_model(self, resource, model, meta):
+        super(PeeweeManager, self)._init_model(resource, model, meta)
+        self.id_attribute = meta.get('id_attribute', model._meta.primary_key.name)
 
         if 'id_field' in resource.meta:
             self.id_column = model._meta.fields[resource.meta.id_field]
@@ -212,7 +207,7 @@ class PeeweeManager(Manager):
         actual_changes = {
             key: value for key, value in changes.items()
             if get_value(key, item, None) != value
-        }
+            }
 
         signals.before_update.send(
             self.resource, item=item, changes=actual_changes)

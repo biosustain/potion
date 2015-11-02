@@ -15,6 +15,7 @@ class SQLAlchemyBaseFilter(filters.BaseFilter):
             return query.filter(expressions[0])
         return query.filter(and_(*expressions))
 
+
 class EqualFilter(SQLAlchemyBaseFilter, filters.EqualFilter):
     def expression(self, value):
         return self.column == value
