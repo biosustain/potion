@@ -719,14 +719,18 @@ class ItemUri(Raw):
     A string field that formats the url of a resource item; read-only.
     """
     def __init__(self, resource, attribute=None):
-        self.resource = resource
+        self.target_reference = ResourceReference(resource)
         super(ItemUri, self).__init__(lambda: {
             "type": "string",
-            "pattern": "^{}\/[^/]+$".format(re.escape(resource.route_prefix))
+            "pattern": "^{}\/[^/]+$".format(re.escape(self.target.route_prefix))
         }, io="r", attribute=attribute)
 
+    @cached_property
+    def target(self):
+        return self.target_reference.resolve()
+
     def format(self, value):
-        return '{}/{}'.format(self.resource.route_prefix, value)
+        return '{}/{}'.format(self.target.route_prefix, value)
 
 
 class sa:
