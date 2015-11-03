@@ -271,7 +271,6 @@ class FilterTestCase(BaseTestCase):
         self.assertEqual(sorted(response.json, key=lambda thing: thing['date_time']['$date']), response.json)
 
         response = self.client.get('/thing?where={"date_time": {"$eq": {"$date": 1000000000000}}}')
-        print(response.json)
 
         self.assertEqualWithout([
             {'name': 'B', 'date_time': {'$date': 1000000000000}},
