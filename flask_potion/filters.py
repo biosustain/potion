@@ -1,6 +1,6 @@
 from .schema import Schema
 from .utils import get_value
-from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany
+from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString
 
 
 class BaseFilter(Schema):
@@ -72,6 +72,8 @@ class NotEqualFilter(BaseFilter):
 
 class NumberBaseFilter(BaseFilter):
     def _schema(self):
+        if isinstance(self.field, (Date, DateTime, DateString, DateTimeString)):
+            return self.field.response
         return {"type": "number"}
 
 
@@ -165,6 +167,24 @@ class IEndsWithFilter(StringBaseFilter):
         return a.lower().endswith(b.lower())
 
 
+class DateBetweenFilter(BaseFilter):
+    def _schema(self):
+        return {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": self.field.response
+        }
+
+    def _convert(self, value):
+        before, after = value
+        return self.field.convert(before), self.field.convert(after)
+
+    def op(self, a, b):
+        before, after = b
+        return before <= a <= after
+
+
 EQUALITY_FILTER_NAME = 'eq'
 
 FILTER_NAMES = (
@@ -183,6 +203,7 @@ FILTER_NAMES = (
     (IStartsWithFilter, 'istartswith'),
     (EndsWithFilter, 'endswith'),
     (IEndsWithFilter, 'iendswith'),
+    (DateBetweenFilter, 'between'),
 )
 
 FILTERS_BY_TYPE = (
@@ -219,6 +240,44 @@ FILTERS_BY_TYPE = (
         EndsWithFilter,
         IEndsWithFilter,
         InFilter,
+    )),
+    (Date, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
+        InFilter,
+    )),
+    (DateTime, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
+    )),
+    (DateString, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
+        InFilter,
+    )),
+    (DateTimeString, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter
     )),
     (Array, (
         ContainsFilter,

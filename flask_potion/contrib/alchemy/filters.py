@@ -86,6 +86,11 @@ class IEndsWithFilter(SQLAlchemyBaseFilter, filters.IEndsWithFilter):
         return self.column.ilike('%' + value.replace('%', '\\%'))
 
 
+class DateBetweenFilter(SQLAlchemyBaseFilter, filters.DateBetweenFilter):
+    def expression(self, value):
+        return self.column.between(value[0], value[1])
+
+
 FILTER_NAMES = (
     (EqualFilter, None),
     (EqualFilter, 'eq'),
@@ -102,6 +107,7 @@ FILTER_NAMES = (
     (IStartsWithFilter, 'istartswith'),
     (EndsWithFilter, 'endswith'),
     (IEndsWithFilter, 'iendswith'),
+    (DateBetweenFilter, 'between')
 )
 
 
@@ -139,6 +145,44 @@ FILTERS_BY_TYPE = (
         EndsWithFilter,
         IEndsWithFilter,
         InFilter,
+    )),
+    (fields.Date, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
+        InFilter,
+    )),
+    (fields.DateTime, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
+    )),
+    (fields.DateString, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
+        InFilter,
+    )),
+    (fields.DateTimeString, (
+        EqualFilter,
+        NotEqualFilter,
+        LessThanFilter,
+        LessThanEqualFilter,
+        GreaterThanFilter,
+        GreaterThanEqualFilter,
+        DateBetweenFilter,
     )),
     (fields.Array, (
         ContainsFilter,

@@ -34,7 +34,11 @@ class FilterTestCase(BaseTestCase):
             belongs_to_id = sa.Column(sa.Integer, sa.ForeignKey(User.id))
             belongs_to = sa.relationship(User)
 
+            date_time = sa.Column(sa.DateTime)
+            date = sa.Column(sa.Date)
+
         sa.create_all()
+
 
         class UserResource(ModelResource):
             class Schema:
@@ -46,7 +50,7 @@ class FilterTestCase(BaseTestCase):
 
         class ThingResource(ModelResource):
             class Schema:
-                belongs_to = fields.ToOne('user')
+                belongs_to = fields.ToOne('user', nullable=True)
 
             class Meta:
                 model = Thing
@@ -251,6 +255,46 @@ class FilterTestCase(BaseTestCase):
 
         response = self.client.get('/thing?sort={"name": false, "belongs_to": false}')
         self.assertEqual(sorted(response.json, key=lambda thing: thing['name']), response.json)
+
+    def test_sort_filter_date(self):
+        for thing in [
+            {'name': 'A', 'date_time': {'$date': 1446561100000}},
+            {'name': 'B', 'date_time': {'$date': 1000000000000}},
+            {'name': 'C', 'date_time': {'$date': 1446561110000}},
+            {'name': 'D', 'date_time': {'$date': 1446561120000}},
+            {'name': 'E', 'date_time': {'$date': 1446561130000}}
+        ]:
+            response = self.client.post('/thing', data=thing)
+            self.assert200(response)
+
+        response = self.client.get('/thing?sort={"date_time": false}')
+        self.assertEqual(sorted(response.json, key=lambda thing: thing['date_time']['$date']), response.json)
+
+        response = self.client.get('/thing?where={"date_time": {"$eq": {"$date": 1000000000000}}}')
+        print(response.json)
+
+        self.assertEqualWithout([
+            {'name': 'B', 'date_time': {'$date': 1000000000000}},
+        ], response.json,
+            without=['$uri', 'date', 'belongs_to'])
+
+        response = self.client.get('/thing?where={"date_time": {"$gt": {"$date": 1000000000000}}}')
+        self.assertEqualWithout([
+            {'name': 'A', 'date_time': {'$date': 1446561100000}},
+            {'name': 'C', 'date_time': {'$date': 1446561110000}},
+            {'name': 'D', 'date_time': {'$date': 1446561120000}},
+            {'name': 'E', 'date_time': {'$date': 1446561130000}}
+        ], response.json,
+            without=['$uri', 'date', 'belongs_to'])
+
+        response = self.client.get('/thing?where={"date_time": {"$lt": {"$date": 1000000000000}}}')
+        self.assertEqualWithout([], response.json, without=['$uri', 'date', 'belongs_to'])
+
+        response = self.client.get('/thing?where={"date_time": {"$between": [{"$date": 1446561110000}, {"$date": 1446561120000}]}}')
+        self.assertEqualWithout([
+            {'name': 'C', 'date_time': {'$date': 1446561110000}},
+            {'name': 'D', 'date_time': {'$date': 1446561120000}},
+        ], response.json, without=['$uri', 'date', 'belongs_to'])
 
     def test_sort_and_where(self):
         self.post_sample_set_a()
