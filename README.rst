@@ -15,6 +15,10 @@ Flask-Potion
 .. image:: https://img.shields.io/pypi/l/Flask-Potion.svg?style=flat-square
     :target: https://pypi.python.org/pypi/Flask-Potion
 
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+   :alt: Join the chat at https://gitter.im/biosustain/potion
+   :target: https://gitter.im/biosustain/potion?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 |
 
 .. image:: https://raw.githubusercontent.com/biosustain/potion/master/docs/_static/Potion.png
