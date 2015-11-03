@@ -1,15 +1,16 @@
 from functools import wraps
 import unittest
-
 from flask import current_app, request
 from flask_principal import Identity, identity_changed, identity_loaded, RoleNeed, UserNeed, Principal, ItemNeed
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
 from werkzeug.exceptions import Unauthorized
 
+from flask_potion.contrib.memory import MemoryManager
+from flask_potion.contrib.alchemy import SQLAlchemyManager
 from flask_potion.routes import Relation
 from flask_potion import Api, fields
-from flask_potion.contrib.principals import PrincipalManager
+from flask_potion.contrib.principals import principals
 from flask_potion.resource import ModelResource
 from tests import ApiClient, BaseTestCase
 
@@ -30,7 +31,7 @@ class AuthorizedApiClient(ApiClient):
 
 class PrincipalResource(ModelResource):
     class Meta:
-        manager = PrincipalManager
+        manager = principals(SQLAlchemyManager)
 
 
 class PrincipalTestCase(BaseTestCase):
@@ -107,6 +108,10 @@ class PrincipalTestCase(BaseTestCase):
         self.api = Api(self.app, decorators=[authenticate])
 
     def test_role(self):
+        with self.assertRaises(RuntimeError):
+            manager = principals(MemoryManager)
+
+    def test_role(self):
         class BookResource(PrincipalResource):
             class Meta:
                 model = self.BOOK
@@ -159,7 +164,6 @@ class PrincipalTestCase(BaseTestCase):
         self.assert200(self.client.get('/book'))
         self.mock_user = {'id': 1}
         self.assert403(self.client.get('/book'))
-
 
     def test_inherit_role_to_one_field(self):
 
@@ -265,7 +269,8 @@ class PrincipalTestCase(BaseTestCase):
                 'owner': owner
             })
 
-            self.assertEqual({'$uri': '/book_store/{}'.format(i + 1), 'name': store['name'], 'owner': owner}, response.json)
+            self.assertEqual({'$uri': '/book_store/{}'.format(i + 1), 'name': store['name'], 'owner': owner},
+                             response.json)
 
         response = self.client.patch('/book_store/1', data={'name': 'books & moore'})
         self.assert200(response)
@@ -280,10 +285,10 @@ class PrincipalTestCase(BaseTestCase):
         self.assert200(response)
 
         self.assertEqual({
-                             '$uri': '/book_store/1',
-                             'name': 'Books & Moore',
-                             'owner': {'$ref': '/user/2'}
-                         }, response.json)
+            '$uri': '/book_store/1',
+            'name': 'Books & Moore',
+            'owner': {'$ref': '/user/2'}
+        }, response.json)
 
         response = self.client.patch('/book_store/2', data={'name': 'Moore Books'})
         self.assert403(response)
@@ -370,10 +375,10 @@ class PrincipalTestCase(BaseTestCase):
         self.mock_user = {'id': 3, 'needs': [ItemNeed('owns-copy', i, 'book') for i in (2, 7, 19)]}
 
         self.assertEqual([
-                             {'$uri': '/book/2', 'title': 'GoT Vol. 2'},
-                             {'$uri': '/book/7', 'title': 'GoT Vol. 7'},
-                             {'$uri': '/book/19', 'title': 'GoT Vol. 19'}
-                         ], self.client.get('/book').json)
+            {'$uri': '/book/2', 'title': 'GoT Vol. 2'},
+            {'$uri': '/book/7', 'title': 'GoT Vol. 7'},
+            {'$uri': '/book/19', 'title': 'GoT Vol. 19'}
+        ], self.client.get('/book').json)
 
         self.assert404(self.client.get('/book/15'))
         self.assert200(self.client.get('/book/2'))
@@ -399,7 +404,6 @@ class PrincipalTestCase(BaseTestCase):
                     'update': 'user:author',
                     'owns-copy': 'owns-copy'
                 }
-
 
         class UserResource(PrincipalResource):
             books = Relation(BookResource)
@@ -472,7 +476,6 @@ class PrincipalTestCase(BaseTestCase):
         response = self.client.get('/user/3/books')
         self.assertEqual(0, len(response.json))
         self.assert404(self.client.get('/book/2'))
-
 
     @unittest.SkipTest
     def test_item_route(self):

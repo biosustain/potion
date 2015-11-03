@@ -60,35 +60,3 @@ class HybridPermission(Permission):
                 if resolved_need in g.identity.provides:
                     return True
         return False
-
-    def apply_filters(self, query):
-        """
-        Evaluates all *needs* including :class:`HybridNeed` types and filters the query as appropriate.
-
-        Multiple hybrid needs are combined using `or` --- that is only one has to match.
-
-        :returns: ``None`` if no hybrid needs are present; *query* object otherwise.
-        """
-        hybrid_relationship_need = None
-
-        # prefer not to filter at all:
-        if self.can():
-            return query
-
-        # filters must not be applied if not present:
-        if not self.hybrid_needs:
-            return None
-
-        expressions = []
-
-        for need in self.hybrid_needs:
-            expression = need.make_expression()
-            if expression is not None:
-                expressions.append(expression)
-
-        if not expressions:
-            return None
-        if len(expressions) == 1:
-            return query.filter(expressions.pop())
-        else:
-            return query.filter(or_(*expressions))

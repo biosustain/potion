@@ -53,6 +53,7 @@ class BaseFilter(Schema):
             "additionalProperties": False
         }
 
+
 class EqualFilter(BaseFilter):
     def _schema(self):
         return self.field.response

@@ -1,6 +1,5 @@
 from flask import g
 from flask_principal import UserNeed, ItemNeed
-from sqlalchemy.orm.attributes import ScalarObjectAttributeImpl
 
 
 class HybridNeed(object):
@@ -8,18 +7,15 @@ class HybridNeed(object):
     :class:`HybridNeed` base class. Hybrid needs can both be evaluated directly or produce an expression for use with
     SQLAlchemy.
     """
+
     def __call__(self, item):
         raise NotImplementedError()
 
     def __hash__(self):
         return hash(self.__repr__())
 
-    def make_expression(self, query):
-        """
-        :returns: SQLAlchemy expression for this Need
-        """
-        # TODO support inversion of HybridNeed objects for negative permissions.
-        raise NotImplementedError()
+    def identity_get_item_needs(self):
+        return None
 
 
 class HybridItemNeed(HybridNeed):
@@ -27,8 +23,9 @@ class HybridItemNeed(HybridNeed):
         self.method = method
         self.type = type_ or resource.meta.name
         self.resource = resource
+        self.fields = []
 
-    def _identity_get_item_needs(self):
+    def identity_get_item_needs(self):
         if self.method == 'id':
             prototype = ('id', None)
         else:
@@ -52,14 +49,6 @@ class HybridItemNeed(HybridNeed):
                self.method == other.method and \
                self.type == other.type and \
                self.resource == other.resource
-
-    def make_expression(self):
-        ids = list(self._identity_get_item_needs())
-
-        if not ids:
-            return None
-
-        return self.resource.manager.id_column.in_(ids)
 
     def __hash__(self):
         return hash(self.__repr__())
@@ -114,29 +103,6 @@ class HybridRelationshipNeed(HybridItemNeed):
     def extend(self, field):
         return HybridRelationshipNeed(self.method, field, *self.fields)
 
-    def make_expression(self):
-        ids = list(self._identity_get_item_needs())
-
-        if not ids:
-            return None
-
-        reversed_fields = reversed(self.fields)
-
-        target_field = next(reversed_fields)
-        target_relationship = getattr(target_field.resource.manager.model, target_field.attribute)
-
-        expression = target_relationship.has(target_field.target.manager.id_column.in_(ids))
-
-        for field in reversed_fields:
-            relationship = getattr(field.resource.manager.model, field.attribute)
-
-            if isinstance(relationship.impl, ScalarObjectAttributeImpl):
-                expression = relationship.has(expression)
-            else:
-                expression = relationship.any(expression)
-
-        return expression
-
     def __hash__(self):
         return hash((self.method, self.type, self.fields))
 
@@ -150,4 +116,3 @@ class HybridUserNeed(HybridRelationshipNeed):
 
     def __repr__(self):
         return '<HybridUserNeed {} {}>'.format(self.type, self.fields)
-

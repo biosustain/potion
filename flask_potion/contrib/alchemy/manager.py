@@ -1,9 +1,10 @@
 from flask import current_app
 from flask.ext.sqlalchemy import Pagination as SAPagination, get_state
-from sqlalchemy import String
+from sqlalchemy import String, or_, and_
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import class_mapper, aliased
+from sqlalchemy.orm.attributes import ScalarObjectAttributeImpl
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -11,13 +12,13 @@ from flask_potion import fields
 from flask_potion.contrib.alchemy.filters import FILTER_NAMES, FILTERS_BY_TYPE, SQLAlchemyBaseFilter
 from flask_potion.exceptions import ItemNotFound, DuplicateKey, BackendConflict
 from flask_potion.instances import Pagination
-from flask_potion.manager import Manager
+from flask_potion.manager import RelationalManager
 from flask_potion.signals import before_add_to_relation, after_add_to_relation, before_remove_from_relation, \
     after_remove_from_relation, before_create, after_create, before_update, after_update, before_delete, after_delete
 from flask_potion.utils import get_value
 
 
-class SQLAlchemyManager(Manager):
+class SQLAlchemyManager(RelationalManager):
     """
     A manager for SQLAlchemy models.
 
@@ -117,7 +118,43 @@ class SQLAlchemyManager(Manager):
     def _query(self):
         return self.model.query
 
-    def _order_query_by(self, query, sort):
+    def _query_filter(self, query, expression):
+        return query.filter(expression)
+
+    def _expression_for_join(self, attribute, expression):
+        relationship = getattr(self.model, attribute)
+        if isinstance(relationship.impl, ScalarObjectAttributeImpl):
+            return relationship.has(expression)
+        else:
+            return relationship.any(expression)
+
+    def _expression_for_condition(self, condition):
+        return condition.filter.expression(condition.value)
+
+    def _expression_for_ids(self, ids):
+        return self.id_column.in_(ids)
+
+    def _or_expression(self, expressions):
+        if not expressions:
+            return True
+        if len(expressions) == 1:
+            return expressions[0]
+        return or_(*expressions)
+
+    def _and_expression(self, expressions):
+        if not expressions:
+            return False
+        if len(expressions) == 1:
+            return expressions[0]
+        return and_(*expressions)
+
+    def _query_filter_by_id(self, query, id):
+        try:
+            return query.filter(self.id_column == id).one()
+        except NoResultFound:
+            raise ItemNotFound(self.resource, id=id)
+
+    def _query_order_by(self, query, sort):
         order_clauses = []
 
         for field, attribute, reverse in sort:
@@ -132,49 +169,20 @@ class SQLAlchemyManager(Manager):
 
         return query.order_by(*order_clauses)
 
-    def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
-        query = getattr(item, attribute)
+    def _query_get_paginated_items(self, query, page, per_page):
+        return query.paginate(page=page, per_page=per_page)
 
-        if isinstance(query, InstrumentedList):
-            if page and per_page:
-                return Pagination.from_list(query, page, per_page)
-            return query
-
-        if page and per_page:
-            return query.paginate(page=page, per_page=per_page)
+    def _query_get_all(self, query):
         return query.all()
 
-    def relation_add(self, item, attribute, target_resource, target_item):
-        before_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
-        getattr(item, attribute).append(target_item)
-        after_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+    def _query_get_one(self, query):
+        return query.one()
 
-    def relation_remove(self, item, attribute, target_resource, target_item):
-        before_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+    def _query_get_first(self, query):
         try:
-            getattr(item, attribute).remove(target_item)
-            after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
-        except ValueError:
-            pass  # if the relation does not exist, do nothing
-
-    def paginated_instances(self, page, per_page, where=None, sort=None):
-        return self.instances(where=where, sort=sort).paginate(page=page, per_page=per_page)
-
-    def instances(self, where=None, sort=None):
-        query = self._query()
-
-        if where:
-            query = SQLAlchemyBaseFilter.apply(query, where)
-        if sort:
-            query = self._order_query_by(query, sort)
-
-        return query
-
-    def first(self, where=None, sort=None):
-        try:
-            return self.instances(where, sort).one()
+            return query.one()
         except NoResultFound:
-            raise ItemNotFound(self.resource, where=where)
+            raise IndexError()
 
     def create(self, properties, commit=True):
         # noinspection properties
@@ -204,13 +212,6 @@ class SQLAlchemyManager(Manager):
 
         after_create.send(self.resource, item=item)
         return item
-
-    def read(self, id):
-        try:
-            # NOTE SQLAlchemy's .get() does not work well with .filter(), therefore using .one()
-            return self._query().filter(self.id_column == id).one()
-        except NoResultFound:
-            raise ItemNotFound(self.resource, id=id)
 
     def update(self, item, changes, commit=True):
         session = self._get_session()
@@ -247,6 +248,32 @@ class SQLAlchemyManager(Manager):
         session.commit()
 
         after_delete.send(self.resource, item=item)
+
+    def relation_instances(self, item, attribute, target_resource, page=None, per_page=None):
+        query = getattr(item, attribute)
+
+        if isinstance(query, InstrumentedList):
+            if page and per_page:
+                return Pagination.from_list(query, page, per_page)
+            return query
+
+        if page and per_page:
+            return self._query_get_paginated_items(query, page, per_page)
+
+        return self._query_get_all(query)
+
+    def relation_add(self, item, attribute, target_resource, target_item):
+        before_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        getattr(item, attribute).append(target_item)
+        after_add_to_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+
+    def relation_remove(self, item, attribute, target_resource, target_item):
+        before_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        try:
+            getattr(item, attribute).remove(target_item)
+            after_remove_from_relation.send(self.resource, item=item, attribute=attribute, child=target_item)
+        except ValueError:
+            pass  # if the relation does not exist, do nothing
 
     def commit(self):
         session = self._get_session()

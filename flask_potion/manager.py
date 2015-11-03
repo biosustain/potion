@@ -198,5 +198,99 @@ class Manager(object):
         pass
 
     def begin(self):
-
         pass
+
+
+class RelationalManager(Manager):
+    """
+    :class:`RelationalManager` is a base class for managers that do relational lookups on the basis of a query builder.
+    """
+
+    def _query(self):
+        raise NotImplementedError()
+
+    def _query(self):
+        raise NotImplementedError()
+
+    def _query_filter(self, query, expression):
+        raise NotImplementedError()
+
+    def _query_filter_by_id(self, query, id):
+        """
+
+        :param query:
+        :param id:
+        :raises ItemNotFound: if no such item exists
+        :return:
+        """
+        raise NotImplementedError()
+
+    def _expression_for_join(self, attribute, expression):
+        raise NotImplementedError()
+
+    def _expression_for_ids(self, ids):
+        raise NotImplementedError()
+
+    def _expression_for_condition(self, condition):
+        raise NotImplementedError()
+
+    def _or_expression(self, expressions):
+        raise NotImplementedError()
+
+    def _and_expression(self, expressions):
+        raise NotImplementedError()
+
+    def _query_order_by(self, query, sort):
+        raise NotImplementedError()
+
+    def _query_get_paginated_items(self, query, page, per_page):
+        raise NotImplementedError()
+
+    def _query_get_all(self, query):
+        raise NotImplementedError()
+
+    def _query_get_one(self, query):
+        raise NotImplementedError()
+
+    def _query_get_first(self, query):
+        raise NotImplementedError()
+
+    def paginated_instances(self, page, per_page, where=None, sort=None):
+        instances = self.instances(where=where, sort=sort)
+        if isinstance(instances, list):
+            return Pagination.from_list(instances, page, per_page)
+        return self._query_get_paginated_items(instances, page, per_page)
+
+    def instances(self, where=None, sort=None):
+        query = self._query()
+
+        if query is None:
+            return []
+
+        if where:
+            expressions = [self._expression_for_condition(condition) for condition in where]
+            query = self._query_filter(query, self._and_expression(expressions))
+
+        if sort:
+            query = self._query_order_by(query, sort)
+
+        return query
+
+    def first(self, where=None, sort=None):
+        """
+        :param where:
+        :param sort:
+        :return:
+        :raises exceptions.ItemNotFound:
+        """
+        try:
+            return self._query_get_first(self.instances(where, sort))
+        except IndexError:
+            raise ItemNotFound(self.resource, where=where)
+
+    def read(self, id):
+        query = self._query()
+
+        if query is None:
+            raise ItemNotFound(self.resource, id=id)
+        return self._query_filter_by_id(query, id)
