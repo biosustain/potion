@@ -1,9 +1,11 @@
 from collections import OrderedDict
 import inspect
 import operator
+from functools import partial
 
-from flask import current_app, make_response, json
+from flask import current_app, make_response, json, Response, request
 from six import wraps
+from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import BaseResponse
 
 from .exceptions import PotionException
@@ -22,6 +24,20 @@ __all__ = (
     'contrib',
     'natural_keys'
 )
+
+
+def _make_response(data, code, headers=None):
+    settings = {}
+    if current_app.debug:
+        settings.setdefault('indent', 4)
+        settings.setdefault('sort_keys', True)
+
+    data = json.dumps(data, **settings)
+
+    resp = make_response(data, code)
+    resp.headers.extend(headers or {})
+    resp.headers['Content-Type'] = 'application/json'
+    return resp
 
 
 class Api(object):
@@ -77,29 +93,34 @@ class Api(object):
         for rule, view, endpoint, methods in self.views:
             app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
 
-        @app.errorhandler(PotionException)
-        def handle_invalid_usage(error):
-            return error.make_response()
+        app.handle_exception = partial(self._exception_handler, app.handle_exception)
+        app.handle_user_exception = partial(self._exception_handler, app.handle_user_exception)
+
+    def _exception_handler(self, original_handler, e):
+        if isinstance(e, PotionException):
+            return e.get_response()
+
+        if not request.path.startswith(self.prefix):
+            return original_handler(e)
+
+        if isinstance(e, HTTPException):
+            return _make_response({
+                'status': e.code,
+                'message': e.description
+            }, e.code)
+
+        return original_handler(e)
 
     def output(self, view):
         @wraps(view)
         def wrapper(*args, **kwargs):
             resp = view(*args, **kwargs)
+
             if isinstance(resp, BaseResponse):
                 return resp
 
             data, code, headers = unpack(resp)
-
-            settings = {}
-            if current_app.debug:
-                settings.setdefault('indent', 4)
-                settings.setdefault('sort_keys', True)
-
-            data = json.dumps(data, **settings)
-            resp = make_response(data, code)
-            resp.headers.extend(headers or {})
-            resp.headers['Content-Type'] = 'application/json'
-            return resp
+            return _make_response(data, code, headers)
 
         return wrapper
 

@@ -4,11 +4,11 @@ from werkzeug.http import HTTP_STATUS_CODES
 
 
 class PotionException(Exception):
-    http_exception = InternalServerError
+    werkzeug_exception = InternalServerError
 
     @property
     def status_code(self):
-        return self.http_exception.code
+        return self.werkzeug_exception.code
 
     def as_dict(self):
         return {
@@ -16,15 +16,14 @@ class PotionException(Exception):
             'message': HTTP_STATUS_CODES.get(self.status_code, '')
         }
 
-    def make_response(self):
-        code = self.http_exception.code
+    def get_response(self):
         response = jsonify(self.as_dict())
         response.status_code = self.status_code
         return response
 
 
 class ItemNotFound(PotionException):
-    http_exception = NotFound
+    werkzeug_exception = NotFound
 
     def __init__(self, resource, where=None, id=None):
         super(ItemNotFound, self).__init__()
@@ -48,23 +47,22 @@ class ItemNotFound(PotionException):
                         "${}".format(condition.filter.name): condition.value
                     } if condition.filter.name is not None else condition.value
                     for condition in self.where
-                } if self.where else None
+                    } if self.where else None
             }
         return dct
 
-    def make_response(self):
-        code = self.http_exception.code
+    def get_response(self):
         response = jsonify(self.as_dict())
         response.status_code = self.status_code
         return response
 
 
 class RequestMustBeJSON(PotionException):
-    http_exception = UnsupportedMediaType
+    werkzeug_exception = UnsupportedMediaType
 
 
 class ValidationError(PotionException):
-    http_exception = BadRequest
+    werkzeug_exception = BadRequest
 
     def __init__(self, errors, root=None, schema_uri='#'):
         self.root = root
@@ -74,7 +72,7 @@ class ValidationError(PotionException):
     def _complete_path(self, error):
         path = tuple(error.absolute_path)
         if self.root is not None:
-            return (self.root, ) + path
+            return (self.root,) + path
         return path
 
     def _format_errors(self):
@@ -95,14 +93,14 @@ class ValidationError(PotionException):
 
 
 class DuplicateKey(PotionException):
-    http_exception = Conflict
+    werkzeug_exception = Conflict
 
     def __init__(self, **kwargs):
         self.data = kwargs
 
 
 class BackendConflict(PotionException):
-    http_exception = Conflict
+    werkzeug_exception = Conflict
 
     def __init__(self, **kwargs):
         self.data = kwargs
@@ -112,9 +110,10 @@ class BackendConflict(PotionException):
         dct.update(self.data)
         return dct
 
+
 class PageNotFound(PotionException):
-    http_exception = NotFound
+    werkzeug_exception = NotFound
 
 
 class InvalidJSON(PotionException):
-    http_exception = BadRequest
+    werkzeug_exception = BadRequest
