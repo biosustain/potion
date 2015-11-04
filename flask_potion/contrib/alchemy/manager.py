@@ -162,7 +162,7 @@ class SQLAlchemyManager(RelationalManager):
 
             if isinstance(field, fields.ToOne):
                 target_alias = aliased(field.target.meta.model)
-                query = query.join(target_alias, column).reset_joinpoint()
+                query = query.outerjoin(target_alias, column).reset_joinpoint()
                 column = getattr(target_alias, field.target.meta.sort_attribute or field.target.meta.id_attribute)
 
             order_clauses.append(column.desc() if reverse else column.asc())

@@ -245,16 +245,36 @@ class FilterTestCase(BaseTestCase):
             {'name': 'B', 'belongs_to': user_ids[2]},
             {'name': 'C', 'belongs_to': user_ids[1]},
             {'name': 'D', 'belongs_to': user_ids[4]},
-            {'name': 'E', 'belongs_to': user_ids[3]}
+            {'name': 'E', 'belongs_to': user_ids[3]},
+            {'name': 'F', 'belongs_to': None}
+        ]:
+            response = self.client.post('/thing', data=thing)
+            self.assert200(response)
+
+        thinggetter = lambda thing: thing['belongs_to']['$ref'] if thing['belongs_to'] else ''
+
+        response = self.client.get('/thing?sort={"belongs_to": false}')
+        self.assertEqual(sorted(response.json, key=thinggetter), response.json)
+
+        response = self.client.get('/thing?sort={"belongs_to": true}')
+        self.assertEqual(list(reversed(sorted(response.json, key=thinggetter))), response.json)
+
+
+        response = self.client.get('/thing?sort={"name": false, "belongs_to": false}')
+        self.assertEqual(sorted(response.json, key=lambda thing: thing['name']), response.json)
+
+    def test_sort_relationship_none(self):
+        for thing in [
+            {'name': 'A', 'belongs_to': None},
+            {'name': 'B', 'belongs_to': None},
+            {'name': 'C', 'belongs_to': None}
         ]:
             response = self.client.post('/thing', data=thing)
             self.assert200(response)
 
         response = self.client.get('/thing?sort={"belongs_to": false}')
-        self.assertEqual(sorted(response.json, key=lambda thing: thing['belongs_to']['$ref']), response.json)
+        self.assertEqual(3, len(response.json))
 
-        response = self.client.get('/thing?sort={"name": false, "belongs_to": false}')
-        self.assertEqual(sorted(response.json, key=lambda thing: thing['name']), response.json)
 
     def test_sort_filter_date(self):
         for thing in [
