@@ -731,22 +731,3 @@ class ItemUri(Raw):
 
     def format(self, value):
         return '{}/{}'.format(self.target.route_prefix, value)
-
-
-class sa:
-    class InlineModel(Object):
-        """
-        :param dict properties:
-        :param model:
-        """
-        def __init__(self, properties, model, **kwargs):
-            super(sa.InlineModel, self).__init__(properties, **kwargs)
-            self.model = model
-
-        def converter(self, instance):
-            instance = super(sa.InlineModel, self).converter(instance)
-            # obj = EmbeddedJob.complete(super().convert(obj))
-            # TODO commit()?
-            if instance is not None:
-                instance = self.model(**instance)
-            return instance
