@@ -664,7 +664,7 @@ class Inline(Raw, ResourceBound):
             def _response_schema():
                 if self.resource == self.target:
                     return {"$ref": "#"}
-                return {"$ref": self.resource.routes["schema"].rule_factory(self.resource)}
+                return {"$ref": self.resource.routes["describedBy"].rule_factory(self.resource)}
 
             if not not self.patchable:
                 return _response_schema()
