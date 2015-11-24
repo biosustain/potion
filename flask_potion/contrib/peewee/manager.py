@@ -44,7 +44,7 @@ class PeeweeManager(Manager):
         write_only_fields = meta.get('write_only_fields', ())
         pre_declared_fields = {f.attribute or k for k, f in fs.fields.items()}
 
-        for name, column in model._meta.get_sorted_fields():
+        for name, column in model._meta.fields.items():
             if (include_fields and name in include_fields) or \
                     (exclude_fields and name not in exclude_fields) or \
                     not (include_fields or exclude_fields):
