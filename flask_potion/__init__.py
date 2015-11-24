@@ -55,6 +55,7 @@ class Api(object):
     """
     def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None, default_manager=None):
         self.app = app
+        self.blueprint = None
         self.prefix = prefix or ''
         self.decorators = decorators or []
         self.title = title
@@ -77,6 +78,19 @@ class Api(object):
             self.init_app(app)
 
     def init_app(self, app):
+        # If app is a blueprint, defer the initialization
+        try:
+            app.record(self._deferred_blueprint_init)
+        # Flask.Blueprint has a 'record' attribute, Flask.Api does not
+        except AttributeError:
+            self._init_app(app)
+        else:
+            self.blueprint = app
+
+    def _deferred_blueprint_init(self, setup_state):
+        self._init_app(setup_state.app)
+
+    def _init_app(self, app):
         """
         :param app: a :class:`Flask` instance
         """
@@ -141,7 +155,10 @@ class Api(object):
         return OrderedDict(schema), 200, {'Content-Type': 'application/schema+json'}
 
     def add_route(self, route, resource, endpoint=None, decorator=None):
-        endpoint = endpoint or '.'.join((resource.meta.name, route.relation))
+        if self.blueprint is None:
+            endpoint = endpoint or '.'.join((resource.meta.name, route.relation))
+        else:
+            endpoint = endpoint or '_'.join((resource.meta.name, route.relation))
         methods = [route.method]
         rule = route.rule_factory(resource)
 
