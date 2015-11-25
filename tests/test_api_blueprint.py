@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, json
 from flask_potion import Api, fields
 from flask_potion.contrib.memory.manager import MemoryManager
 from flask_potion.resource import ModelResource
@@ -64,6 +64,16 @@ class BlueprintApiTestCase(BaseTestCase):
         self.assert200(response)
         response = self.client.get("/api/v2/samples2")
         self.assert200(response)
+
+        # Test that we have two prefix'd schemas
+        response = self.client.get("/api/v1/schema")
+        self.assert200(response)
+        v1_schema = json.loads(response.data)
+        response = self.client.get("/api/v2/schema")
+        self.assert200(response)
+        v2_schema = json.loads(response.data)
+        assert v1_schema != v2_schema
+        assert v1_schema["properties"]["samples"] == v2_schema["properties"]["samples"]
 
         # Test that endpoints are linked to same resource
         response = self.client.post('/api/v1/samples', data={
