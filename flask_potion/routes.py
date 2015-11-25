@@ -1,17 +1,18 @@
-from collections import OrderedDict
 import re
-from types import MethodType
 import sys
+from collections import OrderedDict
+from types import MethodType
 
 from flask import request
 from werkzeug.utils import cached_property
 
+from flask_potion.reference import _bind_schema
+from flask_potion.fields import ToOne, Integer
 from flask_potion.fields import _field_from_object
-from flask_potion.fields import ToOne, Integer, Object
-from flask_potion.utils import get_value
 from flask_potion.instances import Instances, RelationInstances
 from flask_potion.reference import ResourceBound, ResourceReference
 from flask_potion.schema import Schema, FieldSet
+from flask_potion.utils import get_value
 
 HTTP_METHODS = ('GET', 'PUT', 'POST', 'PATCH', 'DELETE')
 
@@ -34,12 +35,6 @@ def attribute_to_route_uri(s):
 
 def to_camel_case(s):
     return s[0].lower() + s.title().replace('_', '')[1:] if s else s
-
-
-def _bind_schema(schema, resource):
-    if isinstance(schema, ResourceBound):
-        return schema.bind(resource)
-    return schema
 
 
 def _method_decorator(method):

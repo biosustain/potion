@@ -80,7 +80,6 @@ class Api(object):
         """
         :param app: a :class:`Flask` instance
         """
-        app.potion = self  # NOTE in part because of this, only one Api instance can exist per app
         app.config.setdefault('POTION_MAX_PER_PAGE', 100)
         app.config.setdefault('POTION_DEFAULT_PER_PAGE', 20)
 

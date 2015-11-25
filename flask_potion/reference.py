@@ -25,8 +25,6 @@ class ResourceReference(object):
         potion = None
         if binding and binding.api:
             potion = binding.api
-        elif _app_ctx_stack.top is not None and hasattr(current_app, 'potion'):
-            potion = current_app.potion
         if potion:
             if name in potion.resources:
                 return potion.resources[name]
@@ -39,7 +37,9 @@ class ResourceReference(object):
         except ValueError:
             pass
 
-        raise RuntimeError('Resource named "{}" is not registered with Potion'.format(name))
+        if binding and binding.api:
+            raise RuntimeError('Resource named "{}" is not registered with the Api it is bound to.'.format(name))
+        raise RuntimeError('Resource named "{}" cannot be found; the reference is not bound to an Api.'.format(name))
 
     def __repr__(self):
         return "<ResourceReference '{}'>".format(self.value)
@@ -62,3 +62,9 @@ class ResourceBound(object):
     def rebind(self, resource):
         raise NotImplementedError('{} is already bound to {}'
                                   ' and does not support rebinding to {}'.format(repr(self), self.resource, resource))
+
+
+def _bind_schema(schema, resource):
+    if isinstance(schema, ResourceBound):
+        return schema.bind(resource)
+    return schema

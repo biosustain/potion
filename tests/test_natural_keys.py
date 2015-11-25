@@ -51,7 +51,8 @@ class NaturalKeyTestCase(BaseTestCase):
 
         self.api.add_resource(Foo)
 
-        foo_field = fields.ToOne('foo')
+        foo_field = fields.ToOne(Foo)
+
         self.assertJSONEqual(FOO_REFERENCE, foo_field.response)
         self.assertJSONEqual(FOO_REFERENCE, foo_field.request)
 
@@ -87,8 +88,7 @@ class NaturalKeyTestCase(BaseTestCase):
 
         self.api.add_resource(Foo)
 
-
-        foo_field = fields.ToOne('foo')
+        foo_field = fields.ToOne(Foo)
 
         self.assertJSONEqual(FOO_REFERENCE, foo_field.response)
         self.assertJSONEqual({
@@ -155,7 +155,7 @@ class NaturalKeyTestCase(BaseTestCase):
 
         self.api.add_resource(Foo)
 
-        foo_field = fields.ToOne('foo', nullable=True)
+        foo_field = fields.ToOne(Foo, nullable=True)
 
         self.assertJSONEqual(FOO_REFERENCE_NULLABLE, foo_field.response)
         self.assertJSONEqual({

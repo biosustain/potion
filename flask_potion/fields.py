@@ -8,7 +8,7 @@ import six
 from werkzeug.utils import cached_property
 
 from flask_potion.utils import get_value
-from flask_potion.reference import ResourceReference, ResourceBound
+from flask_potion.reference import ResourceReference, ResourceBound, _bind_schema
 from flask_potion.schema import Schema
 
 class Raw(Schema):
@@ -231,7 +231,7 @@ class Array(Raw, ResourceBound):
 List = Array
 
 
-class Object(Raw):
+class Object(Raw, ResourceBound):
     """
     A versatile field for an object, containing either properties all of a single type, properties matching a pattern,
     or named properties matching some fields.
@@ -288,6 +288,19 @@ class Object(Raw):
                                       "and it cannot be combined with additionalProperties")
 
         super(Object, self).__init__(schema, **kwargs)
+
+    def bind(self, resource):
+        if self.properties:
+            self.properties = {
+                key: _bind_schema(value, resource)
+                for key, value in self.properties.items()}
+        if self.pattern_properties:
+            self.pattern_properties = {
+                key: _bind_schema(value, resource)
+                for key, value in self.pattern_properties.items()}
+        if self.additional_properties:
+            self.additional_properties = _bind_schema(self.additional_properties, resource)
+        return self
 
     @cached_property
     def _property_attributes(self):
