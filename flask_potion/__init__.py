@@ -97,11 +97,19 @@ class Api(object):
         app.config.setdefault('POTION_MAX_PER_PAGE', 100)
         app.config.setdefault('POTION_DEFAULT_PER_PAGE', 20)
 
-        app.add_url_rule(
-            rule=''.join((self.prefix, '/schema')),
-            view_func=self.output(self._schema_view),
-            endpoint='schema',
-            methods=['GET'])
+        if self.blueprint:
+            self.blueprint.add_url_rule(
+                rule=''.join((self.prefix, '/schema')),
+                view_func=self.output(self._schema_view),
+                endpoint='schema',
+                methods=['GET']
+            )
+        else:
+            app.add_url_rule(
+                rule=''.join((self.prefix, '/schema')),
+                view_func=self.output(self._schema_view),
+                endpoint='schema',
+                methods=['GET'])
 
         for rule, view, endpoint, methods in self.views:
             app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
@@ -169,7 +177,9 @@ class Api(object):
         for decorator in self.decorators:
             view = decorator(view)
 
-        if self.app:
+        if self.blueprint:
+            self.blueprint.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
+        elif self.app:
             self.app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
         else:
             self.views.append((rule, view, endpoint, methods))
