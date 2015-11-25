@@ -155,10 +155,7 @@ class Api(object):
         return OrderedDict(schema), 200, {'Content-Type': 'application/schema+json'}
 
     def add_route(self, route, resource, endpoint=None, decorator=None):
-        if self.blueprint is None:
-            endpoint = endpoint or '.'.join((resource.meta.name, route.relation))
-        else:
-            endpoint = endpoint or '_'.join((resource.meta.name, route.relation))
+        endpoint = endpoint or '_'.join((resource.meta.name, route.relation))
         methods = [route.method]
         rule = route.rule_factory(resource)
 
