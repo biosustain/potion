@@ -5,32 +5,33 @@
 Permissions with *Flask-Principal*
 ===================================
 
-.. module:: contrib.principals
+.. module:: flask_potion
 
-Flask-Potion includes a manager with a permission system. The permissions system is
-built on `Flask-Principal <https://pythonhosted.org/Flask-Principal/>`_
-and enabled by replacing :class:`ModelResource` with :class:`PrincipalResource`. Permissions are defined as
-a dictionary in ``Meta.permissions``.
+Flask-Potion includes a permission system. The permissions system is
+built on `Flask-Principal <https://pythonhosted.org/Flask-Principal/>`_.
+and enabled by decorating a :class:`manager.RelationalManager` with :class:`contrib.principals.principals`, which returns a class
+extending both the manager and :class:`contrib.principals.PrincipalMixin`.
+
+Permissions are specified as a ``dict`` in ``Meta.permissions``.
 
 
 Defining Permissions
 ====================
 
-There are four basic *operations* --- read, create, update, delete --- for which permissions must be defined. Additional
-virtual operations can be declared for various purposes.
+There are four basic *actions* --- read, create, update, delete --- for which permissions must be defined. Additional
+virtual actions can be declared for various purposes.
 
 For example, the default permission declaration looks somewhat like this:
 
 .. code-block:: python
 
-    class PrincipalResource:
-        class Meta:
-            permissions = {
-                'read': 'yes',
-                'create': 'no',
-                'update': 'create',
-                'delete': 'update'
-            }
+    class Meta:
+        permissions = {
+            'read': 'yes',
+            'create': 'no',
+            'update': 'create',
+            'delete': 'update'
+        }
 
 
 Patterns and *Needs* they produce:
@@ -38,14 +39,14 @@ Patterns and *Needs* they produce:
 ==================== ===================================== ===================================================
 Pattern              Matches                               Description
 ==================== ===================================== ===================================================
-{operation}             a key in the ``permissions`` dict  If equal to the operation it is declared for
+{action}             a key in the ``permissions`` dict  If equal to the action it is declared for
                                                            --- e.g. ``{'create': 'create'}`` --- evaluate to:
 
-                                                           ``HybridItemNeed({operation}, resource_name)``
+                                                           ``HybridItemNeed({action}, resource_name)``
 
-                                                           Otherwise re-use needs from other operation.
+                                                           Otherwise re-use needs from other action.
 {role}               not a key in the ``permissions`` dict ``RoleNeed({role})``
-{operation}:{field}     *\*:\**                             Copy ``{operation}`` permissions from ``ToOne``
+{action}:{field}     *\*:\**                               Copy ``{action}`` permissions from ``ToOne``
                                                            linked resource at ``{field}``.
 user:{field}         *user:\**                             ``UserNeed(item.{field}.id)`` for ``ToOne`` fields.
 no, nobody           *no*                                  Do not permit.
@@ -57,14 +58,17 @@ yes, everybody       *yes*                                 Always permit.
 
     When protecting an :class:`ItemRoute`, read access permissions, and updates using the resource manager  are checked automatically;
     for other actions, permissions have to be checked manually from within the function. The manager has helper functions such as
-    :meth:`PrincipalManager.can_update_item` to facilitate this.
+    :meth:`PrincipalMixin.can_update_item` to facilitate this.
 
 
 
 Example API with permissions
 ============================
 
-We're going to go ahead and create an example API using :class:`PrincipalResource` with
+.. versionchanged:: 0.11.0
+    The ``PrincipalManager`` extending ``SQLAlchemyManager`` has been replaced by a :meth:`principals` class-decorator.
+
+We're going to go ahead and create an example API using :class:`PrincipalMixin` with
 `Flask-Login <https://flask-login.readthedocs.org>`_ for authentication. Since there are quite a few moving parts, this
 example is split up into several sections.
 
@@ -163,10 +167,15 @@ Finally, we create our API with the ``login_required`` decorator from *Flask-Log
 .. code-block:: python
 
     from flask_login import login_required
-    from flask_potion import fields, signals, Api
-    from flask_potion.contrib.principals import PrincipalResource
+    from flask_potion import fields, signals, Api, ModelResource
+    from flask_potion.contrib.alchemy import SQLAlchemyManager
+    from flask_potion.contrib.principals import principals
 
     api = Api(app, decorators=[login_required])
+
+    class PrincipalResource(ModelResource):
+        class Meta:
+            manager = principals(SQLAlchemyManager)
 
 
     class UserResource(PrincipalResource):
@@ -273,8 +282,9 @@ There is another permission layer, building on :class:`flask_principal.ItemNeed`
 .. code-block:: python
 
 
-    class ProjectResource(PrincipalResource):
+    class ProjectResource(ModelResource):
         class Meta:
+            manager = principals(SQLAlchemyManager)
             model = Project
             permissions = {
                 'create': 'anybody',
@@ -286,7 +296,7 @@ To update a project, your identity needs this *need*::
 
     ItemNeed('manage', PROJECT_ID, 'project')
 
-The pair ``{'manage': 'manage'}`` makes manage a new virtual operation, which is why the :class:`flask_principals.ItemNeed` wants
+The pair ``{'manage': 'manage'}`` makes manage a new virtual action, which is why the :class:`flask_principals.ItemNeed` wants
 a ``'manage'`` permission. We could also have written ``{'update': 'update'}`` --- then the required *need* would have been::
 
     ItemNeed('update', PROJECT_ID, 'project')
@@ -295,12 +305,12 @@ With cascading permissions, role-based, user-based, and object-based permissions
 implement all sorts of complex permissions setups.
 
 
-:class:`PrincipalManager` class
+:class:`PrincipalMixin` class
 ===============================
 
 .. module:: flask_potion.contrib.principals
 
-.. autoclass:: PrincipalManager
+.. autoclass:: PrincipalMixin
     :members:
 
 
