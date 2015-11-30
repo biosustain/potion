@@ -168,7 +168,7 @@ class MongoEngineManager(Manager):
 
         kwargs['nullable'] = field.null
         kwargs['default'] = field.default
-        kwargs['description'] = field.help_text
+        kwargs['description'] = getattr(field, 'help_text', None)
         return field_class(*args, **kwargs)
 
     def _where_expression(self, where):
