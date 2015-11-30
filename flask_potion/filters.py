@@ -8,8 +8,7 @@ class BaseFilter(Schema):
     Base-class for all filter types. Filters are specified on a field-level. Each backend implements its own filters and
     defaults. Custom filters can be specified using the ``ModelResource.Meta.filter`` configuration.
 
-    Named and unnamed filters
-    ^^^^^^^^^^^^^^^^^^^^^^^^^
+    *Named and unnamed filters:*
 
     :class:`EqualFilter` is a special filter type. This is because an equality condition is can be written in the format
     ``{"property": condition}``, whereas every other filter needs to be written as
