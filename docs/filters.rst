@@ -6,11 +6,11 @@
 Filters
 =======
 
-.. versionchanged:: 0.11.0
-    Filters have recently been completely rewritten. It is now easier to write custom filters.
-
 Filter expressions
 ------------------
+
+.. versionchanged:: 0.11.0
+   ``Meta.allowed_filters`` has been renamed to ``Meta.filters`` and the format for filter expressions has changed.
 
 ``Meta.filters`` may contain an expression used to specify which properties of items belonging to a resource can be filtered, and how.
 
@@ -82,6 +82,8 @@ between        :class:`filters.DateBetweenFilter`        Ends with (case-insensi
 
 :class:`filters.BaseFilter`
 ---------------------------
+
+.. versionadded:: 0.11.0
 
 .. autoclass:: BaseFilter
    :members:
