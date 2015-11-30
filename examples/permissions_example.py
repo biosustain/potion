@@ -5,8 +5,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_principal import Principal, Identity, UserNeed, AnonymousIdentity, identity_loaded, RoleNeed
 from sqlalchemy.orm import relationship
 
-from flask_potion import fields, signals, Api
-from flask_potion.contrib.principals import PrincipalResource
+from flask_potion.contrib.alchemy import SQLAlchemyManager
+from flask_potion import fields, signals, Api, ModelResource
+from flask_potion.contrib.principals import principals
 
 
 app = Flask(__name__)
@@ -75,15 +76,17 @@ def on_identity_loaded(sender, identity):
             identity.provides.add(RoleNeed('admin'))
 
 
-api = Api(app, decorators=[login_required])
+api = Api(app,
+          decorators=[login_required],
+          default_manager=principals(SQLAlchemyManager))
 
 
-class UserResource(PrincipalResource):
+class UserResource(ModelResource):
     class Meta:
         model = User
 
 
-class ArticleResource(PrincipalResource):
+class ArticleResource(ModelResource):
     class Schema:
         author = fields.ToOne('user')
 
@@ -96,7 +99,7 @@ class ArticleResource(PrincipalResource):
         }
 
 
-class CommentResource(PrincipalResource):
+class CommentResource(ModelResource):
     class Schema:
         article = fields.ToOne('article')
         author = fields.ToOne('user')
