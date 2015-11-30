@@ -1,8 +1,9 @@
 
-.. _filters:
-
 .. module:: flask_potion
 
+.. _sec_filters:
+
+=======
 Filters
 =======
 

@@ -433,7 +433,7 @@ Here are some examples of *sort* queries:
 
 Both *where* and *sort* need to be valid JSON, so use double quotes.
 
-See :ref:`filters` for a full list of possible filters.
+See :ref:`sec_filters` for a full list of possible filters.
 
 .. _pagination:
 
