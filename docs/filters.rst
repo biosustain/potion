@@ -1,34 +1,87 @@
 
 .. _filters:
 
+.. module:: flask_potion
 
-Field filters
-=============
+Filters
+=======
+
+.. versionchanged:: 0.11.0
+    Filters have recently been completely rewritten. It is now easier to write custom filters.
+
+Filter expressions
+------------------
+
+``Meta.filters`` may contain an expression used to specify which properties of items belonging to a resource can be filtered, and how.
+
+The `filters` expression can be a :class:`bool` or a :class:`dict` keyed by field names. The values of the
+:class:`dict` can be either a :class:`bool` or a list of filter names. The ``'*'`` attribute is a wildcard
+for any remaining field names.
+
+For example, the following allows all filters:
+
+::
+
+    filters = True
+
+The following allows filtering on the ``"name"`` field:
+
+::
+
+    filters = {
+        "name": True
+    }
+
+The following allows filtering by equals and not equals on the ``"name"`` field:
+
+::
+
+    filters = {
+        "name": ['eq', 'ne']
+    }
+
+In addition it is also possible to specify custom filters this way:
+
+::
+
+    filters = {
+        "name": {
+            "text": MyTextFilter
+        },
+        "*": True
+    }
 
 
-``Meta.allowed_filters`` can take one of three general formats:
+Built-in default filters
+------------------------
 
-- ``"*"`` filtering allowed on all supported field types
-- ``["f1", "f2"]`` filtering allowed on fields ``'f1'`` and ``'f2'``, provided they are supported by any comparators.
-- ``{"f1": ["$eq", "$lt"], "f2": "*"}`` for each field specify available comparators.
+Filters are implemented for each contributed backend individually. The following filter classes are implemented for
+most or all backends:
 
+=============  ========================================  ============================================  ================================================================================================================================================================================================================================================
+Name           Filter class                              Description                                   Used with
+=============  ========================================  ============================================  ================================================================================================================================================================================================================================================
+---            :class:`filters.EqualFilter`              Equal                                         :class:`fields.Boolean`, :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.ToOne`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+ne             :class:`filters.NotEqualFilter`           Not equal                                     :class:`fields.Boolean`, :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.ToOne`
+in             :class:`filters.InFilter`                 In (expects an Array)                         :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+contains       :class:`filters.ContainsFilter`           Contains                                      :class:`fields.Array`, :class:`fields.ToMany`
+lt             :class:`filters.LessThanFilter`           Less than                                     :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+gt             :class:`filters.GreaterThanFilter`        Greater than                                  :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+lte            :class:`filters.LessThanEqualFilter`      Less than or equal                            :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+gte            :class:`filters.GreaterThanEqualFilter`   Greater than or equal                         :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+contains       :class:`filters.StringContainsFilter`     Contains (String)                             :class:`fields.String`
+contains       :class:`filters.StringIContainsFilter`    Contains (String, case-insensitive)           :class:`fields.String`
+startswith     :class:`filters.StartsWithFilter`         Starts with                                   :class:`fields.String`
+endswith       :class:`filters.IStartsWithFilter`        Ends with                                     :class:`fields.String`
+istartswith    :class:`filters.EndsWithFilter`           Starts with (case-insensitive)                :class:`fields.String`
+iendswith      :class:`filters.IEndsWithFilter`          Ends with (case-insensitive)                  :class:`fields.String`
+between        :class:`filters.DateBetweenFilter`        Ends with (case-insensitive)                  :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+=============  ========================================  ============================================  ================================================================================================================================================================================================================================================
 
-Built-in comparators
---------------------
+.. module:: flask_potion.filters
 
-=============  ============================================  ========================================
-Comparator     Description                                   Used with
-=============  ============================================  ========================================
----            Equal                                         :class:`fields.Boolean`, :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.ToOne`
-$ne            Not equal                                     :class:`fields.Boolean`, :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.ToOne`
-$in            In (expects a list)                           :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`
-$lt            Less than                                     :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`
-$gt            Greater than                                  :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`
-$lte           Less than or equal                            :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`
-$gte           Greater than or equal                         :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`
-$text          Text search (PostgreSQL)                      :class:`fields.String`
-$startswith    Starts with                                   :class:`fields.String`
-$endswith      Ends with                                     :class:`fields.String`
-$istartswith   Starts with (case insensitive)                :class:`fields.String`
-$iendswith     Ends with (case insensitive)                  :class:`fields.String`
-=============  ============================================  ========================================
+:class:`filters.BaseFilter`
+---------------------------
+
+.. autoclass:: BaseFilter
+   :members:

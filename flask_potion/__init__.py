@@ -18,6 +18,7 @@ __all__ = (
     'Resource',
     'ModelResource',
     'fields',
+    'filters',
     'routes',
     'schema',
     'signals',

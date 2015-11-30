@@ -5,20 +5,37 @@ from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date
 
 class BaseFilter(Schema):
     """
+    Base-class for all filter types. Filters are specified on a field-level. Each backend implements its own filters and
+    defaults. Custom filters can be specified using the ``ModelResource.Meta.filter`` configuration.
 
+    Named and unnamed filters
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
 
     :class:`EqualFilter` is a special filter type. This is because an equality condition is can be written in the format
     ``{"property": condition}``, whereas every other filter needs to be written as
-    ``{"property": {"$filter": condition}}``.
+    ``{"property": {"$filter": condition}}``. To implement this, a filter can be either named or unnamed.
 
     Due to the way the equality comparison is done, users need to be watchful when comparing objects. Some
-    object comparisons can be ambiguous, e.g. `{"foo": {"$foo": "bar"}}`. If a condition contains an object with
+    object comparisons can be ambiguous, e.g. ``{"foo": {"$foo": "bar"}}``. If a condition contains an object with
     exactly one property, the name of the property will be matched against all valid filters for that field. If
     necessary, the equality filter can be declared explicitly to avoid comparing against the wrong filter,
-    e.g. `{"foo": {"$eq": {"$foo": "bar"}}}`.
+    e.g. ``{"foo": {"$eq": {"$foo": "bar"}}}``.
 
     Multiple filters can have the same filter name so long as they are not valid for the same field types. For example,
     :class:`StringContainsFilter` for strings and :class:`ContainsFilter` for arrays.
+
+    .. attribute:: attribute
+
+        Attribute to filter on. Defaults to ``field.attribute``.
+
+    .. attribute:: field
+
+        Field to filter on.
+
+    .. attribute:: name
+
+        Name of the filter as specified in the ``where`` object in the GET request. A filter ``foo`` on field ``field``
+        is specified as: `?where={"field": {"$foo": filter-expression}}`
     """
 
     def __init__(self, name, field=None, attribute=None):
@@ -27,6 +44,13 @@ class BaseFilter(Schema):
         self.name = name
 
     def op(self, a, b):
+        """
+        Matches an attribute of an item ``a`` against a value ``b`` provided by the user.
+
+        :param a: item's attribute's value
+        :param b: value filtered by
+        :return: ``True`` on match, ``False`` otherwise
+        """
         raise NotImplemented()
 
     def _schema(self):
@@ -42,6 +66,13 @@ class BaseFilter(Schema):
             return Condition(self.attribute, self, self._convert(instance["${}".format(self.name)]))
 
     def schema(self):
+        """
+        Returns the schema for this filter.
+
+        This depends on the name of the filter. If the filter is named, it needs to be formatted as `{"$name": schema}`.
+        Usually the equality filter is unnamed and all other filters are named.
+
+        """
         if self.name is None:
             return self._schema()
         return {
@@ -307,6 +338,7 @@ def _get_names_for_filter(filter, filter_names=FILTER_NAMES):
     for f, name in filter_names:
         if f == filter:
             yield name
+
 
 def filters_for_fields(fields,
                        filters_expression,
