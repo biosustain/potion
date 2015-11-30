@@ -132,8 +132,8 @@ required_fields        ---                             Fields that are automatic
                                                        required if their columns are not `nullable` and do not have a `default`.
 read_only_fields       ---                             A list of fields that are returned by the resource but are ignored in `POST`
                                                        and `PATCH` requests. Useful for e.g. timestamps.
-allowed_filters        ``'*'``                         Used to configure what properties of an item can be filtered and what filters are allowed.
-write_only_fields      ---                              A list of fields that can be written to but are not returned. For secret stuff.
+filters                ``True``                        Used to configure what properties of an item can be filtered and what filters can be used.
+write_only_fields      ---                             A list of fields that can be written to but are not returned. For secret stuff.
 title                  ---                             JSON-schema title declaration
 description            ---                             JSON-schema description declaration
 manager                :class:`SQLAlchemyManager`      A :class:`Manager` class that takes care of reading from and writing to the data store
