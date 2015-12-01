@@ -1,7 +1,8 @@
 Flask>=0.10
 Flask-Principal>=0.4.0
 Flask-SQLAlchemy>=2.0
-peewee>=2.6.3
+flask-mongoengine==0.7.4
+peewee>=2.7.3
 jsonschema>=2.4.0
 aniso8601>=0.84
 blinker>=1.3
