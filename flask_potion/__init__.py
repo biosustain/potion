@@ -62,6 +62,7 @@ class Api(object):
         self.description = description
         self.endpoints = set()
         self.resources = {}
+        self.deferred_resources = []
         self.views = []
 
         self.default_manager = None
@@ -88,7 +89,28 @@ class Api(object):
             self.blueprint = app
 
     def _deferred_blueprint_init(self, setup_state):
+        """
+        Deferred initialization of a Blueprint. First updates
+        the Api.prefix to include the Blueprint url_prefix as needed,
+        then removes the Blueprint object and calls _register_deferred_resources,
+        which adds individual Resources that were deferred until Blueprint
+        registration.
+        """
         self._init_app(setup_state.app)
+        if self.blueprint.url_prefix:
+            self.prefix = self.blueprint.url_prefix + self.prefix
+        if self.deferred_resources:
+            self._register_deferred_resources(setup_state)
+            self.deferred_resources = None
+
+    def _register_deferred_resources(self, setup_state):
+        """
+        Register
+
+        :param setup_state: Blueprint setup state
+        """
+        for resource in self.deferred_resources:
+            self.add_resource(resource)
 
     def _init_app(self, app):
         """
@@ -166,6 +188,8 @@ class Api(object):
         endpoint = endpoint or '_'.join((resource.meta.name, route.relation))
         methods = [route.method]
         rule = route.rule_factory(resource)
+        if self.blueprint and self.blueprint.url_prefix:
+            rule = "/" + rule.lstrip(self.blueprint.url_prefix)
 
         view_func = route.view_factory(endpoint, resource)
 
@@ -177,9 +201,7 @@ class Api(object):
         for decorator in self.decorators:
             view = decorator(view)
 
-        if self.blueprint:
-            self.blueprint.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
-        elif self.app:
+        if self.app:
             self.app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
         else:
             self.views.append((rule, view, endpoint, methods))
@@ -191,6 +213,10 @@ class Api(object):
         :param Resource resource: resource
         :return:
         """
+        if self.blueprint and resource not in self.deferred_resources:
+            self.deferred_resources.append(resource)
+            return
+
         # prevent resources from being added twice
         if resource in self.resources.values():
             return

@@ -46,11 +46,11 @@ class BlueprintApiTestCase(BaseTestCase):
     def test_multiple_blueprints(self):
         # Create Blueprints
         api_bp1 = Blueprint("potion1", __name__.split(".")[0])
-        api_bp2 = Blueprint("potion2", __name__.split(".")[0])
+        api_bp2 = Blueprint("potion2", __name__.split(".")[0], url_prefix="/api")
 
         # Create Api objects, add resources, and register blueprints with app
         api1 = Api(api_bp1, prefix="/api/v1")
-        api2 = Api(api_bp2, prefix="/api/v2")
+        api2 = Api(api_bp2, prefix="/v2")
         api1.add_resource(SampleResource)
         api2.add_resource(SampleResource)
         api2.add_resource(SampleResource2)
@@ -61,6 +61,7 @@ class BlueprintApiTestCase(BaseTestCase):
         response = self.client.get("/api/v1/samples")
         self.assert200(response)
         response = self.client.get("/api/v2/samples2")
+        response = self.client.get("/api/v2/schema")
         self.assert200(response)
         response = self.client.get("/api/v2/samples2")
         self.assert200(response)
@@ -87,4 +88,5 @@ class BlueprintApiTestCase(BaseTestCase):
         response = self.client.get("/api/v1/samples/2")
         self.assert200(response)
         response = self.client.get("/api/v2/samples/1")
+        assert response.json['$uri'] == "/api/v2/samples/1"
         self.assert200(response)
