@@ -65,7 +65,7 @@ yes, everybody       *yes*                                 Always permit.
 Example API with permissions
 ============================
 
-.. versionchanged:: 0.11.0
+.. versionchanged:: 0.11
     The ``PrincipalManager`` extending ``SQLAlchemyManager`` has been replaced by a :meth:`principals` class-decorator.
 
 We're going to go ahead and create an example API using :class:`PrincipalMixin` with

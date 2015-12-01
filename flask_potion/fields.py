@@ -358,7 +358,7 @@ class AttributeMapped(Object):
     Maps property keys from a JSON object to a list of items using `mapping_attribute`. The mapping attribute is the
     name of the attribute where the value of the property key is set on the property values.
 
-    :class:`sa.InlineModel` is typically used with this field in a common SQLAlchemy pattern.
+    :class:`contrib.alchemy.fields.InlineModel` is typically used with this field in a common SQLAlchemy pattern.
 
     :param Raw cls_or_instance: field class or instance
     :param str pattern: an optional regular expression that all property keys must match
@@ -657,6 +657,9 @@ class ToOne(Raw, ResourceBound):
 
 
 class ToMany(Array):
+    """
+    Like :class:`ToOne`, but for arrays of references.
+    """
     def __init__(self, resource, **kwargs):
         super(ToMany, self).__init__(ToOne(resource, nullable=False), **kwargs)
 

@@ -66,9 +66,9 @@ MONGO_FIELDS_MAPPING = {
 
 class MongoEngineManager(Manager):
     """
-    A manager for MongoEngineManager models.
+    A manager for MongoEngine documents.
 
-    Expects that :class:`Meta.model` contains an MongoEngine declarative model.
+    Expects that ``Meta.model`` contains a :class:`mongoengine.Document`.
 
     """
     FILTER_NAMES = FILTER_NAMES

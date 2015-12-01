@@ -809,9 +809,9 @@ Second, when instantiating your Potion API you'll want to set the default manage
 
 .. code-block:: python
 
-    from flask_potion.backends.peewee import PeeweeManager
+    from flask_potion.contrib.peewee import PeeweeManager
 
-    ...
+    # ...
 
     api = Api(app, default_manager=PeeweeManager)
 
@@ -847,7 +847,7 @@ First ensure you have installed the ``flask_mongoengine`` package:
 
 The MongoEngine manager works just like the other managers. See the examples directory for an example using MongoEngine.
 
-What next?
+Next steps
 ----------
 
 This guide has only skimmed the surface of what Potion can do for you.

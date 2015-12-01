@@ -28,6 +28,7 @@ User's guide
    api
    routes
    resources
+   managers
    signals
 
    permissions

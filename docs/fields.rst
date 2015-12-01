@@ -83,7 +83,10 @@ Composite field types
 SQLAlchemy-specific field types
 -------------------------------
 
-.. class:: fields.sa.InlineModel
+.. class:: contrib.alchemy.fields.InlineModel
+
+   .. versionchanged:: 0.11
+      Renamed from :class:`fields.sa.InlineModel` to :class:`contrib.alchemy.fields.InlineModel`.
 
    For creating SQLAlchemy models without having to give them their own resource.
 

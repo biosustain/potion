@@ -22,7 +22,7 @@ class SQLAlchemyManager(RelationalManager):
     """
     A manager for SQLAlchemy models.
 
-    Expects that :class:`Meta.model` contains an SQLALchemy declarative model.
+    Expects that ``Meta.model`` contains a SQLALchemy declarative model.
 
     """
     FILTER_NAMES = FILTER_NAMES
