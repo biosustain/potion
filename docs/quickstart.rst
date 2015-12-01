@@ -139,6 +139,7 @@ description            ---                             JSON-schema description d
 manager                :class:`SQLAlchemyManager`      A :class:`Manager` class that takes care of reading from and writing to the data store
 key_converters         ``(RefKey(), IDKey())``         A list of :class:`natural_keys.Key` instances. The first is used for formatting ``fields.ToOne`` references.
 natural_key            ``None``                        A string, or tuple of strings, corresponding to schema field names, for a natural key.
+exclude_routes         ---                             A list of rel-strings for any previously defined routes that should not be published for this resource.
 =====================  ==============================  ==============================================================================
 
 
@@ -847,8 +848,8 @@ First ensure you have installed the ``flask_mongoengine`` package:
 
 The MongoEngine manager works just like the other managers. See the examples directory for an example using MongoEngine.
 
-Next steps
-----------
+Next steps...
+-------------
 
 This guide has only skimmed the surface of what Potion can do for you.
 

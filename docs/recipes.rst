@@ -120,10 +120,10 @@ some minor changes.
     class ArchivingResource(ModelResource):
         class Meta:
             manager = ArchiveManager
+            exclude_routes = ['destroy'] # we're using rel="archive" instead.
 
         class Schema:
             is_archived = fields.Boolean(io='r')
-            exclude_routes = ['destroy'] # we're using rel="archive" instead.
 
         @Route.GET('/<int:id>', rel="self", attribute="instance")
         def read(self, id) -> fields.Inline('self'):
