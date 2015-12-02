@@ -58,12 +58,14 @@ class Api(object):
     """
     def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None, default_manager=None):
         self.app = app
+        self.blueprint = None
         self.prefix = prefix or ''
         self.decorators = decorators or []
         self.title = title
         self.description = description
         self.endpoints = set()
         self.resources = {}
+        self.deferred_resources = []
         self.views = []
 
         self.default_manager = None
@@ -80,17 +82,59 @@ class Api(object):
             self.init_app(app)
 
     def init_app(self, app):
+        # If app is a blueprint, defer the initialization
+        try:
+            app.record(self._deferred_blueprint_init)
+        # Flask.Blueprint has a 'record' attribute, Flask.Api does not
+        except AttributeError:
+            self._init_app(app)
+        else:
+            self.blueprint = app
+
+    def _deferred_blueprint_init(self, setup_state):
+        """
+        Deferred initialization of a Blueprint. First updates
+        the Api.prefix to include the Blueprint url_prefix as needed,
+        then removes the Blueprint object and calls _register_deferred_resources,
+        which adds individual Resources that were deferred until Blueprint
+        registration.
+        """
+        self._init_app(setup_state.app)
+        if self.blueprint.url_prefix:
+            self.prefix = self.blueprint.url_prefix + self.prefix
+        if self.deferred_resources:
+            self._register_deferred_resources(setup_state)
+            self.deferred_resources = None
+
+    def _register_deferred_resources(self, setup_state):
+        """
+        Register
+
+        :param setup_state: Blueprint setup state
+        """
+        for resource in self.deferred_resources:
+            self.add_resource(resource)
+
+    def _init_app(self, app):
         """
         :param app: a :class:`Flask` instance
         """
         app.config.setdefault('POTION_MAX_PER_PAGE', 100)
         app.config.setdefault('POTION_DEFAULT_PER_PAGE', 20)
 
-        app.add_url_rule(
-            rule=''.join((self.prefix, '/schema')),
-            view_func=self.output(self._schema_view),
-            endpoint='schema',
-            methods=['GET'])
+        if self.blueprint:
+            self.blueprint.add_url_rule(
+                rule=''.join((self.prefix, '/schema')),
+                view_func=self.output(self._schema_view),
+                endpoint='schema',
+                methods=['GET']
+            )
+        else:
+            app.add_url_rule(
+                rule=''.join((self.prefix, '/schema')),
+                view_func=self.output(self._schema_view),
+                endpoint='schema',
+                methods=['GET'])
 
         for rule, view, endpoint, methods in self.views:
             app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
@@ -144,9 +188,11 @@ class Api(object):
         return OrderedDict(schema), 200, {'Content-Type': 'application/schema+json'}
 
     def add_route(self, route, resource, endpoint=None, decorator=None):
-        endpoint = endpoint or '.'.join((resource.meta.name, route.relation))
+        endpoint = endpoint or '_'.join((resource.meta.name, route.relation))
         methods = [route.method]
         rule = route.rule_factory(resource)
+        if self.blueprint and self.blueprint.url_prefix:
+            rule = "/" + rule.lstrip(self.blueprint.url_prefix)
 
         view_func = route.view_factory(endpoint, resource)
 
@@ -170,6 +216,10 @@ class Api(object):
         :param Resource resource: resource
         :return:
         """
+        if self.blueprint and resource not in self.deferred_resources:
+            self.deferred_resources.append(resource)
+            return
+
         # prevent resources from being added twice
         if resource in self.resources.values():
             return
