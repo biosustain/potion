@@ -201,7 +201,7 @@ class Api(object):
         if resource in self.resources.values():
             return
 
-        if resource.api is not None:
+        if resource.api is not None and resource.api != self:
             raise RuntimeError("Attempted to register a resource that is already registered with a different Api.")
 
         # check that each model resource has a manager; if not, initialize it.
