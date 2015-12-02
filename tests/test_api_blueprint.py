@@ -56,6 +56,21 @@ class BlueprintApiTestCase(BaseTestCase):
         response = self.client.get("/api/v1/samples/schema")
         self.assertEqual('^\\/api\\/v1\\/samples\\/[^/]+$', response.json['properties']['$uri']['pattern'])
 
+    def test_api_blueprint_init_app(self):
+        api = Api()
+        api.add_resource(self.SampleResource)
+
+        api_bp = Blueprint("potion_blueprint", __name__.split(".")[0])
+        api.init_app(api_bp)
+
+        # Register Blueprint
+        self.app.register_blueprint(api_bp, url_prefix='/api/v1')
+        response = self.client.get("/api/v1/samples")
+        self.assert200(response)
+
+        response = self.client.get("/api/v1/samples/schema")
+        self.assertEqual('^\\/api\\/v1\\/samples\\/[^/]+$', response.json['properties']['$uri']['pattern'])
+
     def test_multiple_blueprints(self):
         # Create Blueprints
         api_bp1 = Blueprint("potion1", __name__.split(".")[0])

@@ -2,12 +2,10 @@ from collections import OrderedDict
 import inspect
 import operator
 from functools import partial
-
 from flask import current_app, make_response, json, Response, request
 from six import wraps
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import BaseResponse
-
 from .exceptions import PotionException
 from .routes import RouteSet, to_camel_case
 from .utils import unpack
@@ -56,6 +54,7 @@ class Api(object):
     :param str description: an optional description for the schema
     :param Manager default_manager: an optional manager to use as default. If SQLAlchemy is installed, will use :class:`contrib.alchemy.SQLAlchemyManager`
     """
+
     def __init__(self, app=None, decorators=None, prefix=None, title=None, description=None, default_manager=None):
         self.app = app
         self.blueprint = None
@@ -65,7 +64,6 @@ class Api(object):
         self.description = description
         self.endpoints = set()
         self.resources = {}
-        self.deferred_resources = []
         self.views = []
 
         self.default_manager = None
@@ -85,35 +83,18 @@ class Api(object):
         # If app is a blueprint, defer the initialization
         try:
             app.record(self._deferred_blueprint_init)
-        # Flask.Blueprint has a 'record' attribute, Flask.Api does not
         except AttributeError:
             self._init_app(app)
         else:
             self.blueprint = app
 
     def _deferred_blueprint_init(self, setup_state):
-        """
-        Deferred initialization of a Blueprint. First updates
-        the Api.prefix to include the Blueprint url_prefix as needed,
-        then removes the Blueprint object and calls _register_deferred_resources,
-        which adds individual Resources that were deferred until Blueprint
-        registration.
-        """
+        self.prefix = ''.join((setup_state.url_prefix or '', self.prefix))
+
+        for resource in self.resources.values():
+            resource.route_prefix = ''.join((self.prefix, '/', resource.meta.name))
+
         self._init_app(setup_state.app)
-        if self.blueprint.url_prefix:
-            self.prefix = self.blueprint.url_prefix + self.prefix
-        if self.deferred_resources:
-            self._register_deferred_resources(setup_state)
-            self.deferred_resources = None
-
-    def _register_deferred_resources(self, setup_state):
-        """
-        Register
-
-        :param setup_state: Blueprint setup state
-        """
-        for resource in self.deferred_resources:
-            self.add_resource(resource)
 
     def _init_app(self, app):
         """
@@ -122,25 +103,27 @@ class Api(object):
         app.config.setdefault('POTION_MAX_PER_PAGE', 100)
         app.config.setdefault('POTION_DEFAULT_PER_PAGE', 20)
 
-        if self.blueprint:
-            self.blueprint.add_url_rule(
-                rule=''.join((self.prefix, '/schema')),
-                view_func=self.output(self._schema_view),
-                endpoint='schema',
-                methods=['GET']
-            )
-        else:
-            app.add_url_rule(
-                rule=''.join((self.prefix, '/schema')),
-                view_func=self.output(self._schema_view),
-                endpoint='schema',
-                methods=['GET'])
+        self._register_view(app,
+                            rule=''.join((self.prefix, '/schema')),
+                            view_func=self.output(self._schema_view),
+                            endpoint='schema',
+                            methods=['GET'])
 
-        for rule, view, endpoint, methods in self.views:
-            app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
+        for route, resource, view_func, endpoint, methods in self.views:
+            rule = route.rule_factory(resource)
+            self._register_view(app, rule, view_func, endpoint, methods)
 
         app.handle_exception = partial(self._exception_handler, app.handle_exception)
         app.handle_user_exception = partial(self._exception_handler, app.handle_user_exception)
+
+    def _register_view(self, app, rule, view_func, endpoint, methods):
+        if self.blueprint:
+            endpoint = '{}.{}'.format(self.blueprint.name, endpoint)
+
+        app.add_url_rule(rule,
+                         view_func=view_func,
+                         endpoint=endpoint,
+                         methods=methods)
 
     def _exception_handler(self, original_handler, e):
         if isinstance(e, PotionException):
@@ -191,8 +174,6 @@ class Api(object):
         endpoint = endpoint or '_'.join((resource.meta.name, route.relation))
         methods = [route.method]
         rule = route.rule_factory(resource)
-        if self.blueprint and self.blueprint.url_prefix:
-            rule = "/" + rule.lstrip(self.blueprint.url_prefix)
 
         view_func = route.view_factory(endpoint, resource)
 
@@ -207,7 +188,7 @@ class Api(object):
         if self.app:
             self.app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
         else:
-            self.views.append((rule, view, endpoint, methods))
+            self.views.append((route, resource, view, endpoint, methods))
 
     def add_resource(self, resource):
         """
@@ -216,13 +197,12 @@ class Api(object):
         :param Resource resource: resource
         :return:
         """
-        if self.blueprint and resource not in self.deferred_resources:
-            self.deferred_resources.append(resource)
-            return
-
         # prevent resources from being added twice
         if resource in self.resources.values():
             return
+
+        if resource.api is not None:
+            raise RuntimeError("Attempted to register a resource that is already registered with a different Api.")
 
         # check that each model resource has a manager; if not, initialize it.
         if issubclass(resource, ModelResource) and resource.manager is None:
