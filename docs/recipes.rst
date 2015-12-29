@@ -99,9 +99,10 @@ some minor changes.
         def instances(self, where=None, sort=None, source=Location.INSTANCES_ONLY):
             query = self._query(source)
             if where:
-                query = query.filter(self._where_expression(where))
+                expressions = [self._expression_for_condition(condition) for condition in where]
+                query = self._query_filter(query, self._and_expression(expressions))
             if sort:
-                query = self._order_query_by(query, sort)
+                query = self._query_order_by(query, sort)
             return query
     
         def archive_instances(self, page, per_page, where=None, sort=None):
@@ -110,11 +111,10 @@ some minor changes.
                 .paginate(page=page, per_page=per_page)
     
         def read(self, id, source=Location.INSTANCES_ONLY):
-            try:
-                query = self._query(source)
-                return query.filter(self.id_column == id).one()
-            except NoResultFound:
+            query = self._query(source)
+            if query is None:
                 raise ItemNotFound(self.resource, id=id)
+            return self._query_filter_by_id(query, id)
 
 
     class ArchivingResource(ModelResource):
