@@ -175,8 +175,8 @@ class PrincipalMixin(object):
 
         return self._query_filter(query, self._or_expression(expressions))
 
-    def _query(self):
-        query = super(PrincipalMixin, self)._query()
+    def _query(self, **kwargs):
+        query = super(PrincipalMixin, self)._query(**kwargs)
 
         read_permission = self._permissions['read']
         query = self._query_filter_permission(query, read_permission)
