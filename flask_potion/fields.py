@@ -399,6 +399,7 @@ class String(Raw):
     :param str pattern: regex pattern that the string must match
     :param list enum: list of strings with enumeration
     """
+    url_rule_converter = 'string'
 
     def __init__(self, min_length=None, max_length=None, pattern=None, enum=None, format=None, **kwargs):
         schema = {"type": "string"}
@@ -541,6 +542,8 @@ class Boolean(Raw):
 
 
 class Integer(Raw):
+    url_rule_converter = 'int'
+
     def __init__(self, minimum=None, maximum=None, default=None, **kwargs):
         schema = {"type": "integer"}
 

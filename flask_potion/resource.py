@@ -212,6 +212,9 @@ class ModelResourceMeta(ResourceMeta):
             if 'model' in changes or 'model' in meta and 'manager' in changes:
                 fs = class_.schema
 
+                if meta.id_converter is None:
+                    meta.id_converter = getattr(meta.id_field_class, 'url_rule_converter', None)
+
                 if meta.include_id:
                     fs.set('$id', meta.id_field_class(io="r", attribute=meta.id_attribute))
                 else:
@@ -312,8 +315,8 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
     class Meta:
         id_attribute = 'id'
         sort_attribute = None  # None means use id_attribute
-        id_converter = 'int'
-        id_field_class = Integer  # Must inherit from Integer, String or ItemUri
+        id_converter = None
+        id_field_class = Integer  # Must inherit from Integer or String
         include_id = False
         include_type = False
         manager = None
