@@ -26,6 +26,7 @@ class Manager(object):
         self._init_model(resource, model, resource.meta)
         self._init_filters(resource, resource.meta)
         self._init_key_converters(resource, resource.meta)
+        self._post_init(resource, resource.meta)
 
     def _init_model(self, resource, model, meta):
         self.model = model
@@ -78,6 +79,12 @@ class Manager(object):
                     raise RuntimeError(
                         'Multiple keys of type {} defined for {}'.format(nk.matcher_type(), meta.name))
                 meta.key_converters_by_type[nk.matcher_type()] = nk
+
+    def _post_init(self, resource, meta):
+        meta.id_attribute = self.id_attribute
+
+        if meta.id_converter is None:
+            meta.id_converter = getattr(meta.id_field_class, 'url_rule_converter', None)
 
     @staticmethod
     def _get_field_from_python_type(python_type):
