@@ -210,18 +210,8 @@ class ModelResourceMeta(ResourceMeta):
             changes = members['Meta'].__dict__
 
             if 'model' in changes or 'model' in meta and 'manager' in changes:
-                fs = class_.schema
-
-                if meta.include_id:
-                    fs.set('$id', meta.id_field_class(io="r", attribute=meta.id_attribute))
-                else:
-                    fs.set('$uri', ItemUri(class_, attribute=meta.id_attribute))
-
                 if meta.manager is not None:
                     class_.manager = meta.manager(class_, meta.model)
-
-                if meta.include_type:
-                    fs.set('$type', ItemType(class_))
         return class_
 
 
@@ -275,8 +265,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         return self.manager.paginated_instances(**kwargs)
 
     # TODO custom schema (Instances/Instances) that contains the necessary schema.
-    instances.request_schema = instances.response_schema = Instances() # TODO NOTE Instances('self') for filter, etc. schema
-
+    instances.request_schema = instances.response_schema = Instances()  # TODO NOTE Instances('self') for filter, etc. schema
 
     @instances.POST(rel="create")
     def create(self, properties):  # XXX need some way for field bindings to be dynamic/work dynamically.
@@ -310,7 +299,7 @@ class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
         pass
 
     class Meta:
-        id_attribute = 'id'
+        id_attribute = None    # use 'id' by default.
         sort_attribute = None  # None means use id_attribute
         id_converter = 'int'
         id_field_class = Integer  # Must inherit from Integer, String or ItemUri

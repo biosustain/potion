@@ -101,7 +101,7 @@ class Raw(Schema):
         elif isinstance(schema, tuple):
             read_schema, write_schema = schema
         else:
-            return self._finalize_schema(schema, "rw")
+            return self._finalize_schema(schema, "r"), self._finalize_schema(schema, "w")
 
         return self._finalize_schema(read_schema, "r"), self._finalize_schema(write_schema, "w")
 

@@ -90,6 +90,8 @@ class ApiTestCase(BaseTestCase):
                 model = "book"
                 manager = MemoryManager
 
+        self.assertEqual('id', BookResource.manager.id_attribute)
+
         api = Api(self.app)
         api.add_resource(BookResource)
 

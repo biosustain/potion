@@ -46,7 +46,7 @@ class RefKey(Key):
 
     def _item_uri(self, resource, item):
         # return url_for('{}.instance'.format(self.resource.meta.id_attribute, item, None), get_value(self.resource.meta.id_attribute, item, None))
-        return '{}/{}'.format(resource.route_prefix, get_value(resource.meta.id_attribute, item, None))
+        return '{}/{}'.format(resource.route_prefix, get_value(resource.manager.id_attribute, item, None))
 
     def format(self, item):
         return {"$ref": self._item_uri(self.resource, item)}
@@ -70,7 +70,7 @@ class PropertyKey(Key):
         return self.__class__(self.property).bind(resource)
 
     def schema(self):
-        return self.resource.schema.fields[self.property].response
+        return self.resource.schema.fields[self.property].request
 
     def format(self, item):
         return self.resource.schema.fields[self.property].output(self.property, item)
@@ -98,7 +98,7 @@ class PropertiesKey(Key):
     def schema(self):
         return {
             "type": "array",
-            "items": [self.resource.schema.fields[p].response for p in self.properties],
+            "items": [self.resource.schema.fields[p].request for p in self.properties],
             "additionalItems": False
         }
 
@@ -119,13 +119,13 @@ class PropertiesKey(Key):
 class IDKey(Key):
 
     def _on_bind(self, resource):
-        self.id_field = resource.meta.id_field_class(attribute=resource.meta.id_attribute)
+        self.id_field = resource.manager.id_field
 
     def schema(self):
-        return self.id_field.response
+        return self.id_field.request
 
     def format(self, item):
-        return self.id_field.output(self.resource.meta.id_attribute, item)
+        return self.id_field.output(self.resource.manager.id_attribute, item)
 
     def convert(self, value):
         return self.resource.manager.read(self.id_field.convert(value))

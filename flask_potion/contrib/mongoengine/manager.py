@@ -80,11 +80,11 @@ class MongoEngineManager(Manager):
 
     def _init_model(self, resource, model, meta):
         super(MongoEngineManager, self)._init_model(resource, model, meta)
-        self.id_attribute = meta.id_attribute
         self.id_column = model._fields[self.id_attribute]
+        self.id_field = custom_fields.ObjectId(io='r', attribute=self.id_attribute)
 
         if resource.meta.include_id:
-            resource.schema.set("$id", custom_fields.ObjectId(io='r', attribute=self.id_attribute))
+            resource.schema.set("$id", self.id_field)
 
         # resource name: use model collection's name if not set explicitly
         if not hasattr(resource.Meta, 'name'):

@@ -26,18 +26,29 @@ class PeeweeManager(Manager):
 
     def _init_model(self, resource, model, meta):
         super(PeeweeManager, self)._init_model(resource, model, meta)
-        self.id_attribute = meta.get('id_attribute', model._meta.primary_key.name)
+        self.model = model
 
-        if 'id_field' in resource.meta:
-            self.id_column = model._meta.fields[resource.meta.id_field]
+        if meta.id_attribute:
+            self.id_attribute = meta.id_attribute
+            self.id_column = model._meta.fields[meta.id_attribute]
         else:
-            # TODO: Add support for composite primary keys.
+            self.id_attribute = model._meta.primary_key.name
             self.id_column = model._meta.primary_key
+
+        self.id_field = meta.id_field_class(attribute=self.id_attribute, io="r")
 
         if not hasattr(resource.Meta, 'name'):
             meta['name'] = model._meta.db_table.lower()
 
         fs = resource.schema
+        if meta.include_id:
+            fs.set('$id', self.id_field)
+        else:
+            fs.set('$uri', fields.ItemUri(resource, attribute=self.id_attribute))
+
+        if meta.include_type:
+            fs.set('$type', fields.ItemType(resource))
+
         include_fields = meta.get('include_fields', None)
         exclude_fields = meta.get('exclude_fields', None)
         read_only_fields = meta.get('read_only_fields', ())

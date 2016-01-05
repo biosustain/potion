@@ -17,7 +17,6 @@ class MemoryManager(Manager):
 
     def __init__(self, resource, model):
         super(MemoryManager, self).__init__(resource, model)
-        self.id_attribute = resource.meta.get('id_attribute', 'id')
         self.id_sequence = 0
         self.items = {}
         self.session = []

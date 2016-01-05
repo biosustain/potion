@@ -1,7 +1,7 @@
 import datetime
 import six
 from werkzeug.utils import cached_property
-from .fields import String, Boolean, Number, Integer, Date, DateTime, Array, Object
+from .fields import String, Boolean, Number, Integer, Date, DateTime, Array, Object, ItemUri, ItemType
 from .instances import Pagination
 from .exceptions import ItemNotFound
 from .filters import FILTER_NAMES, FILTERS_BY_TYPE, filters_for_fields
@@ -20,12 +20,27 @@ class Manager(object):
         self.resource = resource
         self.filters = {}
 
+        # attach manager to the resource (key converters require backref)
+        resource.manager = self
+
         self._init_model(resource, model, resource.meta)
         self._init_filters(resource, resource.meta)
         self._init_key_converters(resource, resource.meta)
 
     def _init_model(self, resource, model, meta):
         self.model = model
+        self.id_attribute = id_attribute = meta.id_attribute or 'id'
+        self.id_field = meta.id_field_class(io="r", attribute=id_attribute)
+
+        fs = resource.schema
+
+        if meta.include_id:
+            fs.set('$id', self.id_field)
+        else:
+            fs.set('$uri', ItemUri(resource, attribute=id_attribute))
+
+        if meta.include_type:
+            fs.set('$type', ItemType(resource))
 
     def _init_filter(self, filter_class, name, field, attribute):
         return filter_class(name, field=field, attribute=field.attribute or attribute)

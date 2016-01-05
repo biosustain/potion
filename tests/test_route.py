@@ -313,14 +313,12 @@ class ResourceTestCase(BaseTestCase):
         api.add_resource(BarResource)
         api.add_resource(BazResource)
 
-        print(FooResource.routes)
         self.assertEqual({
             'describedBy': Resource.described_by,
             'readFoo': FooResource.foo,
             'createBaz': FooResource.baz
         }, FooResource.routes)
 
-        print(BarResource.routes)
         self.assertEqual({
             'describedBy': Resource.described_by,
             'readFoo': FooResource.foo,

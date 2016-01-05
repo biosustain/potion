@@ -362,3 +362,45 @@ class SQLAlchemyRelationTestCase(BaseTestCase):
                          '</user/1/children?page=1&per_page=20>; rel="first",'
                          '</user/1/children?page=2&per_page=20>; rel="prev",'
                          '</user/1/children?page=3&per_page=20>; rel="last"', response.headers['Link'])
+
+
+class SQLAlchemyInspectionTestCase(BaseTestCase):
+
+    def setUp(self):
+        super(SQLAlchemyInspectionTestCase, self).setUp()
+        self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
+        self.api = Api(self.app)
+        self.sa = sa = SQLAlchemy(self.app, session_options={"autoflush": False})
+
+    def test_inspection_auto_id_attribute_type(self):
+        sa = self.sa
+
+        class User(sa.Model):
+            username = sa.Column(sa.String, primary_key=True)
+            first_name = sa.Column(sa.String)
+            last_name = sa.Column(sa.String)
+
+        sa.create_all()
+
+        class UserResource(ModelResource):
+            class Schema:
+                username = fields.String()
+
+            class Meta:
+                model = User
+                include_id = True
+
+        self.api.add_resource(UserResource)
+        self.assertEqual(User.username, UserResource.manager.id_column)
+        self.assertEqual('username', UserResource.manager.id_field.attribute)
+        self.assertIsInstance(UserResource.manager.id_field, fields.String)
+
+        response = self.client.post('/user', data={"username": "foo", "first_name": "Foo"})
+        self.assert200(response)
+
+        self.assertJSONEqual({
+            "$id": "foo",
+            "first_name": "Foo",
+            "last_name": None,
+            "username": "foo"
+        }, response.json)

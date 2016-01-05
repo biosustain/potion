@@ -42,7 +42,7 @@ class HybridItemNeed(HybridNeed):
     def __call__(self, item):
         if self.method == 'id':
             return UserNeed(self.resource.item_get_id(item))
-        return ItemNeed(self.method, get_value(item, self.resource.meta.id_attribute, None), self.type)
+        return ItemNeed(self.method, get_value(item, self.resource.manager.id_attribute, None), self.type)
 
     def __eq__(self, other):
         return isinstance(other, HybridItemNeed) and \
@@ -88,7 +88,7 @@ class HybridRelationshipNeed(HybridItemNeed):
                     return UserNeed(None)
                 return ItemNeed(self.method, None, self.type)
 
-        item_id = get_value(item, self.final_field.resource.meta.id_attribute, None)
+        item_id = get_value(item, self.final_field.resource.manager.id_attribute, None)
 
         if self.method == 'id':
             return UserNeed(item_id)
