@@ -1,5 +1,6 @@
 import unittest
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import backref
 from flask_potion import ModelResource, fields, Api
 from tests import BaseTestCase
 
@@ -32,7 +33,7 @@ class FilterTestCase(BaseTestCase):
             name = sa.Column(sa.String(60), nullable=False)
 
             belongs_to_id = sa.Column(sa.Integer, sa.ForeignKey(User.id))
-            belongs_to = sa.relationship(User)
+            belongs_to = sa.relationship(User, backref=backref('things', lazy='dynamic'))
 
             date_time = sa.Column(sa.DateTime)
             date = sa.Column(sa.Date)
@@ -64,8 +65,17 @@ class FilterTestCase(BaseTestCase):
                     'is_staff': True
                 }
 
+        class UseToManyResource(ModelResource):
+            class Schema:
+                things = fields.ToMany('thing')
+
+            class Meta:
+                name = 'user-to-many'
+                model = User
+
         self.api.add_resource(UserResource)
         self.api.add_resource(ThingResource)
+        self.api.add_resource(UseToManyResource)
         self.api.add_resource(AllowUserResource)
 
     def post_sample_set_a(self):
@@ -201,6 +211,33 @@ class FilterTestCase(BaseTestCase):
         response = self.client.get('/user?where={"first_name": {"$istartswith": "j%e"}}')
 
         self.assertEqualWithout([], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+    def test_contains(self):
+        self.post_sample_set_a()
+
+        response = self.client.get('/user')
+        user_ids = [user['$id'] for user in response.json]
+
+        for thing in [
+            {'name': 'A', 'belongs_to': user_ids[0]},
+            {'name': 'B', 'belongs_to': user_ids[2]},
+            {'name': 'C', 'belongs_to': user_ids[1]},
+            {'name': 'D', 'belongs_to': user_ids[4]},
+            {'name': 'E', 'belongs_to': user_ids[3]},
+            {'name': 'F', 'belongs_to': None}
+        ]:
+            response = self.client.post('/thing', data=thing)
+            self.assert200(response)
+
+        response = self.client.get('/user-to-many?where={"things": {"$contains": {"$ref": "/thing/1"}}}')
+
+        self.assertEqualWithout([
+                                    {
+                                        "things": [{"$ref": "/thing/1"}],
+                                        "first_name": "John",
+                                        "last_name": "Doe"
+                                    }
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
 
     @unittest.SkipTest
     def test_text_search(self):

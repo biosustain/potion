@@ -119,10 +119,10 @@ Attribute name         Default                         Description
 model                  ---                             The `Flask-SQLAlchemy` model
 name                   ---                             Name of the resource; defaults to the lower-case of the `model's` class name
 id_attribute           ``'id'``                        With SQLAlchemy models, defaults to the name of the primary key of `model`.
-id_converter           ``'int'``                       Flask URL converter for resource routes
-id_field_class         :class:`fields.ItemUri`         With :class:`fields.ItemUri` produces a reference at ``"$uri"``;
-                                                       when another field class is used, an ``"$id"`` attribute is added instead.
-include_type           ``False``                       Whether to create a ``"$type"`` attribute with the type of the resource
+id_converter           –--                             Flask URL converter for resource routes. Typically this is inferred from `id_field_class`.
+id_field_class         :class:`fields.Integer`         Field class to use for ``"$id"``, also used to determine the URL route converter for resource routes.
+include_id             ``False``                       Whether to include the id of the item as an ``"$id"`` attribute. The default is a ``"$uri"`` attribute with the URI of the item.
+include_type           ``False``                       Whether to include a ``"$type"`` attribute with the type of the resource
 include_fields         ---                             A list of fields that should be imported from the `model`. By default, all
                                                        columns other than foreign key and primary key columns are imported.
                                                        :func:`sqlalchemy.orm.relationship` model attributes and hybrid properties
