@@ -5,6 +5,7 @@ from .fields import String, Boolean, Number, Integer, Date, DateTime, Array, Obj
 from .instances import Pagination
 from .exceptions import ItemNotFound
 from .filters import FILTER_NAMES, FILTERS_BY_TYPE, filters_for_fields
+import decimal
 
 class Manager(object):
     """
@@ -98,7 +99,8 @@ class Manager(object):
                 list: Array,
                 dict: Object,
                 datetime.date: Date,
-                datetime.datetime: DateTime
+                datetime.datetime: DateTime,
+                decimal.Decimal: Number,
             }[python_type]
         except KeyError:
             raise RuntimeError('No appropriate field class for "{}" type found'.format(python_type))
