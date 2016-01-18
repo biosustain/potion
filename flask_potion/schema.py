@@ -30,7 +30,8 @@ class Schema(object):
         """
         Abstract method returning the JSON schema used by both :attr:`response` and :attr:`request`.
 
-        :return: a JSON-schema or a  tuple of JSON-schemas in the format ``(response_schema, request_schema)``
+        :return: a JSON-schema or a tuple of JSON-schemas in the formats ``(response_schema, request_schema)`` or
+            ``(read_schema, create_schema, update_schema)``
         """
         raise NotImplementedError()
 
@@ -48,10 +49,25 @@ class Schema(object):
             return schema[1]
         return schema
 
+    create = request
+
+    @cached_property
+    def update(self):
+        schema = self.schema()
+        if isinstance(schema, tuple):
+            return schema[-1]
+        return schema
+
     @cached_property
     def _validator(self):
         Draft4Validator.check_schema(self.request)
         return Draft4Validator(self.request, format_checker=FormatChecker())
+
+    @cached_property
+    def _update_validator(self):
+        Draft4Validator.check_schema(self.update)
+        return Draft4Validator(self.update, format_checker=FormatChecker())
+
 
     def format(self, value):
         """
@@ -62,17 +78,21 @@ class Schema(object):
         """
         return value
 
-    def convert(self, instance):
+    def convert(self, instance, update=False):
         """
         Validates a deserialized JSON object against :attr:`request` and converts it into a python object.
 
         :param instance: JSON import
         :raises PotionValidationError: if validation failed
         """
+        if update:
+            validator = self._update_validator
+        else:
+            validator = self._validator
         try:
-            self._validator.validate(instance)
+            validator.validate(instance)
         except ValidationError as ve:
-            errors = self._validator.iter_errors(instance)
+            errors = validator.iter_errors(instance)
             raise PotionValidationError(errors)
         return instance
 
@@ -88,7 +108,7 @@ class Schema(object):
         if not data and request.method in ('GET', 'HEAD'):
             data = dict(request.args)
 
-        return self.convert(data)
+        return self.convert(data, update=request.method in ('PUT', 'PATCH'))
 
     def format_response(self, response):
         """
@@ -109,7 +129,6 @@ class SchemaImpl(Schema):
 
     def schema(self):
         return self._schema
-
 
 class FieldSet(Schema, ResourceBound):
     """
@@ -148,27 +167,35 @@ class FieldSet(Schema, ResourceBound):
         self.fields[key] = field
 
     def _schema(self, patchable=False):
-        response_schema = {
+        read_schema = {
             "type": "object",
             "properties": OrderedDict((
                 (key, field.response) for key, field in self.fields.items() if 'r' in field.io))
         }
 
-        request_schema = {
+        create_schema = {
             "type": "object",
             "additionalProperties": False,
             "properties": OrderedDict((
-                (key, field.request) for key, field in self.fields.items() if 'w' in field.io))
+                (key, field.request) for key, field in self.fields.items() if 'c' in field.io))
         }
 
+        update_schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": OrderedDict((
+                (key, field.request) for key, field in self.fields.items() if 'u' in field.io))
+        }
+
+        # TODO figure out logic for required
         for key, field in self.fields.items():
-            if 'w' in field.io and not field.nullable and field.default is None:
+            if 'c' in field.io and not field.nullable and field.default is None:
                 self.required.add(key)
 
         if not patchable and self.required:
-            request_schema['required'] = list(self.required)
+            create_schema['required'] = list(self.required)
 
-        return response_schema, request_schema
+        return read_schema, create_schema, update_schema
 
 
     def schema(self):
@@ -181,7 +208,7 @@ class FieldSet(Schema, ResourceBound):
     def format(self, item):
         return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items() if 'r' in field.io)
 
-    def convert(self, instance, pre_resolved_properties=None, patchable=False, strict=False):
+    def convert(self, instance, update=False, pre_resolved_properties=None, patchable=False, strict=False):
         """
         :param instance: JSON-object
         :param pre_resolved_properties: optional dictionary of properties that are already known
@@ -192,12 +219,12 @@ class FieldSet(Schema, ResourceBound):
         result = dict(pre_resolved_properties) if pre_resolved_properties else {}
 
         if patchable:
-            object_ = self.patchable.convert(instance)
+            object_ = self.patchable.convert(instance, update)
         else:
-            object_ = super(FieldSet, self).convert(instance)
+            object_ = super(FieldSet, self).convert(instance, update)
 
         for key, field in self.fields.items():
-            if 'w' not in field.io:
+            if update and 'u' not in field.io or not update and 'c' not in field.io:
                 continue
 
             # ignore fields that have been pre-resolved
@@ -250,5 +277,5 @@ class FieldSet(Schema, ResourceBound):
                 except KeyError:
                     pass
 
-        return self.convert(data, patchable=request.method == 'PATCH')
+        return self.convert(data, update=request.method in ('PUT', 'PATCH'), patchable=request.method == 'PATCH')
 

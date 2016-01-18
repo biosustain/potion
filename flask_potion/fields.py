@@ -3,7 +3,7 @@ from datetime import datetime
 import re
 
 import aniso8601
-from flask import current_app
+from flask import current_app, request
 import six
 from werkzeug.utils import cached_property
 
@@ -19,7 +19,8 @@ class Raw(Schema):
     >>> f.response
     {'readOnly': True, 'type': 'string'}
 
-    :param io: one of "r", "w" or "rw" (default); used to control presence in fieldsets/parent schemas
+    :param io: one or more of "r" (read), "c" (create), "u" (update) and "w" (write), default: "rw";
+     used to control presence in fieldsets/parent schemas
     :param schema: JSON-schema for field, or :class:`callable` resolving to a JSON-schema when called
     :param default: optional default value, must be JSON-convertible; may be a callable with no arguments
     :param attribute: key on parent object, optional.
@@ -79,6 +80,21 @@ class Raw(Schema):
         return schema
 
     @property
+    def io(self):
+        return self._io
+
+    @io.setter
+    def io(self, value):
+        io = ''
+        if 'w' in value or 'c' in value:
+            io += 'c'
+        if 'r' in value:
+            io += 'r'
+        if 'w' in value or 'u' in value:
+            io += 'u'
+        self._io = io
+
+    @property
     def default(self):
         if callable(self._default):
             return self._default()
@@ -113,12 +129,12 @@ class Raw(Schema):
             return self.formatter(value)
         return value
 
-    def convert(self, instance, validate=True):
+    def convert(self, instance, update=False, validate=True):
         """
         Convert a JSON value representation to a Python object. Noop by default.
         """
         if validate:
-            instance = super(Raw, self).convert(instance)
+            instance = super(Raw, self).convert(instance, update)
 
         if instance is not None:
             return self.converter(instance)
@@ -688,7 +704,7 @@ class Inline(Raw, ResourceBound):
             if not not self.patchable:
                 return _response_schema()
             else:
-                return _response_schema(), self.target.schema.patchable.request
+                return _response_schema(), self.target.schema.patchable.update
 
         super(Inline, self).__init__(schema, **kwargs)
 
@@ -714,8 +730,8 @@ class Inline(Raw, ResourceBound):
     def format(self, item):
         return self.target.schema.format(item)
 
-    def convert(self, item):
-        return self.target.schema.convert(item, patchable=self.patchable)
+    def convert(self, item, update=False):
+        return self.target.schema.convert(item, update=update, patchable=self.patchable)
 
 
 class ItemType(Raw):

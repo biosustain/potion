@@ -345,7 +345,7 @@ class ItemAttributeRoute(RouteSet):
 
     :param fields.Raw cls_or_instance: a field class or instance
     :param str attribute: defaults to the field's ``attribute`` attribute
-    :param str io: ``r``, ``w``, or ``rw`` - defaults to the field's ``io`` attribute
+    :param str io: ``r``, ``u``, or ``ru`` - defaults to the field's ``io`` attribute
     """
 
     def __init__(self, cls_or_instance, io=None, attribute=None):
@@ -368,7 +368,7 @@ class ItemAttributeRoute(RouteSet):
                                    response_schema=field,
                                    rel=to_camel_case('read_{}'.format(route.attribute)))
 
-        if "w" in io:
+        if "u" in io:
             def update_attribute(resource, item, value):
                 attribute = field.attribute or route.attribute
                 item = resource.manager.update(item, {attribute: value})
@@ -423,7 +423,7 @@ class Relation(RouteSet, ResourceBound):
                                                                      maximum=50)
                                              }))
 
-        if "w" in io:
+        if "w" in io or "u" in io:
             def relation_add(resource, item, target_item):
                 resource.manager.relation_add(item, self.attribute, self.target, target_item)
                 resource.manager.commit()

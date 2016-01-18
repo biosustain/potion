@@ -111,5 +111,40 @@ class SchemaTestCase(TestCase):
             }).format({"number": 42, "constant": "constant", "secret": "secret"})
         )
 
+    def test_fieldset_schema_io(self):
+        fs = FieldSet({
+            "id": fields.Number(io='r'),
+            "name": fields.String(),
+            "secret": fields.String(io='c'),
+            "updateOnly": fields.String(io='u'),
+        })
+
+        self.assertEqual(
+            {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "number", "readOnly": True},
+                    "name": {"type": "string"},
+                }
+            }, fs.response)
+
+        self.assertEqual(
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "name": {"type": "string"},
+                    "updateOnly": {"type": "string"}
+                }
+            }, fs.update)
+
+        self.assertEqual(
+            {
+                "name": {"type": "string"},
+                "secret": {"type": "string"}
+            }, fs.create['properties'])
+
+        self.assertEqual({"name", "secret"}, set(fs.create['required']))
+
     def test_fieldset_format_response(self):
         pass

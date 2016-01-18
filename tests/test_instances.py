@@ -66,7 +66,7 @@ class RelationTestCase(BaseTestCase):
 
         response = self.client.post('/person', data={
             'name': 'Anna'
-        })  # No. Bad
+        })
 
         self.assert200(response)
         self.assertJSONEqual({'$uri': '/person/1',
