@@ -58,28 +58,28 @@ The complete list of signals:
     :param sender: item resource
     :param item: instance of item
 
-.. class:: before_add_relation
+.. class:: before_add_to_relation
 
     :param sender: parent resource
     :param item: instance of parent item
     :param attribute: name of relationship to child
     :param child: instance of child item
 
-.. class:: after_add_relation
+.. class:: after_add_to_relation
 
     :param sender: parent resource
     :param item: instance of parent item
     :param attribute: name of relationship to child
     :param child: instance of child item
 
-.. class:: before_remove_relation
+.. class:: before_remove_from_relation
 
     :param sender: parent resource
     :param item: instance of parent item
     :param attribute: name of relationship to child
     :param child: instance of child item
 
-.. class:: after_remove_relation
+.. class:: after_remove_from_relation
 
     :param sender: parent resource
     :param item: instance of parent item
