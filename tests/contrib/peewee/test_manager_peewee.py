@@ -177,9 +177,18 @@ class PeeweeTestCase(BaseTestCase):
                 'status': 404},
                 response.json)
 
-    @unittest.SkipTest
     def test_pagination(self):
-        pass # TODO
+        for i in range(1, 51):
+            response = self.client.post('/type', data={'name': 'T{}'.format(i)})
+            self.assert200(response)
+
+        response = self.client.get('/type')
+        self.assert200(response)
+        self.assertEqual('50', response.headers.get('X-Total-Count'))
+
+        response = self.client.get('/type?where={"name": {"$in": ["T1", "T5", "T6"]}}')
+        self.assert200(response)
+        self.assertEqual('3', response.headers.get('X-Total-Count'))
 
     def test_update(self):
         response = self.client.post('/type', data={'name': 'T1'})
@@ -414,13 +423,16 @@ class PeeweeRelationTestCase(BaseTestCase):
             self.assert200(response)
 
         response = self.client.get('/user/1/children')
+
         self.assert200(response)
+        self.assertEqual('48', response.headers.get('X-Total-Count'))
         self.assertJSONEqual(
             [{'$ref': '/user/{}'.format(i)} for i in range(2, 22)],
             response.json)
 
         response = self.client.get('/user/1/children?page=3')
         self.assert200(response)
+        self.assertEqual('48', response.headers.get('X-Total-Count'))
         self.assertJSONEqual(
             [{'$ref': '/user/{}'.format(i)} for i in range(42, 50)],
             response.json)

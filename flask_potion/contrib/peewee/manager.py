@@ -8,6 +8,7 @@ except ImportError:
     postgres_ext = False
 
 from flask_potion import fields, signals
+from flask_potion.instances import Pagination
 from flask_potion.contrib.peewee.filters import FILTER_NAMES, FILTERS_BY_TYPE, PeeweeBaseFilter
 from flask_potion.exceptions import ItemNotFound, BackendConflict
 from flask_potion.manager import Manager
@@ -137,7 +138,8 @@ class PeeweeManager(Manager):
                            per_page=None):
         query = getattr(item, attribute)
         if page and per_page:
-            return query.paginate(page, per_page)
+            # TODO see if this can be better done in one query
+            return Pagination(query.paginate(page, per_page), page, per_page, query.count())
         return query
 
     def relation_add(self, item, attribute, target_resource, target_item):
@@ -171,7 +173,9 @@ class PeeweeManager(Manager):
             self.resource, item=item, attribute=attribute, child=target_item)
 
     def paginated_instances(self, page, per_page, where=None, sort=None):
-        return self.instances(where, sort).paginate(page, per_page)
+        query = self.instances(where, sort)
+        # TODO see if this can be better done in one query
+        return Pagination(query.paginate(page, per_page), page, per_page, query.count())
 
     def instances(self, where=None, sort=None):
         query = self._query()
