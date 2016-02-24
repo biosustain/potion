@@ -43,7 +43,7 @@ class Raw(Schema):
         :return: new schema updated for field `nullable`, `title`, `description` and `default` attributes.
         """
         schema = dict(schema)
-        
+
         if self.io == "r" and "r" in io:
             schema["readOnly"] = True
 
@@ -432,6 +432,18 @@ class String(Raw):
                 schema[k] = v
 
         super(String, self).__init__(schema, **kwargs)
+
+
+class UUID(String):
+    """
+    A field for the postgres UUID field
+    """
+    url_rule_converter = 'string'
+    UUID_REGEX = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+
+    def __init__(self, **kwargs):
+        super(UUID, self).__init__(min_length=36, max_length=36, pattern=self.UUID_REGEX, **kwargs)
+
 
 try:
     from datetime import timezone

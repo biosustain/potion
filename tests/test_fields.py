@@ -1,5 +1,6 @@
 from operator import itemgetter
 from unittest import TestCase
+from uuid import uuid4
 import unittest
 from datetime import datetime, date
 from werkzeug.exceptions import BadRequest
@@ -168,6 +169,27 @@ class FieldsTestCase(TestCase):
 
         self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc), fields.DateTime().convert({"$date": 1234567000000}))
         self.assertEqual({"$date": 1329177600000}, fields.DateTime().format(datetime(2012, 2, 14, 0, 0, 0, 0, timezone.utc)))
+
+    def test_uuid_schema(self):
+        self.assertEqual({
+                            "type": "string",
+                            "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                            "minLength": 36,
+                            "maxLength": 36
+                         }, fields.UUID().response)
+
+    def test_uuid_convert(self):
+        with self.assertRaises(ValidationError):
+            fields.UUID().convert(123456)
+
+        with self.assertRaises(ValidationError):
+            fields.UUID().convert("123456")
+
+        with self.assertRaises(ValidationError):
+            fields.UUID().convert("abcdefghijklmnopqrstuvwxyz")
+
+        uuid = str(uuid4())
+        self.assertEqual(uuid, fields.UUID().convert(uuid))
 
     def test_string_schema(self):
         self.assertEqual({

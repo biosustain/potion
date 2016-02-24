@@ -92,6 +92,8 @@ class SQLAlchemyManager(RelationalManager):
         if isinstance(column.type, postgresql.ARRAY):
             field_class = fields.Array
             args = (fields.String,)
+        elif isinstance(column.type, postgresql.UUID):
+            field_class = fields.UUID
         elif isinstance(column.type, String) and column.type.length:
             field_class = fields.String
             kwargs = {'max_length': column.type.length}
