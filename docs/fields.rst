@@ -56,7 +56,10 @@ Basic field types
 .. autoclass:: Uri
    :members:
 
-.. autoclass:: Email
+.. autoclass:: UUID
+   :members:
+
+.. autoclass:: Object
    :members:
 
 .. autoclass:: Object
