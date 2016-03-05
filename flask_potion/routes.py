@@ -86,12 +86,12 @@ class Route(object):
         :param str title: title of link schema
         :param str description: description of link schema
         :param schema.Schema schema: request schema
-        :param schema.Schema schema: response schema
+        :param schema.Schema response_schema: response schema
         :param bool format_response: whether the response should be converted using the response schema
 
-    .. attribute:: request_schema
+    .. attribute:: schema
 
-        Used to get and set the response schema for the most recently decorated request method view function
+        Used to get and set the request schema for the most recently decorated request method view function
 
     .. attribute:: response_schema
 
