@@ -1,7 +1,7 @@
 import datetime
 import six
 from werkzeug.utils import cached_property
-from .fields import String, Boolean, Number, Integer, Date, DateTime, Array, Object, ItemUri, ItemType
+from .fields import String, Boolean, Number, Integer, Date, DateTime, DateString, DateTimeString, Array, Object, ItemUri, ItemType
 from .instances import Pagination
 from .exceptions import ItemNotFound
 from .filters import FILTER_NAMES, FILTERS_BY_TYPE, filters_for_fields
@@ -62,7 +62,7 @@ class Manager(object):
         }
 
     def _is_sortable_field(self, field):
-        return isinstance(field, (String, Boolean, Number, Integer, Date, DateTime))
+        return isinstance(field, (String, Boolean, Number, Integer, Date, DateTime, DateString, DateTimeString))
 
     def _init_key_converters(self, resource, meta):
         if 'natural_key' in meta:
