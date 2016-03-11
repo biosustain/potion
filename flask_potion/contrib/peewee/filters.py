@@ -106,6 +106,16 @@ FILTER_NAMES = (
 
 
 FILTERS_BY_TYPE = (
+    (fields.Uri, (
+        EqualFilter,
+        NotEqualFilter,
+        InFilter
+    )),
+    (fields.ItemUri, (
+        EqualFilter,
+        NotEqualFilter,
+        InFilter
+    )),
     (fields.Boolean, (
         EqualFilter,
         NotEqualFilter,
