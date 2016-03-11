@@ -7,7 +7,7 @@ from flask import current_app, request
 import six
 from werkzeug.utils import cached_property
 
-from flask_potion.utils import get_value
+from flask_potion.utils import get_value, route_from
 from flask_potion.reference import ResourceReference, ResourceBound, _bind_schema
 from flask_potion.schema import Schema
 
@@ -778,3 +778,10 @@ class ItemUri(Raw):
 
     def format(self, value):
         return '{}/{}'.format(self.target.route_prefix, value)
+
+    def convert(self, item):
+        try:
+            endpoint, args = route_from(item, 'GET')
+        except Exception as e:
+            raise e
+        return args['id']
