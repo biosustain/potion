@@ -779,9 +779,9 @@ class ItemUri(Raw):
     def format(self, value):
         return '{}/{}'.format(self.target.route_prefix, value)
 
-    def convert(self, item):
+    def converter(self, value):
         try:
-            endpoint, args = route_from(item, 'GET')
+            endpoint, args = route_from(value, 'GET')
         except Exception as e:
             raise e
-        return args['id']
+        return self.target.manager.id_field.convert(args['id'])
