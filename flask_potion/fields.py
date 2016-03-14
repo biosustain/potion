@@ -700,7 +700,7 @@ class Inline(Raw, ResourceBound):
     Formats and converts items in a :class:`ModelResource` using the resource's ``schema``.
 
     :param resource: a resource reference as in :class:`ToOne`
-    :param bool patch_instance: whether to allow partial objects
+    :param bool patchable: whether to allow partial objects
     """
 
     def __init__(self, resource, patchable=False, **kwargs):
