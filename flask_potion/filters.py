@@ -342,6 +342,21 @@ def _get_names_for_filter(filter, filter_names=FILTER_NAMES):
             yield name
 
 
+def filters_for_field_class(field_class,
+                            filters_by_type=FILTERS_BY_TYPE):
+    """
+    Looks up available filters from the most appropriate base class.
+
+    :param field_class:
+    :param filters_by_type:
+    :return:
+    """
+    filters_by_type = dict(filters_by_type)
+    for cls in (field_class,) + field_class.__bases__:
+        if cls in filters_by_type:
+            return filters_by_type[cls]
+    return ()
+
 def filters_for_fields(fields,
                        filters_expression,
                        filter_names=FILTER_NAMES,
@@ -392,14 +407,11 @@ def filters_for_fields(fields,
     filters_by_type = dict(filters_by_type)
 
     for field_name, field in fields.items():
-        try:
-            field_filters = {
-                name: filter
-                for filter in filters_by_type[field.__class__]
-                for name in _get_names_for_filter(filter, filter_names)
-            }
-        except KeyError:
-            continue
+        field_filters = {
+            name: filter
+            for filter in filters_for_field_class(field.__class__, filters_by_type)
+            for name in _get_names_for_filter(filter, filter_names)
+        }
 
         if isinstance(filters_expression, dict):
             try:
@@ -410,9 +422,9 @@ def filters_for_fields(fields,
                 except KeyError:
                     continue
 
-            # if isinstance(field_expression, dict):
-            #     field_filters = field_expression
-            if isinstance(field_expression, (list, tuple)):
+            if isinstance(field_expression, dict):
+                field_filters = field_expression
+            elif isinstance(field_expression, (list, tuple)):
                 field_filters = {
                     name: filter
                     for name, filter in field_filters.items()
@@ -423,7 +435,8 @@ def filters_for_fields(fields,
         elif filters_expression is not True:
             continue
 
-        filters[field_name] = field_filters
+        if field_filters:
+            filters[field_name] = field_filters
 
     return filters
 
