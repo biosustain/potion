@@ -2,6 +2,7 @@ import unittest
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
 from flask_potion import ModelResource, fields, Api
+from flask_potion.contrib.alchemy import filters
 from tests import BaseTestCase
 
 
@@ -55,6 +56,15 @@ class FilterTestCase(BaseTestCase):
 
             class Meta:
                 model = Thing
+                filters = {
+                    '$uri': {
+                        None: filters.EqualFilter,
+                        'eq': filters.EqualFilter,
+                        'ne': filters.NotEqualFilter,
+                        'in': filters.InFilter
+                    },
+                    '*': True
+                }
 
         class AllowUserResource(ModelResource):
             class Meta:

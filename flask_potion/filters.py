@@ -1,6 +1,6 @@
 from .schema import Schema
 from .utils import get_value
-from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString, Uri, ItemUri
+from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString
 
 
 class BaseFilter(Schema):
@@ -240,16 +240,6 @@ FILTER_NAMES = (
 )
 
 FILTERS_BY_TYPE = (
-    (Uri, (
-        EqualFilter,
-        NotEqualFilter,
-        InFilter
-    )),
-    (ItemUri, (
-        EqualFilter,
-        NotEqualFilter,
-        InFilter
-    )),
     (Boolean, (
         EqualFilter,
         NotEqualFilter,
