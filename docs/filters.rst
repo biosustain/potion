@@ -79,6 +79,16 @@ iendswith      :class:`filters.IEndsWithFilter`          Ends with (case-insensi
 between        :class:`filters.DateBetweenFilter`        Ends with (case-insensitive)                  :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
 =============  ========================================  ============================================  ================================================================================================================================================================================================================================================
 
+.. note::
+
+   :class:`filters.EqualFilter` uses both the keys ``'eq'`` and ``None``. This is so that you can write an equality comparison both ways:
+
+   ::
+
+      GET /user?where={"name": "foo"}
+      GET /user?where={"name": {"$eq": "foo"}}
+
+
 .. module:: flask_potion.filters
 
 :class:`filters.BaseFilter`
