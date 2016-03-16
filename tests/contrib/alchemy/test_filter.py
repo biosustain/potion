@@ -2,6 +2,7 @@ import unittest
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
 from flask_potion import ModelResource, fields, Api
+from flask_potion.contrib.alchemy import filters
 from tests import BaseTestCase
 
 
@@ -55,6 +56,15 @@ class FilterTestCase(BaseTestCase):
 
             class Meta:
                 model = Thing
+                filters = {
+                    '$uri': {
+                        None: filters.EqualFilter,
+                        'eq': filters.EqualFilter,
+                        'ne': filters.NotEqualFilter,
+                        'in': filters.InFilter
+                    },
+                    '*': True
+                }
 
         class AllowUserResource(ModelResource):
             class Meta:
@@ -312,6 +322,36 @@ class FilterTestCase(BaseTestCase):
         response = self.client.get('/thing?sort={"belongs_to": false}')
         self.assertEqual(3, len(response.json))
 
+
+    def test_filter_and_sort_uri(self):
+        for thing in [
+            {"name": "A thing"},
+            {"name": "B thing"}
+        ]:
+            response = self.client.post('/thing', data=thing)
+            self.assert200(response)
+
+        response1 = self.client.get('/thing?where={"$uri": "/thing/1"}')
+        response2 = self.client.get('/thing?where={"$uri": {"$eq": "/thing/1"}}')
+        response3 = self.client.get('/thing?where={"$uri": {"$ne": "/thing/2"}}')
+        response4 = self.client.get('/thing?where={"$uri": {"$in": ["/thing/1"]}}')
+
+        for response in [response1, response2, response3, response4]:
+            self.assert200(response1)
+            self.assertEqualWithout([{'$uri': u'/thing/1', 'name': 'A thing'}], response.json,
+                                    without=['date', 'date_time', 'belongs_to'])
+
+        response_multi = self.client.get('/thing?where={"$uri": {"$in": ["/thing/1", "/thing/2"]}}')
+        self.assert200(response_multi)
+        self.assertEqualWithout([{'$uri': '/thing/1', 'name': 'A thing'},
+                                 {'$uri': '/thing/2', 'name': 'B thing'}],
+                                response_multi.json, without=['date', 'date_time', 'belongs_to'])
+
+        response_sort = self.client.get('/thing?sort={"$uri": false}')
+        self.assert200(response_sort)
+        self.assertEqualWithout([{'$uri': '/thing/1', 'name': 'A thing'},
+                                 {'$uri': '/thing/2', 'name': 'B thing'}],
+                                response_sort.json, without=['date', 'date_time', 'belongs_to'])
 
     def test_sort_filter_date(self):
         for thing in [
