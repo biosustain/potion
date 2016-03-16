@@ -1,6 +1,9 @@
 import unittest
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
+
+from flask_potion.contrib.alchemy.filters import FILTERS_BY_TYPE, FILTER_NAMES
+from flask_potion.filters import filters_for_fields
 from flask_potion import ModelResource, fields, Api
 from flask_potion.contrib.alchemy import filters
 from tests import BaseTestCase
@@ -402,6 +405,61 @@ class FilterTestCase(BaseTestCase):
                                     {'first_name': 'John', 'last_name': 'Doe'},
                                     {'first_name': 'Jonnie', 'last_name': 'Doe'}
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+    def test_inherited_filters(self):
+        self.assertEqual({
+            'string': {
+                'eq': filters.EqualFilter,
+            },
+            'email': {
+                None: filters.EqualFilter,
+                'eq': filters.EqualFilter,
+                'ne': filters.NotEqualFilter,
+                'in': filters.InFilter,
+                'contains': filters.StringContainsFilter,
+                'icontains': filters.StringIContainsFilter,
+                'endswith': filters.EndsWithFilter,
+                'iendswith': filters.IEndsWithFilter,
+                'startswith': filters.StartsWithFilter,
+                'istartswith': filters.IStartsWithFilter,
+            },
+            'uri': {
+                'eq': filters.EqualFilter,
+                'ne': filters.NotEqualFilter,
+                'endswith': filters.EndsWithFilter
+            },
+            'date_string': {
+                None: filters.EqualFilter,
+                'eq': filters.EqualFilter,
+                'ne': filters.NotEqualFilter,
+                'in': filters.InFilter,
+                'lt': filters.LessThanFilter,
+                'lte': filters.LessThanEqualFilter,
+                'gt': filters.GreaterThanFilter,
+                'gte': filters.GreaterThanEqualFilter,
+                'between': filters.DateBetweenFilter,
+            }
+        }, filters_for_fields({
+            'string': fields.String(),
+
+            # inherit from String
+            'email': fields.Email(),
+            'uri': fields.Uri(),
+
+            # no filter defined for Raw
+            'raw': fields.Raw({}),
+
+            # inherits from String, but there is a filter for DateString
+            'date_string': fields.DateString()
+        },
+            filter_names=FILTER_NAMES,
+            filters_by_type=FILTERS_BY_TYPE,
+            filters_expression={
+                'string': ['eq'],
+                'email': True,
+                'uri': ['eq', 'ne', 'endswith'],
+                '*': True
+            }))
 
     @unittest.SkipTest
     def test_sort_pages(self):
