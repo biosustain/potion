@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='Flask-Potion',
-    version='0.12.3',
+    version='0.12.4',
     packages=find_packages(exclude=['*tests*']),
     url='http://potion.readthedocs.org/en/latest/',
     license='MIT',
