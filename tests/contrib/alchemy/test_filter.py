@@ -52,6 +52,7 @@ class FilterTestCase(BaseTestCase):
             class Meta:
                 model = User
                 include_id = True
+                natural_key = ('first_name', 'last_name')
 
         class ThingResource(ModelResource):
             class Schema:
@@ -124,6 +125,23 @@ class FilterTestCase(BaseTestCase):
         self.assertEqualWithout([
                                     {'first_name': 'Jonnie', 'last_name': 'Doe'},
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/thing?where={"belongs_to": 1}')
+        self.assertEqual([], response.json)
+
+        response = self.client.get('/thing?where={"belongs_to": ["Jonnie", "Doe"]}')
+        self.assertEqual([], response.json)
+
+        response = self.client.get('/thing?where={"belongs_to": ["Wrong", "Name"]}')
+
+        self.assert404(response)
+        self.assertEqual({
+            'status': 404,
+            'item': {
+                '$type': 'user',
+                '$where': {'first_name': 'Wrong', 'last_name': 'Name'}},
+            'message': 'Not Found'
+        }, response.json)
 
     def test_inequality(self):
         self.post_sample_set_a()
@@ -243,6 +261,16 @@ class FilterTestCase(BaseTestCase):
             self.assert200(response)
 
         response = self.client.get('/user-to-many?where={"things": {"$contains": {"$ref": "/thing/1"}}}')
+
+        self.assertEqualWithout([
+                                    {
+                                        "things": [{"$ref": "/thing/1"}],
+                                        "first_name": "John",
+                                        "last_name": "Doe"
+                                    }
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/user-to-many?where={"things": {"$contains": 1}}')
 
         self.assertEqualWithout([
                                     {

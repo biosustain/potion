@@ -72,12 +72,14 @@ class BaseFilter(Schema):
         Usually the equality filter is unnamed and all other filters are named.
 
         """
+        schema = simplify_schema_for_filter(self._schema())
+
         if self.name is None:
-            return self._schema()
+            return schema
         return {
             "type": "object",
             "properties": {
-                "${}".format(self.name): self._schema()
+                "${}".format(self.name): schema
             },
             "required": ["${}".format(self.name)],
             "additionalProperties": False
@@ -86,7 +88,7 @@ class BaseFilter(Schema):
 
 class EqualFilter(BaseFilter):
     def _schema(self):
-        return self.field.response
+        return self.field.request
 
     def op(self, a, b):
         return a == b
@@ -94,7 +96,7 @@ class EqualFilter(BaseFilter):
 
 class NotEqualFilter(BaseFilter):
     def _schema(self):
-        return self.field.response
+        return self.field.request
 
     def op(self, a, b):
         return a != b
@@ -103,7 +105,7 @@ class NotEqualFilter(BaseFilter):
 class NumberBaseFilter(BaseFilter):
     def _schema(self):
         if isinstance(self.field, (Date, DateTime, DateString, DateTimeString)):
-            return self.field.response
+            return self.field.request
         return {"type": "number"}
 
 
@@ -135,7 +137,7 @@ class InFilter(BaseFilter):
             "type": "array",
             "minItems": self.min_items,
             "uniqueItems": True,
-            "items": self.field.response  # NOTE: None is valid.
+            "items": simplify_schema_for_filter(self.field.request)  # NOTE: None is valid.
         }
 
     def _convert(self, items):
@@ -147,7 +149,7 @@ class InFilter(BaseFilter):
 
 class ContainsFilter(BaseFilter):
     def _schema(self):
-        return self.field.container.response
+        return self.field.container.request
 
     def _convert(self, value):
         return self.field.container.convert(value)
@@ -206,7 +208,7 @@ class DateBetweenFilter(BaseFilter):
             "type": "array",
             "minItems": 2,
             "maxItems": 2,
-            "items": self.field.response
+            "items": simplify_schema_for_filter(self.field.request)
         }
 
     def _convert(self, value):
@@ -455,3 +457,20 @@ def convert_filters(value, field_filters):
 
     filter = field_filters[None]
     return filter.convert(value)
+
+
+def simplify_schema_for_filter(schema):
+    """
+
+    Removes properties from a schema that are not relevant to a filter; namely: "readOnly".
+
+    :param dict schema:
+    :return:
+    """
+    if schema:
+        return {
+            key: value
+            for key, value in schema.items()
+            if key not in ('readOnly',)
+            }
+    return schema
