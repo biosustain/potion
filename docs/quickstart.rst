@@ -860,7 +860,6 @@ Potion API clients
 
 Do you need a client for Potion? Look no further:
 
-- `Potion-client <https://github.com/biosustain/potion-client>`_ is a Python-based client that uses the schema generated
-  by Potion to create resource classes with tab-completion and client-side validation.
-- `angular-potion <https://github.com/biosustain/angular-potion>`_ is a client for AngularJS 1.x.
+- `potion-client <https://github.com/biosustain/potion-client>`_ is a client written in Python that auto-generates Resources using APIs' JSON schema endpoints. IPython/Jupyter Notebook support helps explore APIs.
+- `potion-node <https://github.com/biosustain/potion-node>`_ is a client written in TypeScript for Node with integrations for AngularJS 1.x and AngularJS 2.
 
