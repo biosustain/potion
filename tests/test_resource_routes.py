@@ -1,5 +1,7 @@
 from unittest import TestCase
 import unittest
+
+from flask_potion.schema import FieldSet
 from flask_potion.contrib.memory.manager import MemoryManager
 from flask_potion.resource import ModelResource, Resource
 from flask_potion import Api, fields
@@ -37,8 +39,8 @@ class RelationTestCase(BaseTestCase):
             def open(self, box):
                 return self.manager.update(box, {"is_open": True})
 
-            @Route.GET()
-            def greet(self, greeting: fields.String()):
+            @Route.GET(schema=FieldSet({'greeting': fields.String()}))
+            def greet(self, greeting):
                 return greeting + " box!"
 
             open.response_schema = fields.Inline('self', attribute='Test')
