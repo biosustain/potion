@@ -272,7 +272,7 @@ class FieldSet(Schema, ResourceBound):
                     # FIXME type conversion!
                     try:
                         data[name] = json.loads(value)
-                    except TypeError:
+                    except ValueError:
                         data[name] = value
                 except KeyError:
                     pass
