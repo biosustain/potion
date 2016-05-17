@@ -108,8 +108,11 @@ class SQLAlchemyManager(RelationalManager):
 
         kwargs['nullable'] = column.nullable
 
-        if column.default is not None and column.default.is_scalar:
-            kwargs['default'] = column.default.arg
+        if column.default is not None:
+            if column.default.is_sequence:
+                pass
+            elif column.default.is_scalar:
+                kwargs['default'] = column.default.arg
 
         return field_class(*args, io=io, attribute=attribute, **kwargs)
 

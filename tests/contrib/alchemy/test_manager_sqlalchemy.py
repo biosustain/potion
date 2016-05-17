@@ -404,3 +404,41 @@ class SQLAlchemyInspectionTestCase(BaseTestCase):
             "last_name": None,
             "username": "foo"
         }, response.json)
+
+
+class SQLAlchemySequenceTestCase(BaseTestCase):
+
+    def setUp(self):
+        super(SQLAlchemySequenceTestCase, self).setUp()
+        self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
+        self.api = Api(self.app)
+        self.sa = sa = SQLAlchemy(self.app, session_options={"autoflush": False})
+
+    def test_sequence_primary_key(self):
+        sa = self.sa
+
+        user_id_seq = sa.Sequence('user_id_seq')
+
+        class User(sa.Model):
+            id = sa.Column(sa.Integer, user_id_seq, primary_key=True)
+            username = sa.Column(sa.String, unique=True)
+
+        sa.create_all()
+
+        class UserResource(ModelResource):
+            class Schema:
+                username = fields.String()
+
+            class Meta:
+                model = User
+                include_id = True
+
+        self.api.add_resource(UserResource)
+
+        response = self.client.post('/user', data={"username": "foo"})
+        self.assert200(response)
+
+        self.assertJSONEqual({
+            "$id": 1,
+            "username": "foo"
+        }, response.json)
