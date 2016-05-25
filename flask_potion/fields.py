@@ -413,6 +413,10 @@ class String(Raw):
     :param int min_length: minimum length of string
     :param int max_length: maximum length of string
     :param str pattern: regex pattern that the string must match
+    :param str format: a JSON Schema format string to validate against
+
+        .. warning:: The validation of format-strings is handled by :mod:`jsonschema` and may require additional
+           package dependencies.
     :param list enum: list of strings with enumeration
     """
     url_rule_converter = 'string'

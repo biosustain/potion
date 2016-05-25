@@ -37,7 +37,8 @@ intersphinx_mapping = {
     'werkzeug': ('http://werkzeug.pocoo.org/docs/', None),
     'blinker': ('http://pythonhosted.org/blinker/', None),
     'principal': ('https://pythonhosted.org/Flask-Principal/', None),
-    'mongoengine': ('http://docs.mongoengine.org/', None)
+    'mongoengine': ('http://docs.mongoengine.org/', None),
+    'jsonschema': ('http://python-jsonschema.readthedocs.io/en/latest/', None)
 }
 
 autodoc_member_order = 'bysource'

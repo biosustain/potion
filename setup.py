@@ -27,7 +27,9 @@ setup(
         'jsonschema>=2.4.0',
         'aniso8601>=0.84',
         'blinker>=1.3',
-        'six>=1.8.0'
+        'six>=1.8.0',
+        'rfc3987',
+        'strict-rfc3339'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
