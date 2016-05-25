@@ -244,7 +244,6 @@ class PeeweeTestCase(BaseTestCase):
                         'additionalProperties': False,
                         'properties': {
                             '$ref': {
-                                'format': 'uri',
                                 'pattern': '^\\/type\\/[^/]+$',
                                 'type': 'string'}},
                             'type': 'object'}, {

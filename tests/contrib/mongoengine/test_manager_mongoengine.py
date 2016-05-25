@@ -214,7 +214,6 @@ class MongoEngineTestCase(BaseTestCase):
                                                      "additionalProperties": False,
                                                      "properties": {
                                                          "$ref": {
-                                                             "format": "uri",
                                                              "pattern": "^\\/type\\/[^/]+$",
                                                              "type": "string"
                                                          }
