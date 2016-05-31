@@ -41,7 +41,7 @@ class HybridItemNeed(HybridNeed):
 
     def __call__(self, item):
         if self.method == 'id':
-            return UserNeed(self.resource.item_get_id(item))
+            return UserNeed(get_value(item, self.resource.manager.id_attribute, None))
         return ItemNeed(self.method, get_value(item, self.resource.manager.id_attribute, None), self.type)
 
     def __eq__(self, other):
