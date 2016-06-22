@@ -237,7 +237,8 @@ class PrincipalTestCase(BaseTestCase):
             class Meta:
                 model = self.USER
                 permissions = {
-                    'create': 'admin'
+                    'create': 'admin',
+                    'update': 'user:$uri'
                 }
 
         self.api.add_resource(BookStoreResource)
@@ -246,6 +247,7 @@ class PrincipalTestCase(BaseTestCase):
         self.mock_user = {'id': 1, 'roles': ['admin']}
 
         self.assert200(self.client.post('/user', data={'name': 'Admin'}))
+        self.assert200(self.client.patch('/user/1', data={'name': 'Other'}))
 
         for i, store in enumerate([
             {

@@ -83,6 +83,9 @@ class PrincipalMixin(object):
                                 if isinstance(imported_need, HybridItemNeed):
                                     imported_need = imported_need.extend(field)
                                 options.add(imported_need)
+
+                    elif role == 'user' and value in ["$id", "$uri"]:
+                        options.add(HybridItemNeed('id', self.resource))
                 else:
                     options.add(RoleNeed(need))
 
