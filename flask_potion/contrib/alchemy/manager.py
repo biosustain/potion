@@ -81,7 +81,7 @@ class SQLAlchemyManager(RelationalManager):
                 elif name in write_only_fields:
                     io = "w"
 
-                if not (column.nullable or column.default):
+                if "w" in io and not (column.nullable or column.default):
                     fs.required.add(name)
                 fs.set(name, self._get_field_from_column_type(column, name, io=io))
 
