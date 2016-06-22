@@ -119,7 +119,7 @@ class MongoEngineManager(Manager):
 
                 field_instance = self._get_field_from_mongoengine_type(column, io=io, attribute=name)
 
-                if not (column.null or column.default is not None):
+                if "w" in io and not (column.null or column.default is not None):
                     fs.required.add(name)
 
                 fs.set(name, field_instance)
