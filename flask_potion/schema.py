@@ -197,6 +197,9 @@ class FieldSet(Schema, ResourceBound):
 
         return read_schema, create_schema, update_schema
 
+    @cached_property
+    def readable_fields(self):
+        return {key: field for key, field in self.fields.items() if 'r' in field.io}
 
     def schema(self):
         return self._schema()

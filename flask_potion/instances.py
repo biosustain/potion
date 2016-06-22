@@ -78,7 +78,7 @@ class Instances(PaginationMixin, Schema, ResourceBound):
     @cached_property
     def _sort_fields(self):
         return {
-            name: field for name, field in self.resource.schema.fields.items()
+            name: field for name, field in self.resource.schema.readable_fields.items()
             if name in self._filters and self.resource.manager._is_sortable_field(field)
         }
 

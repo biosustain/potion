@@ -49,7 +49,7 @@ class Manager(object):
 
     def _init_filters(self, resource, meta):
         fields = resource.schema.fields
-        field_filters = filters_for_fields(resource.schema.fields,
+        field_filters = filters_for_fields(resource.schema.readable_fields,
                                            meta.filters,
                                            filter_names=self.FILTER_NAMES,
                                            filters_by_type=self.FILTERS_BY_TYPE)
