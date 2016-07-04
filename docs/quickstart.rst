@@ -117,7 +117,7 @@ are a few other properties that control how the :class:`ModelResource` maps to t
 Attribute name         Default                         Description
 =====================  ==============================  ==============================================================================
 model                  ---                             The `Flask-SQLAlchemy` model
-name                   ---                             Name of the resource; defaults to the lower-case of the `model's` class name
+name                   ---                             Name of the resource; defaults to the lower-case of the `model's` table name
 id_attribute           ``'id'``                        With SQLAlchemy models, defaults to the name of the primary key of `model`.
 id_converter           –--                             Flask URL converter for resource routes. Typically this is inferred from `id_field_class`.
 id_field_class         :class:`fields.Integer`         Field class to use for ``"$id"``, also used to determine the URL route converter for resource routes.
