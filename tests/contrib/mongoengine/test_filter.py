@@ -5,20 +5,14 @@ from mongoengine.fields import IntField, StringField, BooleanField
 
 from flask_potion.contrib.mongoengine import MongoEngineManager
 from flask_potion import ModelResource, fields, Api
-from tests import BaseTestCase
+from tests.contrib.mongoengine import MongoEngineTestCase
 
 
-class FilterTestCase(BaseTestCase):
+class FilterTestCase(MongoEngineTestCase):
     def setUp(self):
         super(FilterTestCase, self).setUp()
-        app = self.app
-        app.config['MONGODB_DB'] = 'potion-test-db'
-        app.config['TESTING'] = True
 
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = me = MongoEngine(app)
-
-        class User(me.Document):
+        class User(self.me.Document):
             meta = {
                 "collection": "user"
             }
@@ -209,9 +203,6 @@ class FilterTestCase(BaseTestCase):
     @unittest.SkipTest
     def test_schema(self):
         pass
-
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,25 +1,15 @@
 from bson import ObjectId
 from bson.errors import InvalidId
-from flask_mongoengine import MongoEngine
 from mongoengine import ObjectIdField, MapField, FloatField, StringField, EmbeddedDocumentField, \
     EmbeddedDocument
 
 from flask_potion import Api, ModelResource
-from flask_potion.contrib.mongoengine import MongoEngineManager
-from tests import BaseTestCase
+from tests.contrib.mongoengine import MongoEngineTestCase
 
 
-class FieldsTestCase(BaseTestCase):
-    def setUp(self):
-        super(FieldsTestCase, self).setUp()
-        app = self.app
-        app.config['MONGODB_DB'] = 'potion-test-db'
-        app.config['TESTING'] = True
-
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = MongoEngine(app)
-
+class FieldsTestCase(MongoEngineTestCase):
     def test_object_id_field(self):
+
         class Model(self.me.Document):
             meta = {
                 'collection': 'model'
@@ -96,6 +86,3 @@ class FieldsTestCase(BaseTestCase):
                                     }, 'string_mapping': {}
                                 },
                                 without=["$uri"])
-
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')

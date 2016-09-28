@@ -8,16 +8,14 @@ from flask_potion.routes import Relation
 from flask_potion import Api, fields
 from flask_potion.resource import ModelResource
 from tests import BaseTestCase
+from tests.contrib.mongoengine import MongoEngineTestCase
 
 
-class MongoEngineTestCase(BaseTestCase):
+class MongoEngineManagerTestCase(MongoEngineTestCase):
     def setUp(self):
-        super(MongoEngineTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'potion-test-db'
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = me = MongoEngine(self.app)
+        super(MongoEngineManagerTestCase, self).setUp()
 
-        class Type(me.Document):
+        class Type(self.me.Document):
             meta = {"collection": "type"}
             name = StringField(max_length=60, null=False, unique=True)
 
@@ -30,7 +28,7 @@ class MongoEngineTestCase(BaseTestCase):
                 for m in machines:
                     m.type = self
 
-        class Machine(me.Document):
+        class Machine(self.me.Document):
             meta = {"collection": "machine"}
             name = StringField(max_length=60, null=False)
 
@@ -61,9 +59,6 @@ class MongoEngineTestCase(BaseTestCase):
 
         self.api.add_resource(MachineResource)
         self.api.add_resource(TypeResource)
-
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')
 
     def test_field_discovery(self):
         self.assertEqual(set(self.MachineResource.schema.fields.keys()), {'$id', '$type', 'name', 'type', 'wattage'})
@@ -253,15 +248,11 @@ class MongoEngineTestCase(BaseTestCase):
         self.assert404(response)
 
 
-class MongoEngineRelationTestCase(BaseTestCase):
-
+class MongoEngineRelationTestCase(MongoEngineTestCase):
     def setUp(self):
         super(MongoEngineRelationTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'potion-test-db'
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = me = MongoEngine(self.app)
 
-        class User(me.Document):
+        class User(self.me.Document):
             name = StringField(max_length=60)
             children = ListField(ReferenceField('User'))
 
@@ -269,7 +260,7 @@ class MongoEngineRelationTestCase(BaseTestCase):
             def memberships(self):
                 return Group.objects(members__in=self)
 
-        class Group(me.Document):
+        class Group(self.me.Document):
             name = StringField(max_length=60)
             members = ListField(ReferenceField('User'))
 
@@ -384,6 +375,3 @@ class MongoEngineRelationTestCase(BaseTestCase):
                          '</user/{}/children?page=1&per_page=20>; rel="first",'
                          '</user/{}/children?page=2&per_page=20>; rel="prev",'
                          '</user/{}/children?page=3&per_page=20>; rel="last"'.format(user_id, user_id, user_id, user_id), response.headers['Link'])
-
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')
