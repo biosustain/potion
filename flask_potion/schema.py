@@ -258,8 +258,8 @@ class FieldSet(Schema, ResourceBound):
             if request.mimetype != 'application/json':
                 raise RequestMustBeJSON()
 
-        # TODO change to request.get_json() to catch invalid JSON
-        data = request.json
+        # TODO change to request.get_json(silent=False) to catch invalid JSON
+        data = request.get_json(silent=True)
 
         # FIXME raise error if request body is not JSON
 
