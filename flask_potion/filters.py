@@ -1,6 +1,9 @@
+from pip.utils import cached_property
+
 from .schema import Schema
 from .utils import get_value
-from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString
+from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString, \
+    Custom
 
 
 class BaseFilter(Schema):
@@ -52,11 +55,15 @@ class BaseFilter(Schema):
         """
         raise NotImplemented()
 
+    @property
+    def filter_field(self):
+        return self.field
+
     def _schema(self):
-        raise NotImplemented()
+        return self.filter_field.request
 
     def _convert(self, value):
-        return self.field.convert(value)
+        return self.filter_field.convert(value)
 
     def convert(self, instance):
         if self.name is None:
@@ -87,26 +94,22 @@ class BaseFilter(Schema):
 
 
 class EqualFilter(BaseFilter):
-    def _schema(self):
-        return self.field.request
-
     def op(self, a, b):
         return a == b
 
 
 class NotEqualFilter(BaseFilter):
-    def _schema(self):
-        return self.field.request
-
     def op(self, a, b):
         return a != b
 
 
 class NumberBaseFilter(BaseFilter):
-    def _schema(self):
+
+    @cached_property
+    def filter_field(self):
         if isinstance(self.field, (Date, DateTime, DateString, DateTimeString)):
-            return self.field.request
-        return {"type": "number"}
+            return self.field
+        return Number()
 
 
 class LessThanFilter(NumberBaseFilter):
@@ -132,38 +135,29 @@ class GreaterThanEqualFilter(NumberBaseFilter):
 class InFilter(BaseFilter):
     min_items = 0
 
-    def _schema(self):
-        return {
-            "type": "array",
-            "minItems": self.min_items,
-            "uniqueItems": True,
-            "items": simplify_schema_for_filter(self.field.request)  # NOTE: None is valid.
-        }
-
-    def _convert(self, items):
-        return [self.field.convert(item) for item in items]
+    @cached_property
+    def filter_field(self):
+        return Array(self.field,
+                     min_items=self.min_items,
+                     unique=True)
 
     def op(self, a, b):
         return a in b
 
 
 class ContainsFilter(BaseFilter):
-    def _schema(self):
-        return self.field.container.request
-
-    def _convert(self, value):
-        return self.field.container.convert(value)
+    @cached_property
+    def filter_field(self):
+        return self.field.container
 
     def op(self, a, b):
         return hasattr(a, '__iter__') and b in a
 
 
 class StringBaseFilter(BaseFilter):
-    def _schema(self):
-        return {
-            "type": "string",
-            "minLength": 1
-        }
+    @cached_property
+    def filter_field(self):
+        return String(min_length=1)
 
 
 class StringContainsFilter(StringBaseFilter):
@@ -172,11 +166,9 @@ class StringContainsFilter(StringBaseFilter):
 
 
 class StringIContainsFilter(BaseFilter):
-    def _schema(self):
-        return {
-            "type": "string",
-            "minLength": 1
-        }
+    @cached_property
+    def filter_field(self):
+        return String(min_length=1)
 
     def op(self, a, b):
         return a and b.lower() in a.lower()
@@ -203,17 +195,11 @@ class IEndsWithFilter(StringBaseFilter):
 
 
 class DateBetweenFilter(BaseFilter):
-    def _schema(self):
-        return {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 2,
-            "items": simplify_schema_for_filter(self.field.request)
-        }
-
-    def _convert(self, value):
-        before, after = value
-        return self.field.convert(before), self.field.convert(after)
+    @cached_property
+    def filter_field(self):
+        return Array(self.field,
+                     min_items=2,
+                     max_items=2)
 
     def op(self, a, b):
         before, after = b

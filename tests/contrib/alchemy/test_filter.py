@@ -175,9 +175,6 @@ class FilterTestCase(BaseTestCase):
                                     {'first_name': 'Joe', 'last_name': 'Bloggs'}
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
 
-        response = self.client.get('/user?where={"age": {"$lt": 21.0}}')
-        self.assert400(response)
-
         response = self.client.get('/user?where={"age": {"$lt": null}}')
         self.assert400(response)
 
