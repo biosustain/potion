@@ -74,7 +74,7 @@ Sometimes soft-deletion is preferable over full deletion. This custom :class:`Mo
 not delete items, instead it *archives* them, removing them from the main instances route. Archived items can be viewed
 in the archive route from where they can be restored but not updated.
 
-Instead of :class:`ModelManager`, :class:`PrincipalManager` can also be used as the base class for the manager with
+Replace :class:`RelationalManager` with an appropriate base class, such as :class:`SQLAlchemyManager`. :class:`PrincipalManager` can also be used as the base class for the manager with
 some minor changes.
 
 .. code-block:: python
@@ -85,7 +85,7 @@ some minor changes.
         BOTH = 3
     
     
-    class ArchiveManager(ModelManager):
+    class ArchiveManager(RelationalManager):
         def _query(self, source=Location.INSTANCES_ONLY):
             query = super()._query(self)
     
