@@ -181,7 +181,7 @@ def _field_from_object(parent, cls_or_instance):
 
 class Custom(Raw):
     """
-    A field type that cann be passed any schema and optional formatter/converter transformers. It is a very thin
+    A field type that can be passed any schema and optional formatter/converter transformers. It is a very thin
     wrapper over :class:`Raw`.
 
     :param dict schema: JSON-schema
