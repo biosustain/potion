@@ -104,7 +104,12 @@ class SQLAlchemyManager(RelationalManager):
             field_class = fields.Raw
             kwargs = {"schema": {}}
         else:
-            field_class = self._get_field_from_python_type(column.type.python_type)
+            try:
+                python_type = column.type.python_type
+            except NotImplementedError:
+                raise RuntimeError('Unable to auto-detect the correct field type for {}! '
+                                   'You need to specify it manually in ModelResource.Schema'.format(column))
+            field_class = self._get_field_from_python_type(python_type)
 
         kwargs['nullable'] = column.nullable
 
