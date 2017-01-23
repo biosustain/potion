@@ -62,9 +62,6 @@ Basic field types
 .. autoclass:: Object
    :members:
 
-.. autoclass:: Object
-   :members:
-
 .. autoclass:: Custom
    :members:
 
