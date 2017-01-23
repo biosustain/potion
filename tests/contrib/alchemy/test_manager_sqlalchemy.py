@@ -18,6 +18,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         class Type(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
             name = sa.Column(sa.String(60), nullable=False, unique=True)
+            version = sa.Column(sa.Integer(), nullable=True)
 
         class Machine(sa.Model):
             id = sa.Column(sa.Integer, primary_key=True)
@@ -59,7 +60,7 @@ class SQLAlchemyTestCase(BaseTestCase):
 
     def test_field_discovery(self):
         self.assertEqual(set(self.MachineResource.schema.fields.keys()), {'$id', '$type', 'name', 'type', 'wattage'})
-        self.assertEqual(set(self.TypeResource.schema.fields.keys()), {'$id', '$type', 'name', 'machines'})
+        self.assertEqual(set(self.TypeResource.schema.fields.keys()), {'$id', '$type', 'name', 'version', 'machines'})
         self.assertEqual(self.MachineResource.meta.name, 'machine')
         self.assertEqual(self.TypeResource.meta.name, 'type')
 
@@ -98,7 +99,7 @@ class SQLAlchemyTestCase(BaseTestCase):
         }, response.json)
 
         response = self.client.post('/type', data={"name": "x-ray"})
-        self.assertJSONEqual({'$id': 1, '$type': 'type', 'machines': [], "name": "x-ray"}, response.json)
+        self.assertJSONEqual({'$id': 1, '$type': 'type', 'machines': [], "name": "x-ray", 'version': None}, response.json)
 
         response = self.client.post('/machine', data={"name": "Irradiator I", "type": 1})
         self.assert200(response)
@@ -117,11 +118,12 @@ class SQLAlchemyTestCase(BaseTestCase):
                                      {'$ref': '/machine/1'},
                                      {'$ref': '/machine/2'}
                                  ],
-                                 "name": "x-ray"
+                                 "name": "x-ray",
+                                 'version': None
                              }, response.json)
 
     def test_get(self):
-        type_ = lambda i: {"$id": i, "$type": "type", "name": "Type-{}".format(i), "machines": []}
+        type_ = lambda i: {"$id": i, "$type": "type", "name": "Type-{}".format(i), "machines": [], 'version': None}
 
         for i in range(1, 10):
             response = self.client.post('/type', data={"name": "Type-{}".format(i), "machines": []})
@@ -170,6 +172,11 @@ class SQLAlchemyTestCase(BaseTestCase):
         self.assert200(response)
         self.assertJSONEqual({'$id': 1, '$type': 'machine', 'type': {"$ref": "/type/2"}, "wattage": 10000, "name": "Robot"}, response.json)
 
+        response = self.client.patch('/type/1', data={"version": 1})
+        self.assertJSONEqual({'$id': 1, '$type': 'type', 'name': 'T1', 'version': 1, 'machines': []}, response.json)
+
+        response = self.client.patch('/type/1', data={"version": None})
+        self.assertJSONEqual({'$id': 1, '$type': 'type', 'name': 'T1', 'machines': [], 'version': None}, response.json)
 
         response = self.client.patch('/machine/1', data={"type": None})
         self.assert400(response)

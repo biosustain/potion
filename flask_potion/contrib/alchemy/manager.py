@@ -139,6 +139,10 @@ class SQLAlchemyManager(RelationalManager):
     def _get_session():
         return get_state(current_app).db.session
 
+    @staticmethod
+    def _is_change(a, b):
+        return (a is None) != (b is None) or a != b
+
     def _query(self):
         return self.model.query
 
@@ -239,9 +243,10 @@ class SQLAlchemyManager(RelationalManager):
 
     def update(self, item, changes, commit=True):
         session = self._get_session()
+
         actual_changes = {
             key: value for key, value in changes.items()
-            if get_value(key, item, None) != value
+            if self._is_change(get_value(key, item, None), value)
         }
 
         try:
