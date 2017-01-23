@@ -102,23 +102,33 @@ class Api(object):
         """
         app.config.setdefault('POTION_MAX_PER_PAGE', 100)
         app.config.setdefault('POTION_DEFAULT_PER_PAGE', 20)
+        app.config.setdefault('POTION_DECORATE_SCHEMA_ENDPOINTS', True)
 
         self._register_view(app,
                             rule=''.join((self.prefix, '/schema')),
-                            view_func=self.output(self._schema_view),
+                            view_func=self._schema_view,
                             endpoint='schema',
-                            methods=['GET'])
+                            methods=['GET'],
+                            relation='describedBy')
 
-        for route, resource, view_func, endpoint, methods in self.views:
+        for route, resource, view_func, endpoint, methods, relation in self.views:
             rule = route.rule_factory(resource)
-            self._register_view(app, rule, view_func, endpoint, methods)
+            self._register_view(app, rule, view_func, endpoint, methods, relation)
 
         app.handle_exception = partial(self._exception_handler, app.handle_exception)
         app.handle_user_exception = partial(self._exception_handler, app.handle_user_exception)
 
-    def _register_view(self, app, rule, view_func, endpoint, methods):
+    def _register_view(self, app, rule, view_func, endpoint, methods, relation):
+        decorate_view_func = relation != 'describedBy' or app.config['POTION_DECORATE_SCHEMA_ENDPOINTS']
+
         if self.blueprint:
             endpoint = '{}.{}'.format(self.blueprint.name, endpoint)
+
+        view_func = self.output(view_func)
+
+        if decorate_view_func:
+            for decorator in self.decorators:
+                view_func = decorator(view_func)
 
         app.add_url_rule(rule,
                          view_func=view_func,
@@ -180,15 +190,10 @@ class Api(object):
         if decorator:
             view_func = decorator(view_func)
 
-        view = self.output(view_func)
-
-        for decorator in self.decorators:
-            view = decorator(view)
-
-        if self.app:
-            self.app.add_url_rule(rule, view_func=view, endpoint=endpoint, methods=methods)
+        if self.app and not self.blueprint:
+            self._register_view(self.app, rule, view_func, endpoint, methods, route.relation)
         else:
-            self.views.append((route, resource, view, endpoint, methods))
+            self.views.append((route, resource, view_func, endpoint, methods, route.relation))
 
     def add_resource(self, resource):
         """

@@ -1,7 +1,9 @@
+from functools import wraps
+
 from flask_potion.routes import Route, ItemRoute
 from flask_potion import Api, fields
 from flask_potion.contrib.memory.manager import MemoryManager
-from flask_potion.resource import ModelResource
+from flask_potion.resource import ModelResource, Resource
 from tests import BaseTestCase
 
 
@@ -79,6 +81,50 @@ class ApiTestCase(BaseTestCase):
                     "/api/v1/book/{id}",
                     "/api/v1/book/{id}/rating"
                  }, {l['href'] for l in response.json['links']})
+
+    def test_schema_decoration(self):
+        def is_teapot(fn):
+            @wraps(fn)
+            def wrapper(*args, **kwargs):
+                return '', 418, {}
+            return wrapper
+
+        api = Api(self.app, decorators=[is_teapot])
+
+        class FooResource(Resource):
+            class Meta:
+                name = 'foo'
+
+        api.add_resource(FooResource)
+
+        response = self.client.get("/schema")
+        self.assertEqual(response.status_code, 418)
+
+        response = self.client.get("/foo/schema")
+        self.assertEqual(response.status_code, 418)
+
+    def test_schema_decoration_disable(self):
+        def is_teapot(fn):
+            @wraps(fn)
+            def wrapper(*args, **kwargs):
+                return '', 418, {}
+
+            return wrapper
+
+        self.app.config['POTION_DECORATE_SCHEMA_ENDPOINTS'] = False
+        api = Api(self.app, decorators=[is_teapot])
+
+        class FooResource(Resource):
+            class Meta:
+                name = 'foo'
+
+        api.add_resource(FooResource)
+
+        response = self.client.get("/schema")
+        self.assert200(response)
+
+        response = self.client.get("/foo/schema")
+        self.assert200(response)
 
     def test_api_crud_resource(self):
         class BookResource(ModelResource):
