@@ -69,7 +69,7 @@ the API. Let's first see if there are any *book* items on our server:
 We can see that there are no *book* items. As the ``Link`` and ``X-Total-Count`` headers show us, the resource is
 paginated to 20 items per page (more on that under :ref:`pagination`). We're now going to create a book:
 
-.. code-block:: http
+.. code-block:: bash
 
     $ http -v :5000/book title="On the Origin of Species" year_published:=1859
 
@@ -794,6 +794,14 @@ example is perhaps *too* simple, so we're going to complete the guide with a sli
         "name": "foo",
         "value": 1.23
     }
+
+
+In production APIs developed using Potion, resource routes are often decorated using an authentication decorator
+provided when initializing :class:`Api`.
+
+To make the documentation of an API protected by decorators available to
+unauthenticated users, you may skip the decoration of schema routes by setting the
+``'POTION_DECORATE_SCHEMA_ENDPOINTS'`` configuration variable to ``False``.
 
 Peewee backend
 --------------
