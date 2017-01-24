@@ -36,7 +36,7 @@ pagination, signals, and automatic API schema generation.
 
 Potion ships with backends for **SQLAlchemy**, **peewee** and **MongoEngine** models. It is possible to add backends for other data stores, or even to use a subset of Potion without any data store at all.
 
-API client libraries for `Python <https://github.com/biosustain/potion-client>`_ and `JavaScript/TypeScript <https://github.com/biosustain/potion-node>`_ (generic Node as well as AngularJS 1/2) are available.
+API client libraries for `Python <https://github.com/biosustain/potion-client>`_ and `JavaScript/TypeScript <https://github.com/biosustain/potion-node>`_ (generic Node as well as AngularJS) are available.
 
 User's Guide
 ^^^^^^^^^^^^
