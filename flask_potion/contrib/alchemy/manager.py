@@ -9,7 +9,7 @@ from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.orm.exc import NoResultFound
 
 from flask_potion import fields
-from flask_potion.contrib.alchemy.filters import FILTER_NAMES, FILTERS_BY_TYPE, SQLAlchemyBaseFilter
+from flask_potion.contrib.alchemy.filters import FILTER_NAMES, FILTERS_BY_TYPE
 from flask_potion.exceptions import ItemNotFound, DuplicateKey, BackendConflict
 from flask_potion.instances import Pagination
 from flask_potion.manager import RelationalManager
@@ -235,7 +235,7 @@ class SQLAlchemyManager(RelationalManager):
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
 
             if current_app.debug:
-                raise BackendConflict(debug_info=dict(statement=e.statement, params=e.params))
+                raise BackendConflict(debug_info=dict(exception_message=str(e), statement=e.statement, params=e.params))
             raise BackendConflict()
 
         after_create.send(self.resource, item=item)
@@ -264,17 +264,28 @@ class SQLAlchemyManager(RelationalManager):
             if hasattr(e.orig, 'pgcode'):
                 if e.orig.pgcode == '23505':  # duplicate key
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
-            raise
+
+            if current_app.debug:
+                raise BackendConflict(debug_info=dict(exception_message=str(e), statement=e.statement, params=e.params))
+            raise BackendConflict()
 
         after_update.send(self.resource, item=item, changes=actual_changes)
         return item
 
     def delete(self, item):
+        session = self._get_session()
+
         before_delete.send(self.resource, item=item)
 
-        session = self._get_session()
-        session.delete(item)
-        session.commit()
+        try:
+            session.delete(item)
+            session.commit()
+        except IntegrityError as e:
+            session.rollback()
+
+            if current_app.debug:
+                raise BackendConflict(debug_info=dict(exception_message=str(e), statement=e.statement, params=e.params))
+            raise BackendConflict()
 
         after_delete.send(self.resource, item=item)
 
