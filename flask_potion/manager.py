@@ -295,9 +295,7 @@ class RelationalManager(Manager):
             expressions = [self._expression_for_condition(condition) for condition in where]
             query = self._query_filter(query, self._and_expression(expressions))
 
-        if sort:
-            query = self._query_order_by(query, sort)
-
+        query = self._query_order_by(query, sort)
         return query
 
     def first(self, where=None, sort=None):

@@ -44,6 +44,7 @@ class SQLAlchemyManager(RelationalManager):
             self.id_column = mapper.primary_key[0]
             self.id_attribute = mapper.primary_key[0].name
 
+        self.stable_sort_expression = self.id_column.asc()
         self.id_field = self._get_field_from_column_type(self.id_column, self.id_attribute, io="r")
 
         fs = resource.schema
@@ -182,7 +183,12 @@ class SQLAlchemyManager(RelationalManager):
         except NoResultFound:
             raise ItemNotFound(self.resource, id=id)
 
-    def _query_order_by(self, query, sort):
+    def _query_order_by(self, query, sort=None):
+        # Sort is passed in as an empty tuple to manager.instances(),
+        # therefore one must check that sort is false-y, not strictly that sort is None
+        if not sort:
+            return query.order_by(self.stable_sort_expression)
+
         order_clauses = []
 
         for field, attribute, reverse in sort:
@@ -194,6 +200,9 @@ class SQLAlchemyManager(RelationalManager):
                 column = getattr(target_alias, field.target.meta.sort_attribute or field.target.manager.id_attribute)
 
             order_clauses.append(column.desc() if reverse else column.asc())
+
+        if self.stable_sort_expression.key not in [x.key for x in order_clauses]:
+            order_clauses.append(self.stable_sort_expression)
 
         return query.order_by(*order_clauses)
 
