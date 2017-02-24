@@ -233,9 +233,6 @@ class RelationalManager(Manager):
     def _query(self):
         raise NotImplementedError()
 
-    def _query(self):
-        raise NotImplementedError()
-
     def _query_filter(self, query, expression):
         raise NotImplementedError()
 
@@ -264,7 +261,7 @@ class RelationalManager(Manager):
     def _and_expression(self, expressions):
         raise NotImplementedError()
 
-    def _query_order_by(self, query, sort):
+    def _query_order_by(self, query, sort=None):
         raise NotImplementedError()
 
     def _query_get_paginated_items(self, query, page, per_page):
@@ -295,8 +292,7 @@ class RelationalManager(Manager):
             expressions = [self._expression_for_condition(condition) for condition in where]
             query = self._query_filter(query, self._and_expression(expressions))
 
-        query = self._query_order_by(query, sort)
-        return query
+        return self._query_order_by(query, sort)
 
     def first(self, where=None, sort=None):
         """
