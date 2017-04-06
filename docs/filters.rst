@@ -71,12 +71,12 @@ gt             :class:`filters.GreaterThanFilter`        Greater than           
 lte            :class:`filters.LessThanEqualFilter`      Less than or equal                            :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
 gte            :class:`filters.GreaterThanEqualFilter`   Greater than or equal                         :class:`fields.String`, :class:`fields.Integer`, :class:`fields.Number`, :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
 contains       :class:`filters.StringContainsFilter`     Contains (String)                             :class:`fields.String`
-contains       :class:`filters.StringIContainsFilter`    Contains (String, case-insensitive)           :class:`fields.String`
+icontains      :class:`filters.StringIContainsFilter`    Contains (String, case-insensitive)           :class:`fields.String`
 startswith     :class:`filters.StartsWithFilter`         Starts with                                   :class:`fields.String`
-endswith       :class:`filters.IStartsWithFilter`        Ends with                                     :class:`fields.String`
-istartswith    :class:`filters.EndsWithFilter`           Starts with (case-insensitive)                :class:`fields.String`
+endswith       :class:`filters.EndsWithFilter`           Ends with                                     :class:`fields.String`
+istartswith    :class:`filters.IStartsWithFilter`        Starts with (case-insensitive)                :class:`fields.String`
 iendswith      :class:`filters.IEndsWithFilter`          Ends with (case-insensitive)                  :class:`fields.String`
-between        :class:`filters.DateBetweenFilter`        Ends with (case-insensitive)                  :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
+between        :class:`filters.DateBetweenFilter`        Date between                                  :class:`fields.Date`, :class:`fields.DateTime`, :class:`fields.DateString`, :class:`fields.DateTimeString`
 =============  ========================================  ============================================  ================================================================================================================================================================================================================================================
 
 .. note::
