@@ -255,7 +255,7 @@ class FieldSet(Schema, ResourceBound):
 
     def parse_request(self, request):
         if request.method in ('POST', 'PATCH', 'PUT', 'DELETE'):
-            if request.mimetype != 'application/json':
+            if self.fields and request.mimetype != 'application/json':
                 raise RequestMustBeJSON()
 
         # TODO change to request.get_json(silent=False) to catch invalid JSON
@@ -281,4 +281,3 @@ class FieldSet(Schema, ResourceBound):
                     pass
 
         return self.convert(data, update=request.method in ('PUT', 'PATCH'), patchable=request.method == 'PATCH')
-
