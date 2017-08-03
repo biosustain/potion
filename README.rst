@@ -104,15 +104,6 @@ Example *(SQLAlchemy)*
         app.run()
 
 
-Long-term goals
-===============
-
-The web nowadays is increasingly push rather than pull, so Potion is gradually building up to providing a scalable WebSocket 
-service (using ``asyncio`` and a message queue). This service will mirror the RESTful API so that every GET request can be done *"live"*. (In the meantime, you can use the ``signals`` module to roll your own solution).
-
-Potion is written in a way that makes it very easy to cache resources. A natural goal is to eventually ship Potion with a built-in server-side caching solution.
-
-
 Authors
 =======
 
