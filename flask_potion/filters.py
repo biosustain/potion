@@ -1,4 +1,4 @@
-from pip.utils import cached_property
+from werkzeug.utils import cached_property
 
 from .schema import Schema
 from .utils import get_value
