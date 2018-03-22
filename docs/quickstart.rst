@@ -69,7 +69,7 @@ the API. Let's first see if there are any *book* items on our server:
 We can see that there are no *book* items. As the ``Link`` and ``X-Total-Count`` headers show us, the resource is
 paginated to 20 items per page (more on that under :ref:`pagination`). We're now going to create a book:
 
-.. code-block:: http
+.. code-block:: bash
 
     $ http -v :5000/book title="On the Origin of Species" year_published:=1859
 
@@ -117,7 +117,7 @@ are a few other properties that control how the :class:`ModelResource` maps to t
 Attribute name         Default                         Description
 =====================  ==============================  ==============================================================================
 model                  ---                             The `Flask-SQLAlchemy` model
-name                   ---                             Name of the resource; defaults to the lower-case of the `model's` class name
+name                   ---                             Name of the resource; defaults to the lower-case of the `model's` table name
 id_attribute           ``'id'``                        With SQLAlchemy models, defaults to the name of the primary key of `model`.
 id_converter           –--                             Flask URL converter for resource routes. Typically this is inferred from `id_field_class`.
 id_field_class         :class:`fields.Integer`         Field class to use for ``"$id"``, also used to determine the URL route converter for resource routes.
@@ -795,6 +795,14 @@ example is perhaps *too* simple, so we're going to complete the guide with a sli
         "value": 1.23
     }
 
+
+In production APIs developed using Potion, resource routes are often decorated using an authentication decorator
+provided when initializing :class:`Api`.
+
+To make the documentation of an API protected by decorators available to
+unauthenticated users, you may skip the decoration of schema routes by setting the
+``'POTION_DECORATE_SCHEMA_ENDPOINTS'`` configuration variable to ``False``.
+
 Peewee backend
 --------------
 
@@ -860,7 +868,6 @@ Potion API clients
 
 Do you need a client for Potion? Look no further:
 
-- `Potion-client <https://github.com/biosustain/potion-client>`_ is a Python-based client that uses the schema generated
-  by Potion to create resource classes with tab-completion and client-side validation.
-- `angular-potion <https://github.com/biosustain/angular-potion>`_ is a client for AngularJS 1.x.
+- `potion-client <https://github.com/biosustain/potion-client>`_ is a client written in Python that auto-generates Resources using APIs' JSON schema endpoints. IPython/Jupyter Notebook support helps explore APIs.
+- `potion-node <https://github.com/biosustain/potion-node>`_ is a client written in TypeScript for Node with integrations for AngularJS 1.x and AngularJS 2+.
 

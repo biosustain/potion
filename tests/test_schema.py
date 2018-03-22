@@ -1,15 +1,19 @@
 from unittest import TestCase
-from flask import Flask
+from flask import Flask, request, Request
 from flask_potion import fields, Resource
 from flask_potion.exceptions import ValidationError
-from flask_potion.schema import Schema, FieldSet
-
+from flask_potion.schema import Schema, FieldSet, RequestMustBeJSON
+from sys import version_info
+if version_info.major < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
 
 class SchemaTestCase(TestCase):
 
     def test_schema_class(self):
         class FooSchema(Schema):
-            
+
             def __init__(self, schema):
                 self._schema = schema
 
@@ -99,7 +103,26 @@ class SchemaTestCase(TestCase):
         FieldSet({"foo": fields.String()}).bind(FooResource).bind(BarResource)
 
     def test_fieldset_parse_request(self):
-        pass
+        app = Flask(__name__)
+        env = {}
+        with app.test_request_context():
+            env = request.environ
+
+        # Ensure allow empty POST
+        fs = FieldSet(None)
+        env['REQUEST_METHOD'] = 'POST'
+        fs.parse_request(Request(env))
+
+        # Ensure failure when there are fields
+        fs = FieldSet({'field': fields.String()})
+        with self.assertRaises(RequestMustBeJSON):
+            fs.parse_request(Request(env))
+
+        # Successful POST with data
+        env['wsgi.input'] = StringIO('{"field": "data"}')
+        env['CONTENT_TYPE'] = 'application/json'
+        env['CONTENT_LENGTH'] = '17'
+        fs.parse_request(Request(env))
 
     def test_fieldset_format(self):
         self.assertEqual(

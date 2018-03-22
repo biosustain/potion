@@ -11,7 +11,7 @@ Flask-Potion
 Potion features include validation, model resources and routes, relations, object permissions, filtering, sorting,
 pagination, signals, and automatic API schema generation.
 
-Potion is ships with backends for SQLAlchemy, peewee and MongoEngine models.
+Potion ships with backends for SQLAlchemy, peewee and MongoEngine models.
 It is possible to add backends for other data stores, or even to use a subset of Potion without any data store at all.
 
 User's guide

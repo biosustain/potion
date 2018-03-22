@@ -45,6 +45,7 @@ class SQLAlchemyManager(RelationalManager):
             self.id_attribute = mapper.primary_key[0].name
 
         self.id_field = self._get_field_from_column_type(self.id_column, self.id_attribute, io="r")
+        self.default_sort_expression = self.id_column.asc()
 
         fs = resource.schema
         if meta.include_id:
@@ -81,7 +82,7 @@ class SQLAlchemyManager(RelationalManager):
                 elif name in write_only_fields:
                     io = "w"
 
-                if not (column.nullable or column.default):
+                if "w" in io and not (column.nullable or column.default):
                     fs.required.add(name)
                 fs.set(name, self._get_field_from_column_type(column, name, io=io))
 
@@ -104,12 +105,20 @@ class SQLAlchemyManager(RelationalManager):
             field_class = fields.Raw
             kwargs = {"schema": {}}
         else:
-            field_class = self._get_field_from_python_type(column.type.python_type)
+            try:
+                python_type = column.type.python_type
+            except NotImplementedError:
+                raise RuntimeError('Unable to auto-detect the correct field type for {}! '
+                                   'You need to specify it manually in ModelResource.Schema'.format(column))
+            field_class = self._get_field_from_python_type(python_type)
 
         kwargs['nullable'] = column.nullable
 
-        if column.default is not None and column.default.is_scalar:
-            kwargs['default'] = column.default.arg
+        if column.default is not None:
+            if column.default.is_sequence:
+                pass
+            elif column.default.is_scalar:
+                kwargs['default'] = column.default.arg
 
         return field_class(*args, io=io, attribute=attribute, **kwargs)
 
@@ -130,6 +139,10 @@ class SQLAlchemyManager(RelationalManager):
     @staticmethod
     def _get_session():
         return get_state(current_app).db.session
+
+    @staticmethod
+    def _is_change(a, b):
+        return (a is None) != (b is None) or a != b
 
     def _query(self):
         return self.model.query
@@ -170,8 +183,11 @@ class SQLAlchemyManager(RelationalManager):
         except NoResultFound:
             raise ItemNotFound(self.resource, id=id)
 
-    def _query_order_by(self, query, sort):
+    def _query_order_by(self, query, sort=None):
         order_clauses = []
+
+        if not sort:
+            return query.order_by(self.default_sort_expression)
 
         for field, attribute, reverse in sort:
             column = getattr(self.model, attribute)
@@ -223,7 +239,7 @@ class SQLAlchemyManager(RelationalManager):
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
 
             if current_app.debug:
-                raise BackendConflict(debug_info=dict(statement=e.statement, params=e.params))
+                raise BackendConflict(debug_info=dict(exception_message=str(e), statement=e.statement, params=e.params))
             raise BackendConflict()
 
         after_create.send(self.resource, item=item)
@@ -231,9 +247,10 @@ class SQLAlchemyManager(RelationalManager):
 
     def update(self, item, changes, commit=True):
         session = self._get_session()
+
         actual_changes = {
             key: value for key, value in changes.items()
-            if get_value(key, item, None) != value
+            if self._is_change(get_value(key, item, None), value)
         }
 
         try:
@@ -251,17 +268,28 @@ class SQLAlchemyManager(RelationalManager):
             if hasattr(e.orig, 'pgcode'):
                 if e.orig.pgcode == '23505':  # duplicate key
                     raise DuplicateKey(detail=e.orig.diag.message_detail)
-            raise
+
+            if current_app.debug:
+                raise BackendConflict(debug_info=dict(exception_message=str(e), statement=e.statement, params=e.params))
+            raise BackendConflict()
 
         after_update.send(self.resource, item=item, changes=actual_changes)
         return item
 
     def delete(self, item):
+        session = self._get_session()
+
         before_delete.send(self.resource, item=item)
 
-        session = self._get_session()
-        session.delete(item)
-        session.commit()
+        try:
+            session.delete(item)
+            session.commit()
+        except IntegrityError as e:
+            session.rollback()
+
+            if current_app.debug:
+                raise BackendConflict(debug_info=dict(exception_message=str(e), statement=e.statement, params=e.params))
+            raise BackendConflict()
 
         after_delete.send(self.resource, item=item)
 

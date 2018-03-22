@@ -1,7 +1,11 @@
 import unittest
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
+
+from flask_potion.contrib.alchemy.filters import FILTERS_BY_TYPE, FILTER_NAMES
+from flask_potion.filters import filters_for_fields
 from flask_potion import ModelResource, fields, Api
+from flask_potion.contrib.alchemy import filters
 from tests import BaseTestCase
 
 
@@ -48,6 +52,7 @@ class FilterTestCase(BaseTestCase):
             class Meta:
                 model = User
                 include_id = True
+                natural_key = ('first_name', 'last_name')
 
         class ThingResource(ModelResource):
             class Schema:
@@ -55,6 +60,15 @@ class FilterTestCase(BaseTestCase):
 
             class Meta:
                 model = Thing
+                filters = {
+                    '$uri': {
+                        None: filters.EqualFilter,
+                        'eq': filters.EqualFilter,
+                        'ne': filters.NotEqualFilter,
+                        'in': filters.InFilter
+                    },
+                    '*': True
+                }
 
         class AllowUserResource(ModelResource):
             class Meta:
@@ -112,6 +126,23 @@ class FilterTestCase(BaseTestCase):
                                     {'first_name': 'Jonnie', 'last_name': 'Doe'},
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
 
+        response = self.client.get('/thing?where={"belongs_to": 1}')
+        self.assertEqual([], response.json)
+
+        response = self.client.get('/thing?where={"belongs_to": ["Jonnie", "Doe"]}')
+        self.assertEqual([], response.json)
+
+        response = self.client.get('/thing?where={"belongs_to": ["Wrong", "Name"]}')
+
+        self.assert404(response)
+        self.assertEqual({
+            'status': 404,
+            'item': {
+                '$type': 'user',
+                '$where': {'first_name': 'Wrong', 'last_name': 'Name'}},
+            'message': 'Not Found'
+        }, response.json)
+
     def test_inequality(self):
         self.post_sample_set_a()
 
@@ -143,9 +174,6 @@ class FilterTestCase(BaseTestCase):
                                     {'first_name': 'Jane', 'last_name': 'Roe'},
                                     {'first_name': 'Joe', 'last_name': 'Bloggs'}
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
-
-        response = self.client.get('/user?where={"age": {"$lt": 21.0}}')
-        self.assert400(response)
 
         response = self.client.get('/user?where={"age": {"$lt": null}}')
         self.assert400(response)
@@ -230,6 +258,16 @@ class FilterTestCase(BaseTestCase):
             self.assert200(response)
 
         response = self.client.get('/user-to-many?where={"things": {"$contains": {"$ref": "/thing/1"}}}')
+
+        self.assertEqualWithout([
+                                    {
+                                        "things": [{"$ref": "/thing/1"}],
+                                        "first_name": "John",
+                                        "last_name": "Doe"
+                                    }
+                                ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+        response = self.client.get('/user-to-many?where={"things": {"$contains": 1}}')
 
         self.assertEqualWithout([
                                     {
@@ -392,6 +430,61 @@ class FilterTestCase(BaseTestCase):
                                     {'first_name': 'John', 'last_name': 'Doe'},
                                     {'first_name': 'Jonnie', 'last_name': 'Doe'}
                                 ], response.json, without=['$uri', '$id', '$type', 'gender', 'age', 'is_staff'])
+
+    def test_inherited_filters(self):
+        self.assertEqual({
+            'string': {
+                'eq': filters.EqualFilter,
+            },
+            'email': {
+                None: filters.EqualFilter,
+                'eq': filters.EqualFilter,
+                'ne': filters.NotEqualFilter,
+                'in': filters.InFilter,
+                'contains': filters.StringContainsFilter,
+                'icontains': filters.StringIContainsFilter,
+                'endswith': filters.EndsWithFilter,
+                'iendswith': filters.IEndsWithFilter,
+                'startswith': filters.StartsWithFilter,
+                'istartswith': filters.IStartsWithFilter,
+            },
+            'uri': {
+                'eq': filters.EqualFilter,
+                'ne': filters.NotEqualFilter,
+                'endswith': filters.EndsWithFilter
+            },
+            'date_string': {
+                None: filters.EqualFilter,
+                'eq': filters.EqualFilter,
+                'ne': filters.NotEqualFilter,
+                'in': filters.InFilter,
+                'lt': filters.LessThanFilter,
+                'lte': filters.LessThanEqualFilter,
+                'gt': filters.GreaterThanFilter,
+                'gte': filters.GreaterThanEqualFilter,
+                'between': filters.DateBetweenFilter,
+            }
+        }, filters_for_fields({
+            'string': fields.String(),
+
+            # inherit from String
+            'email': fields.Email(),
+            'uri': fields.Uri(),
+
+            # no filter defined for Raw
+            'raw': fields.Raw({}),
+
+            # inherits from String, but there is a filter for DateString
+            'date_string': fields.DateString()
+        },
+            filter_names=FILTER_NAMES,
+            filters_by_type=FILTERS_BY_TYPE,
+            filters_expression={
+                'string': ['eq'],
+                'email': True,
+                'uri': ['eq', 'ne', 'endswith'],
+                '*': True
+            }))
 
     @unittest.SkipTest
     def test_sort_pages(self):

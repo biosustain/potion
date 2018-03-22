@@ -12,7 +12,6 @@ FOO_REFERENCE = {
     "properties": {
         "$ref": {
             "type": "string",
-            "format": "uri",
             "pattern": "^\/api\/foo\/[^/]+$"
         }
     },
@@ -24,7 +23,6 @@ FOO_REFERENCE_NULLABLE = {
     "properties": {
         "$ref": {
             "type": "string",
-            "format": "uri",
             "pattern": "^\/api\/foo\/[^/]+$"
         }
     },

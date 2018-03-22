@@ -110,7 +110,7 @@ class PeeweeManager(Manager):
                 elif name in write_only_fields:
                     io = "w"
 
-                if not (column.null or column.default):
+                if "w" in io and not (column.null or column.default):
                     fs.required.add(name)
 
                 fs.set(

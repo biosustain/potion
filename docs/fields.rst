@@ -59,12 +59,6 @@ Basic field types
 .. autoclass:: UUID
    :members:
 
-.. autoclass:: Object
-   :members:
-
-.. autoclass:: Object
-   :members:
-
 .. autoclass:: Custom
    :members:
 

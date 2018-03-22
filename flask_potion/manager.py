@@ -49,7 +49,7 @@ class Manager(object):
 
     def _init_filters(self, resource, meta):
         fields = resource.schema.fields
-        field_filters = filters_for_fields(resource.schema.fields,
+        field_filters = filters_for_fields(resource.schema.readable_fields,
                                            meta.filters,
                                            filter_names=self.FILTER_NAMES,
                                            filters_by_type=self.FILTERS_BY_TYPE)
@@ -233,9 +233,6 @@ class RelationalManager(Manager):
     def _query(self):
         raise NotImplementedError()
 
-    def _query(self):
-        raise NotImplementedError()
-
     def _query_filter(self, query, expression):
         raise NotImplementedError()
 
@@ -264,7 +261,7 @@ class RelationalManager(Manager):
     def _and_expression(self, expressions):
         raise NotImplementedError()
 
-    def _query_order_by(self, query, sort):
+    def _query_order_by(self, query, sort=None):
         raise NotImplementedError()
 
     def _query_get_paginated_items(self, query, page, per_page):
@@ -295,10 +292,7 @@ class RelationalManager(Manager):
             expressions = [self._expression_for_condition(condition) for condition in where]
             query = self._query_filter(query, self._and_expression(expressions))
 
-        if sort:
-            query = self._query_order_by(query, sort)
-
-        return query
+        return self._query_order_by(query, sort)
 
     def first(self, where=None, sort=None):
         """

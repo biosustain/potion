@@ -36,7 +36,6 @@ class RefKey(Key):
             "properties": {
                 "$ref": {
                     "type": "string",
-                    "format": "uri",
                     "pattern": "^{}\/[^/]+$".format(re.escape(self.resource.route_prefix))
                 }
                 # TODO consider replacing with {$type: foo, $value: 123}

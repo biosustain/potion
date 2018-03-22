@@ -181,7 +181,7 @@ def _field_from_object(parent, cls_or_instance):
 
 class Custom(Raw):
     """
-    A field type that cann be passed any schema and optional formatter/converter transformers. It is a very thin
+    A field type that can be passed any schema and optional formatter/converter transformers. It is a very thin
     wrapper over :class:`Raw`.
 
     :param dict schema: JSON-schema
@@ -413,6 +413,10 @@ class String(Raw):
     :param int min_length: minimum length of string
     :param int max_length: maximum length of string
     :param str pattern: regex pattern that the string must match
+    :param str format: a JSON Schema format string to validate against
+
+        .. warning:: The validation of format-strings is handled by :mod:`jsonschema` and may require additional
+           package dependencies.
     :param list enum: list of strings with enumeration
     """
     url_rule_converter = 'string'
@@ -700,7 +704,7 @@ class Inline(Raw, ResourceBound):
     Formats and converts items in a :class:`ModelResource` using the resource's ``schema``.
 
     :param resource: a resource reference as in :class:`ToOne`
-    :param bool patch_instance: whether to allow partial objects
+    :param bool patchable: whether to allow partial objects
     """
 
     def __init__(self, resource, patchable=False, **kwargs):
@@ -784,4 +788,4 @@ class ItemUri(Raw):
             endpoint, args = route_from(value, 'GET')
         except Exception as e:
             raise e
-        return args['id']
+        return self.target.manager.id_field.convert(args['id'])

@@ -197,6 +197,9 @@ class FieldSet(Schema, ResourceBound):
 
         return read_schema, create_schema, update_schema
 
+    @cached_property
+    def readable_fields(self):
+        return {key: field for key, field in self.fields.items() if 'r' in field.io}
 
     def schema(self):
         return self._schema()
@@ -204,6 +207,10 @@ class FieldSet(Schema, ResourceBound):
     @cached_property
     def patchable(self):
         return SchemaImpl(self._schema(True))
+
+    @cached_property
+    def all_fields_optional(self):
+        return all(((i.default is not None) or i.nullable for i in (self.fields or {}).values()))
 
     def format(self, item):
         return OrderedDict((key, field.output(key, item)) for key, field in self.fields.items() if 'r' in field.io)
@@ -252,11 +259,16 @@ class FieldSet(Schema, ResourceBound):
 
     def parse_request(self, request):
         if request.method in ('POST', 'PATCH', 'PUT', 'DELETE'):
-            if request.mimetype != 'application/json':
-                raise RequestMustBeJSON()
+            if self.fields and request.mimetype != 'application/json':
+                # Allow when all fields are optional
+                if not self.all_fields_optional:
+                    raise RequestMustBeJSON()
 
-        # TODO change to request.get_json() to catch invalid JSON
-        data = request.json
+        # TODO change to request.get_json(silent=False) to catch invalid JSON
+        data = request.get_json(silent=True)
+
+        if data is None and self.all_fields_optional:
+            data = {}
 
         # FIXME raise error if request body is not JSON
 
@@ -272,10 +284,9 @@ class FieldSet(Schema, ResourceBound):
                     # FIXME type conversion!
                     try:
                         data[name] = json.loads(value)
-                    except TypeError:
+                    except ValueError:
                         data[name] = value
                 except KeyError:
                     pass
 
         return self.convert(data, update=request.method in ('PUT', 'PATCH'), patchable=request.method == 'PATCH')
-

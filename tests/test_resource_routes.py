@@ -1,9 +1,11 @@
 from unittest import TestCase
 import unittest
+
+from flask_potion.schema import FieldSet
 from flask_potion.contrib.memory.manager import MemoryManager
 from flask_potion.resource import ModelResource, Resource
 from flask_potion import Api, fields
-from flask_potion.routes import ItemAttributeRoute, Relation, ItemRoute
+from flask_potion.routes import ItemAttributeRoute, Relation, ItemRoute, Route
 from tests import BaseTestCase
 
 
@@ -37,6 +39,10 @@ class RelationTestCase(BaseTestCase):
             def open(self, box):
                 return self.manager.update(box, {"is_open": True})
 
+            @Route.GET(schema=FieldSet({'greeting': fields.String()}))
+            def greet(self, greeting):
+                return greeting + " box!"
+
             open.response_schema = fields.Inline('self', attribute='Test')
 
         self.api.add_resource(Box)
@@ -57,6 +63,9 @@ class RelationTestCase(BaseTestCase):
             "description": "mysterious",
             "is_open": True
         }, response.json)
+
+        response = self.client.get('/box/greet?greeting=Hello')
+        self.assertEqual("Hello box!", response.json)
 
     @unittest.SkipTest
     def test_item_attribute_route(self):

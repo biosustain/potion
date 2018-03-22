@@ -34,8 +34,9 @@ Description
 Potion features include validation, model resources and routes, relations, object permissions, filtering, sorting,
 pagination, signals, and automatic API schema generation.
 
-Potion is ships with backends for **SQLAlchemy**, **peewee** and **MongoEngine** models. It is possible to add backends for other data stores, or even to use a subset of Potion without any data store at all.
+Potion ships with backends for **SQLAlchemy**, **peewee** and **MongoEngine** models. It is possible to add backends for other data stores, or even to use a subset of Potion without any data store at all.
 
+API client libraries for `Python <https://github.com/biosustain/potion-client>`_ and `JavaScript/TypeScript <https://github.com/biosustain/potion-node>`_ (generic Node as well as AngularJS and Angular) are available.
 
 User's Guide
 ^^^^^^^^^^^^
@@ -66,6 +67,7 @@ Features
 - Easy-to-use, yet highly flexible, optional permissions system
 - Signals for pre- and post-processing of requests
 - Very customizable — everything is just a resource, route, or schema
+- Access APIs more easily with client libraries for `Python <https://github.com/biosustain/potion-client>`_ and `JavaScript/TypeScript <https://github.com/biosustain/potion-node>`_
 
 
 Example *(SQLAlchemy)*
@@ -100,15 +102,6 @@ Example *(SQLAlchemy)*
 
     if __name__ == '__main__':
         app.run()
-
-
-Long-term goals
-===============
-
-The web nowadays is increasingly push rather than pull, so Potion is gradually building up to providing a scalable WebSocket 
-service (using ``asyncio`` and a message queue). This service will mirror the RESTful API so that every GET request can be done *"live"*. (In the meantime, you can use the ``signals`` module to roll your own solution).
-
-Potion is written in a way that makes it very easy to cache resources. A natural goal is to eventually ship Potion with a built-in server-side caching solution.
 
 
 Authors

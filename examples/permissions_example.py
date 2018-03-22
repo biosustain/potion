@@ -54,9 +54,9 @@ def load_user_from_request(request):
     return None
 
 
-principals = Principal(app)
+principals_ = Principal(app)
 
-@principals.identity_loader
+@principals_.identity_loader
 def read_identity_from_flask_login():
     if current_user.is_authenticated():
         return Identity(current_user.id)

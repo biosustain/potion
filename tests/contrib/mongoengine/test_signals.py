@@ -11,16 +11,14 @@ from flask_potion.routes import Relation
 from flask_potion.resource import ModelResource
 from flask_potion import Api
 from tests import BaseTestCase
+from tests.contrib.mongoengine import MongoEngineTestCase
 
 
-class MongoEngineSignalTestCase(BaseTestCase):
+class MongoEngineSignalTestCase(MongoEngineTestCase):
     def setUp(self):
         super(MongoEngineSignalTestCase, self).setUp()
-        self.app.config['MONGODB_DB'] = 'potion-test-db'
-        self.api = Api(self.app, default_manager=MongoEngineManager)
-        self.me = me = MongoEngine(self.app)
 
-        class User(me.Document):
+        class User(self.me.Document):
             name = StringField(max_length=60, null=False)
             gender = StringField(max_length=1, null=True)
 
@@ -32,10 +30,10 @@ class MongoEngineSignalTestCase(BaseTestCase):
             def __repr__(self):
                 return 'User({})'.format(self.name)
 
-        class Group(me.Document):
+        class Group(self.me.Document):
             name = StringField(max_length=60, null=False)
 
-        class GroupMembership(me.Document):
+        class GroupMembership(self.me.Document):
             user = ReferenceField(User)
             group = ReferenceField(Group)
 
@@ -57,9 +55,6 @@ class MongoEngineSignalTestCase(BaseTestCase):
         self.GroupResource = GroupResource
         self.api.add_resource(UserResource)
         self.api.add_resource(GroupResource)
-
-    def tearDown(self):
-        self.me.connection.drop_database('potion-test-db')
 
     @contextmanager
     def assertSignals(self, expected_events, sender=ANY):

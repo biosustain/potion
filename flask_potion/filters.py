@@ -1,6 +1,9 @@
+from werkzeug.utils import cached_property
+
 from .schema import Schema
 from .utils import get_value
-from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString, Uri, ItemUri
+from .fields import Integer, Boolean, Number, String, Array, ToOne, ToMany, Date, DateTime, DateString, DateTimeString, \
+    Custom
 
 
 class BaseFilter(Schema):
@@ -52,11 +55,15 @@ class BaseFilter(Schema):
         """
         raise NotImplemented()
 
+    @property
+    def filter_field(self):
+        return self.field
+
     def _schema(self):
-        raise NotImplemented()
+        return self.filter_field.request
 
     def _convert(self, value):
-        return self.field.convert(value)
+        return self.filter_field.convert(value)
 
     def convert(self, instance):
         if self.name is None:
@@ -72,12 +79,14 @@ class BaseFilter(Schema):
         Usually the equality filter is unnamed and all other filters are named.
 
         """
+        schema = simplify_schema_for_filter(self._schema())
+
         if self.name is None:
-            return self._schema()
+            return schema
         return {
             "type": "object",
             "properties": {
-                "${}".format(self.name): self._schema()
+                "${}".format(self.name): schema
             },
             "required": ["${}".format(self.name)],
             "additionalProperties": False
@@ -85,26 +94,22 @@ class BaseFilter(Schema):
 
 
 class EqualFilter(BaseFilter):
-    def _schema(self):
-        return self.field.response
-
     def op(self, a, b):
         return a == b
 
 
 class NotEqualFilter(BaseFilter):
-    def _schema(self):
-        return self.field.response
-
     def op(self, a, b):
         return a != b
 
 
 class NumberBaseFilter(BaseFilter):
-    def _schema(self):
+
+    @cached_property
+    def filter_field(self):
         if isinstance(self.field, (Date, DateTime, DateString, DateTimeString)):
-            return self.field.response
-        return {"type": "number"}
+            return self.field
+        return Number()
 
 
 class LessThanFilter(NumberBaseFilter):
@@ -130,38 +135,29 @@ class GreaterThanEqualFilter(NumberBaseFilter):
 class InFilter(BaseFilter):
     min_items = 0
 
-    def _schema(self):
-        return {
-            "type": "array",
-            "minItems": self.min_items,
-            "uniqueItems": True,
-            "items": self.field.response  # NOTE: None is valid.
-        }
-
-    def _convert(self, items):
-        return [self.field.convert(item) for item in items]
+    @cached_property
+    def filter_field(self):
+        return Array(self.field,
+                     min_items=self.min_items,
+                     unique=True)
 
     def op(self, a, b):
         return a in b
 
 
 class ContainsFilter(BaseFilter):
-    def _schema(self):
-        return self.field.container.response
-
-    def _convert(self, value):
-        return self.field.container.convert(value)
+    @cached_property
+    def filter_field(self):
+        return self.field.container
 
     def op(self, a, b):
         return hasattr(a, '__iter__') and b in a
 
 
 class StringBaseFilter(BaseFilter):
-    def _schema(self):
-        return {
-            "type": "string",
-            "minLength": 1
-        }
+    @cached_property
+    def filter_field(self):
+        return String(min_length=1)
 
 
 class StringContainsFilter(StringBaseFilter):
@@ -170,11 +166,9 @@ class StringContainsFilter(StringBaseFilter):
 
 
 class StringIContainsFilter(BaseFilter):
-    def _schema(self):
-        return {
-            "type": "string",
-            "minLength": 1
-        }
+    @cached_property
+    def filter_field(self):
+        return String(min_length=1)
 
     def op(self, a, b):
         return a and b.lower() in a.lower()
@@ -201,17 +195,11 @@ class IEndsWithFilter(StringBaseFilter):
 
 
 class DateBetweenFilter(BaseFilter):
-    def _schema(self):
-        return {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 2,
-            "items": self.field.response
-        }
-
-    def _convert(self, value):
-        before, after = value
-        return self.field.convert(before), self.field.convert(after)
+    @cached_property
+    def filter_field(self):
+        return Array(self.field,
+                     min_items=2,
+                     max_items=2)
 
     def op(self, a, b):
         before, after = b
@@ -240,16 +228,6 @@ FILTER_NAMES = (
 )
 
 FILTERS_BY_TYPE = (
-    (Uri, (
-        EqualFilter,
-        NotEqualFilter,
-        InFilter
-    )),
-    (ItemUri, (
-        EqualFilter,
-        NotEqualFilter,
-        InFilter
-    )),
     (Boolean, (
         EqualFilter,
         NotEqualFilter,
@@ -352,6 +330,21 @@ def _get_names_for_filter(filter, filter_names=FILTER_NAMES):
             yield name
 
 
+def filters_for_field_class(field_class,
+                            filters_by_type=FILTERS_BY_TYPE):
+    """
+    Looks up available filters from the most appropriate base class.
+
+    :param field_class:
+    :param filters_by_type:
+    :return:
+    """
+    filters_by_type = dict(filters_by_type)
+    for cls in (field_class,) + field_class.__bases__:
+        if cls in filters_by_type:
+            return filters_by_type[cls]
+    return ()
+
 def filters_for_fields(fields,
                        filters_expression,
                        filter_names=FILTER_NAMES,
@@ -402,14 +395,11 @@ def filters_for_fields(fields,
     filters_by_type = dict(filters_by_type)
 
     for field_name, field in fields.items():
-        try:
-            field_filters = {
-                name: filter
-                for filter in filters_by_type[field.__class__]
-                for name in _get_names_for_filter(filter, filter_names)
-            }
-        except KeyError:
-            continue
+        field_filters = {
+            name: filter
+            for filter in filters_for_field_class(field.__class__, filters_by_type)
+            for name in _get_names_for_filter(filter, filter_names)
+        }
 
         if isinstance(filters_expression, dict):
             try:
@@ -420,9 +410,9 @@ def filters_for_fields(fields,
                 except KeyError:
                     continue
 
-            # if isinstance(field_expression, dict):
-            #     field_filters = field_expression
-            if isinstance(field_expression, (list, tuple)):
+            if isinstance(field_expression, dict):
+                field_filters = field_expression
+            elif isinstance(field_expression, (list, tuple)):
                 field_filters = {
                     name: filter
                     for name, filter in field_filters.items()
@@ -433,7 +423,8 @@ def filters_for_fields(fields,
         elif filters_expression is not True:
             continue
 
-        filters[field_name] = field_filters
+        if field_filters:
+            filters[field_name] = field_filters
 
     return filters
 
@@ -452,3 +443,20 @@ def convert_filters(value, field_filters):
 
     filter = field_filters[None]
     return filter.convert(value)
+
+
+def simplify_schema_for_filter(schema):
+    """
+
+    Removes properties from a schema that are not relevant to a filter; namely: "readOnly".
+
+    :param dict schema:
+    :return:
+    """
+    if schema:
+        return {
+            key: value
+            for key, value in schema.items()
+            if key not in ('readOnly',)
+            }
+    return schema

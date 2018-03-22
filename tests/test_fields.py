@@ -8,6 +8,28 @@ from flask_potion.exceptions import ValidationError
 from flask_potion import fields
 
 
+try:
+    from datetime import timezone
+except ImportError:
+    from datetime import tzinfo, timedelta
+
+    class timezone(tzinfo):
+        def __init__(self, utcoffset, name=None):
+            self._utcoffset = utcoffset
+            self._name = name
+
+        def utcoffset(self, dt):
+            return self._utcoffset
+
+        def tzname(self, dt):
+            return self._name
+
+        def dst(self, dt):
+            return timedelta(0)
+
+    timezone.utc = timezone(timedelta(0), 'UTC')
+
+
 class FieldsTestCase(TestCase):
     def test_raw_schema(self):
         foo = fields.Raw({"type": "string"})
@@ -146,29 +168,25 @@ class FieldsTestCase(TestCase):
         with self.assertRaises(ValidationError):
             fields.DateTime().convert({"$nope": True})
 
-        try:
-            from datetime import timezone
-        except ImportError:
-            from datetime import tzinfo, timedelta
+        self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc),
+                         fields.DateTime().convert({"$date": 1234567000000}))
 
-            class timezone(tzinfo):
-                def __init__(self, utcoffset, name=None):
-                    self._utcoffset = utcoffset
-                    self._name = name
+        self.assertEqual({"$date": 1329177600000},
+                         fields.DateTime().format(datetime(2012, 2, 14, 0, 0, 0, 0, timezone.utc)))
 
-                def utcoffset(self, dt):
-                    return self._utcoffset
+    def test_date_time_string_convert(self):
+        with self.assertRaises(ValidationError):
+            fields.DateTimeString().convert('01.01.2016')
 
-                def tzname(self, dt):
-                    return self._name
+        self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc),
+                         fields.DateTimeString().convert('2009-02-13T23:16:40Z'))
 
-                def dst(self, dt):
-                    return timedelta(0)
+    def test_uri_convert(self):
+        with self.assertRaises(ValidationError):
+            fields.Uri().convert('foo bad')
 
-            timezone.utc = timezone(timedelta(0), 'UTC')
-
-        self.assertEqual(datetime(2009, 2, 13, 23, 16, 40, 0, timezone.utc), fields.DateTime().convert({"$date": 1234567000000}))
-        self.assertEqual({"$date": 1329177600000}, fields.DateTime().format(datetime(2012, 2, 14, 0, 0, 0, 0, timezone.utc)))
+        self.assertEqual('http://www.ietf.org/rfc/rfc2396.txt',
+                         fields.Uri().convert('http://www.ietf.org/rfc/rfc2396.txt'))
 
     def test_uuid_schema(self):
         self.assertEqual({
