@@ -56,7 +56,7 @@ setup(
             'Flask-SQLAlchemy>=2.0'
         ],
         'peewee': [
-            'peewee>=2.6.3'
+            'peewee==2.*'
         ],
         'mongoengine': [
             'Flask-MongoEngine>=0.7.0'
