@@ -339,11 +339,12 @@ def filters_for_field_class(field_class,
     :param filters_by_type:
     :return:
     """
+    field_class_filters = ()
     filters_by_type = dict(filters_by_type)
     for cls in (field_class,) + field_class.__bases__:
         if cls in filters_by_type:
-            return filters_by_type[cls]
-    return ()
+            field_class_filters += filters_by_type[cls]
+    return field_class_filters
 
 def filters_for_fields(fields,
                        filters_expression,
