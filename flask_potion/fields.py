@@ -746,7 +746,10 @@ class Inline(Raw, ResourceBound):
     def format(self, item):
         return self.target.schema.format(item)
 
-    def convert(self, item, update=False):
+    def convert(self, item, update=False, validate=True):
+        if not validate:
+            raise NotImplementedError()
+
         return self.target.schema.convert(item, update=update, patchable=self.patchable)
 
 
