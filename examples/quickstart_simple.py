@@ -18,6 +18,8 @@ class BookResource(ModelResource):
 
     class Schema:
         year_published = fields.Integer(minimum=1400)
+    
+BookResource.schema.set('$id', fields.Integer(attribute='id', nullable=True))
 
 
 api = Api(app)
