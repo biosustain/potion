@@ -67,3 +67,21 @@ class ModelResourceTestCase(BaseTestCase):
             "slug": "foo",
             "secret": "mystery"
         }, FooResource.manager.items[1])
+
+    def test_inline_schema(self):
+        class FooResource(ModelResource):
+            class Meta:
+                name = "foo"
+
+
+        class BarResource(ModelResource):
+            class Meta:
+                name = "bar"
+
+        self.api.add_resource(FooResource)
+        self.api.add_resource(BarResource)
+
+        foo = fields.Inline(FooResource)
+        foo.bind(BarResource)
+
+        self.assertEqual({'$ref': '/foo/schema'}, foo.response)
