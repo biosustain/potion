@@ -38,6 +38,12 @@ class RouteTestCase(BaseTestCase):
             "title": "foo"
         }, route.schema_factory(Resource))
 
+    def test_route_success_code(self):
+        route = Route.GET(success_code=201, rule='/test')(lambda *args, **kwargs: None)
+        view = route.view_factory('', Resource)
+
+        self.assertEqual((None, 201), view())
+
 
 class ResourceTestCase(BaseTestCase):
     def test_potion_resource(self):
@@ -277,6 +283,24 @@ class ResourceTestCase(BaseTestCase):
 
         response = self.client.get("/foo/unauthorize-decorator")
         self.assert401(response)
+
+    def test_route_success_code(self):
+        class FooResource(Resource):
+            @Route.GET(success_code=201)
+            def foo(self):
+                return 'foo'
+
+            class Meta:
+                name = 'foo'
+
+        api = Api(self.app)
+        api.add_resource(FooResource)
+
+        foo = self.app
+
+        response = self.client.get("/foo/foo")
+        self.assertEqual(201, response.status_code)
+        self.assertEqual('foo', response.json)
 
     def test_route_disabling(self):
 

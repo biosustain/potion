@@ -124,7 +124,8 @@ class Route(object):
                  description=None,
                  schema=None,
                  response_schema=None,
-                 format_response=True):
+                 format_response=True,
+                 success_code=None):
         self.rel = rel
         self.rule = rule
         self.method = method
@@ -135,6 +136,7 @@ class Route(object):
 
         self.view_func = view_func
         self.format_response = format_response
+        self.success_code = success_code
 
         annotations = getattr(view_func, '__annotations__', None)
 
@@ -267,6 +269,10 @@ class Route(object):
                 args += (request_schema.parse_request(request),)
 
             response = view_func(instance, *args, **kwargs)
+
+            if not isinstance(response, tuple) and self.success_code:
+                response = (response, self.success_code)
+
             # TODO add 'describedBy' link header if response schema is a ToOne/ToMany/Instances field.
             if response_schema is None or not self.format_response:
                 return response
