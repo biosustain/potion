@@ -11,9 +11,13 @@ class PotionException(Exception):
         return self.werkzeug_exception.code
 
     def as_dict(self):
+        if self.args:
+            message = str(self)
+        else:
+            message = HTTP_STATUS_CODES.get(self.status_code, '')
         return {
             'status': self.status_code,
-            'message': HTTP_STATUS_CODES.get(self.status_code, '')
+            'message': message
         }
 
     def get_response(self):
@@ -65,6 +69,7 @@ class ValidationError(PotionException):
     werkzeug_exception = BadRequest
 
     def __init__(self, errors, root=None, schema_uri='#'):
+        super(ValidationError, self).__init__()
         self.root = root
         self.errors = errors
         self.schema_uri = schema_uri
@@ -96,6 +101,7 @@ class DuplicateKey(PotionException):
     werkzeug_exception = Conflict
 
     def __init__(self, **kwargs):
+        super(DuplicateKey, self).__init__()
         self.data = kwargs
 
 
@@ -103,6 +109,7 @@ class BackendConflict(PotionException):
     werkzeug_exception = Conflict
 
     def __init__(self, **kwargs):
+        super(BackendConflict, self).__init__()
         self.data = kwargs
 
     def as_dict(self):

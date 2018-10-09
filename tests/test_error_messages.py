@@ -2,7 +2,7 @@ import unittest
 
 from werkzeug.exceptions import Forbidden
 
-from flask_potion.exceptions import DuplicateKey
+from flask_potion.exceptions import DuplicateKey, PotionException
 from flask_potion.routes import Route
 from flask_potion import Api, Resource
 from tests import BaseTestCase
@@ -26,6 +26,10 @@ class ErrorMessagesTestCase(BaseTestCase):
             def duplicate_key(self):
                 raise DuplicateKey()
 
+            @Route.GET
+            def custom_message(self):
+                raise PotionException('something went wrong')
+
             class Meta:
                 name = 'error'
 
@@ -46,6 +50,14 @@ class ErrorMessagesTestCase(BaseTestCase):
         self.assertEqual({
             "message": "Conflict",
             "status": 409
+        }, response.json)
+
+    def test_potion_exception_custom_message(self):
+        response = self.client.get('/prefix/error/custom-message')
+        self.assertStatus(response, 500)
+        self.assertEqual({
+            "message": "something went wrong",
+            "status": 500
         }, response.json)
 
     def test_not_found_exception(self):
