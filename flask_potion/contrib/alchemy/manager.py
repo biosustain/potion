@@ -229,8 +229,7 @@ class SQLAlchemyManager(RelationalManager):
 
         try:
             session.add(item)
-            if commit:
-                session.commit()
+            self.commit_or_flush(commit)
         except IntegrityError as e:
             session.rollback()
 
@@ -259,8 +258,7 @@ class SQLAlchemyManager(RelationalManager):
             for key, value in changes.items():
                 setattr(item, key, value)
 
-            if commit:
-                session.commit()
+            self.commit_or_flush(commit)
         except IntegrityError as e:
             session.rollback()
 
@@ -276,14 +274,14 @@ class SQLAlchemyManager(RelationalManager):
         after_update.send(self.resource, item=item, changes=actual_changes)
         return item
 
-    def delete(self, item):
+    def delete(self, item, commit=True):
         session = self._get_session()
 
         before_delete.send(self.resource, item=item)
 
         try:
             session.delete(item)
-            session.commit()
+            self.commit_or_flush(commit)
         except IntegrityError as e:
             session.rollback()
 
@@ -322,3 +320,10 @@ class SQLAlchemyManager(RelationalManager):
     def commit(self):
         session = self._get_session()
         session.commit()
+
+    def commit_or_flush(self, commit):
+        session = self._get_session()
+        if commit:
+            session.commit()
+        else:
+            session.flush()
