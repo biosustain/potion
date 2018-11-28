@@ -548,6 +548,8 @@ class DateTimeString(Raw):
         super(DateTimeString, self).__init__({"type": "string", "format": "date-time"}, **kwargs)
 
     def formatter(self, value):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
         return value.isoformat()
 
     def converter(self, value):
