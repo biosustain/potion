@@ -717,7 +717,7 @@ class Inline(Raw, ResourceBound):
                     return {"$ref": "#"}
                 return {"$ref": self.target.routes["describedBy"].rule_factory(self.target)}
 
-            if not not self.patchable:
+            if not self.patchable:
                 return _response_schema()
             else:
                 return _response_schema(), self.target.schema.patchable.update

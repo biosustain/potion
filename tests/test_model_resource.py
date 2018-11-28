@@ -85,3 +85,32 @@ class ModelResourceTestCase(BaseTestCase):
         foo.bind(BarResource)
 
         self.assertEqual({'$ref': '/foo/schema'}, foo.response)
+
+    def test_schema_io_create_flag(self):
+
+        class FooResource(ModelResource):
+            class Schema:
+                name = fields.String()
+                slug = fields.String(io="cr")
+
+            class Meta:
+                name = "foo"
+
+        self.api.add_resource(FooResource)
+        data, code, headers = FooResource().described_by()
+        [create_link] = [
+            link for link in data['links'] if link['rel'] == 'create']
+        [update_link] = [
+            link for link in data['links'] if link['rel'] == 'update']
+        self.assertEqual({'$ref': '#'}, create_link['schema'])
+        self.assertEqual({
+                             "type": "object",
+                             "additionalProperties": False,
+                             "properties": {
+                                 "name": {
+                                     "type": "string"
+                                 }
+                             }
+                         }, update_link["schema"])
+        self.assertEqual(
+            ["$uri", "name", "slug"],  sorted(data["properties"].keys()))
