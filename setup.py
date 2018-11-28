@@ -3,6 +3,16 @@ from __future__ import unicode_literals
 import codecs
 from setuptools import setup, find_packages
 
+
+tests_require = [
+    'Flask-Testing>=0.4.1',
+    'Flask-Principal>=0.4.0',
+    'Flask-SQLAlchemy>=2.0',
+    'Flask-MongoEngine>=0.7.1',
+    'peewee==2.*',
+    'nose>=1.1.2',
+]
+
 setup(
     name='Flask-Potion',
     version='0.15.1',
@@ -14,14 +24,7 @@ setup(
     description='Powerful REST API framework for Flask and SQLAlchemy',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
-    tests_require=[
-        'Flask-Testing>=0.4.1',
-        'Flask-Principal>=0.4.0',
-        'Flask-SQLAlchemy>=2.0',
-        'Flask-MongoEngine>=0.7.1',
-        'peewee==2.*',
-        'nose>=1.1.2',
-    ],
+    tests_require=tests_require,
     install_requires=[
         'Flask>=0.10',
         'jsonschema>=2.4.0',
@@ -61,5 +64,6 @@ setup(
         'mongoengine': [
             'Flask-MongoEngine>=0.7.0'
         ],
+        'tests': tests_require,
     }
 )
