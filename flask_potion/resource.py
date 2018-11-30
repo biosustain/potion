@@ -212,11 +212,28 @@ class ModelResourceMeta(ResourceMeta):
             if 'model' in changes or 'model' in meta and 'manager' in changes:
                 if meta.manager is not None:
                     class_.manager = meta.manager(class_, meta.model)
+
+        sort_attribute = meta.get('sort_attribute')
+        if sort_attribute is not None and isinstance(sort_attribute, str):
+            meta.sort_attribute = sort_attribute, False
+
         return class_
 
 
 class ModelResource(six.with_metaclass(ModelResourceMeta, Resource)):
     """
+    :class:`Meta` class attributes:
+
+    =====================  ==============================  ==============================================================================
+    Attribute name         Default                         Description
+    =====================  ==============================  ==============================================================================
+    manager                ``Api.default_manager``         A data store connection is maintained by a :class:`manager.Manager` instance.
+                                                           Managers are configured through attributes in ``Meta``. Most managers expect
+                                                           a *model* to be defined under ``Meta.model``.
+    sort_attribute         None                            The field used to sort the list in the `instances` endpoint. Can be the
+                                                           field name as ``string`` or a ``tuple`` with the field name and a boolean
+                                                           for ``reverse`` (defaults to ``False``).
+    =====================  ==============================  ==============================================================================
 
     .. method:: create
 
