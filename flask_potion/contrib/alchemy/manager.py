@@ -45,8 +45,7 @@ class SQLAlchemyManager(RelationalManager):
             self.id_attribute = mapper.primary_key[0].name
 
         self.id_field = self._get_field_from_column_type(self.id_column, self.id_attribute, io="r")
-        self.default_sort_expression = self._get_sort_expression(
-            model, meta, self.id_column)
+        self.default_sort_expression = self.id_column.asc()
 
         fs = resource.schema
         if meta.include_id:
@@ -86,14 +85,6 @@ class SQLAlchemyManager(RelationalManager):
                 if "w" in io and not (column.nullable or column.default):
                     fs.required.add(name)
                 fs.set(name, self._get_field_from_column_type(column, name, io=io))
-
-    def _get_sort_expression(self, model, meta, id_column):
-        if meta.sort_attribute is None:
-            return id_column.asc()
-
-        attr_name, reverse = meta.sort_attribute
-        attr = getattr(model, attr_name)
-        return attr.desc() if reverse else attr.asc()
 
     def _get_field_from_column_type(self, column, attribute, io="rw"):
         args = ()
@@ -204,12 +195,7 @@ class SQLAlchemyManager(RelationalManager):
             if isinstance(field, fields.ToOne):
                 target_alias = aliased(field.target.meta.model)
                 query = query.outerjoin(target_alias, column).reset_joinpoint()
-                sort_attribute = None
-                if field.target.meta.sort_attribute:
-                    sort_attribute, _ = field.target.meta.sort_attribute
-                column = getattr(
-                    target_alias,
-                    sort_attribute or field.target.manager.id_attribute)
+                column = getattr(target_alias, field.target.meta.sort_attribute or field.target.manager.id_attribute)
 
             order_clauses.append(column.desc() if reverse else column.asc())
 
