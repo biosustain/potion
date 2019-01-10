@@ -284,10 +284,8 @@ class FieldsTestCase(TestCase):
     def test_object_convert_properties(self):
         pass
 
-    def test_object_convert_pattern(self):
+    def test_object_pattern_schema(self):
         o = fields.Object(fields.Integer, pattern="[A-Z][0-9]+")
-
-        self.assertEqual({"A3": 1, "B12": 2}, o.convert({"A3": 1, "B12": 2}))
 
         self.assertEqual({
                              "type": "object",
@@ -296,6 +294,21 @@ class FieldsTestCase(TestCase):
                                  "[A-Z][0-9]+": {"type": "integer"}
                              }
                          }, o.response)
+
+        o = fields.Object(pattern_properties={"[A-Z][0-9]+": fields.Integer})
+
+        self.assertEqual({
+                             "type": "object",
+                             "additionalProperties": False,
+                             "patternProperties": {
+                                 "[A-Z][0-9]+": {"type": "integer"}
+                             }
+                         }, o.response)
+
+    def test_object_convert_pattern(self):
+        o = fields.Object(fields.Integer, pattern="[A-Z][0-9]+")
+
+        self.assertEqual({"A3": 1, "B12": 2}, o.convert({"A3": 1, "B12": 2}))
 
         with self.assertRaises(ValidationError):
             o.convert({"A2": "string"})

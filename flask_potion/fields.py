@@ -281,6 +281,8 @@ class Object(Raw, ResourceBound):
 
         if isinstance(pattern_properties, (type, Raw)):
             self.pattern_properties = _field_from_object(self, pattern_properties)
+        elif isinstance(pattern_properties, dict):
+            self.pattern_properties = {p: _field_from_object(self, f) for p, f in pattern_properties.items()}
 
         def schema():
             request = {"type": "object"}
