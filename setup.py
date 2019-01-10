@@ -15,7 +15,7 @@ tests_require = [
 
 setup(
     name='Flask-Potion',
-    version='0.15.1',
+    version='0.16.0',
     packages=find_packages(exclude=['*tests*']),
     url='http://potion.readthedocs.org/en/latest/',
     license='MIT',
@@ -35,7 +35,7 @@ setup(
         'strict-rfc3339'
     ],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
