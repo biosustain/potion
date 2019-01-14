@@ -29,9 +29,6 @@ class SQLAlchemyManager(RelationalManager):
     FILTERS_BY_TYPE = FILTERS_BY_TYPE
     PAGINATION_TYPES = (Pagination, SAPagination)
 
-    def __init__(self, resource, model):
-        super(SQLAlchemyManager, self).__init__(resource, model)
-
     def _init_model(self, resource, model, meta):
         mapper = class_mapper(model)
 
