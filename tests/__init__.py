@@ -1,6 +1,9 @@
+from pprint import pformat
+
 from flask import json, Flask
 from flask.testing import FlaskClient
 from flask_testing import TestCase
+import sqlalchemy
 
 
 class ApiClient(FlaskClient):
@@ -50,3 +53,50 @@ class BaseTestCase(TestCase):
 
     def pp(self, obj):
         print(json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': ')))
+
+
+class DBQueryCounter:
+    """
+    Use as a context manager to count the number of execute()'s performed
+    against the given sqlalchemy connection.
+    Usage:
+        with DBQueryCounter(db.session) as ctr:
+            db.session.execute("SELECT 1")
+            db.session.execute("SELECT 1")
+        ctr.assert_count(2)
+    """
+
+    def __init__(self, session, reset=True):
+        self.session = session
+        self.reset = reset
+        self.statements = []
+
+    def __enter__(self):
+        if self.reset:
+            self.session.expire_all()
+        sqlalchemy.event.listen(
+            self.session.get_bind(), 'after_execute', self._callback
+        )
+        return self
+
+    def __exit__(self, *_):
+        sqlalchemy.event.remove(
+            self.session.get_bind(), 'after_execute', self._callback
+        )
+
+    def get_count(self):
+        return len(self.statements)
+
+    def _callback(self, conn, clause_element, multiparams, params, result):
+        self.statements.append((clause_element, multiparams, params))
+
+    def display_all(self):
+        for clause, multiparams, params in self.statements:
+            print(pformat(str(clause)), multiparams, params)
+            print('\n')
+        count = self.get_count()
+        return 'Counted: {count}'.format(count=count)
+
+    def assert_count(self, expected):
+        count = self.get_count()
+        assert count == expected, self.display_all()

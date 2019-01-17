@@ -1,11 +1,11 @@
 import unittest
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import backref
+from sqlalchemy.orm import backref, joinedload
 from flask_potion.routes import Relation
 from flask_potion.contrib.alchemy import SQLAlchemyManager
 from flask_potion import Api, fields
 from flask_potion.resource import ModelResource
-from tests import BaseTestCase
+from tests import BaseTestCase, DBQueryCounter
 
 
 class SQLAlchemyTestCase(BaseTestCase):
@@ -523,3 +523,77 @@ class SQLAlchemySortTestCase(BaseTestCase):
         self.assert200(response)
         type_uris = [entry['type']['$ref'] for entry in response.json]
         self.assertTrue(type_uris, [bbb_uri, aaa_uri])
+
+
+class QueryOptionsSQLAlchemyTestCase(BaseTestCase):
+    def setUp(self):
+        super(QueryOptionsSQLAlchemyTestCase, self).setUp()
+        self.app.config['SQLALCHEMY_ENGINE'] = 'sqlite://'
+        self.api = Api(self.app, default_manager=SQLAlchemyManager)
+        self.sa = sa = SQLAlchemy(self.app, session_options={"autoflush": False})
+
+        class Type(sa.Model):
+            id = sa.Column(sa.Integer, primary_key=True)
+            name = sa.Column(sa.String(60), nullable=False, unique=True)
+            version = sa.Column(sa.Integer(), nullable=True)
+            machines = sa.relationship('Machine', back_populates='type')
+
+        class Machine(sa.Model):
+            id = sa.Column(sa.Integer, primary_key=True)
+            name = sa.Column(sa.String(60), nullable=False)
+
+            wattage = sa.Column(sa.Float)
+
+            type_id = sa.Column(sa.Integer, sa.ForeignKey(Type.id))
+            type = sa.relationship(Type, back_populates='machines')
+
+        sa.create_all()
+
+        class MachineResource(ModelResource):
+            class Meta:
+                model = Machine
+                include_type = True
+
+            class Schema:
+                type = fields.ToOne('type')
+
+        class TypeResource(ModelResource):
+            class Meta:
+                model = Type
+                include_type = True
+                query_options = [joinedload(Type.machines)]
+
+            class Schema:
+                machines = fields.ToMany('machine')
+
+        self.MachineResource = MachineResource
+        self.TypeResource = TypeResource
+
+        self.api.add_resource(MachineResource)
+        self.api.add_resource(TypeResource)
+
+    def tearDown(self):
+        self.sa.drop_all()
+
+    def test_get(self):
+        response = self.client.post('/type', data={"name": "aaa"})
+        self.assert200(response)
+        aaa_uri = response.json["$uri"]
+
+        response = self.client.post(
+            '/machine', data={"name": "foo", "type": {"$ref": aaa_uri}})
+        self.assert200(response)
+        machine_uri = response.json['$uri']
+
+        with DBQueryCounter(self.sa.session) as counter:
+            response = self.client.get(aaa_uri)
+            self.assert200(response)
+        self.assertJSONEqual(
+            response.json,
+            {'$type': 'type',
+             '$uri': aaa_uri,
+             'machines': [{'$ref': machine_uri}],
+             'name': 'aaa',
+             'version': None,
+             })
+        counter.assert_count(1)

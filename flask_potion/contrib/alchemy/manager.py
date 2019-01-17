@@ -151,7 +151,12 @@ class SQLAlchemyManager(RelationalManager):
         return (a is None) != (b is None) or a != b
 
     def _query(self):
-        return self.model.query
+        query = self.model.query
+        try:
+            query_options = self.resource.meta.query_options
+        except KeyError:
+            return query
+        return query.options(*query_options)
 
     def _query_filter(self, query, expression):
         return query.filter(expression)
