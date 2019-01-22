@@ -20,7 +20,7 @@ setup(
     url='http://potion.readthedocs.org/en/latest/',
     license='MIT',
     author='Lars Schöning',
-    author_email='lays@biosustain.dtu.dk',
+    author_email='lars@lyschoening.de',
     description='Powerful REST API framework for Flask and SQLAlchemy',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
