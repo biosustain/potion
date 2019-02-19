@@ -1,4 +1,3 @@
-dist: xenial
 services:
   - mongodb
 language: python
